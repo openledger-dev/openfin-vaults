@@ -1,66 +1,32 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import React from "react";
+import { useAccount } from "wagmi";
+import { Navbar } from "@/components/Navbar";
+import { StatsBar } from "@/components/StatsBar";
+import { UserPositionsPanel } from "@/components/UserPositionsPanel";
+import { VaultsTable } from "@/components/VaultsTable";
+import { useVaultData } from "@/hooks/useVaultData";
+import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
+
+export default function HomePage() {
+  const { address: userAddress } = useAccount();
+  const { vaults, isLoading } = useVaultData(VAULT_PLATFORMS, userAddress);
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div style={{ minHeight: "100vh", background: "#161616" }}>
+      <Navbar />
+      <div style={{ paddingTop: "3rem" }}>
+        <StatsBar vaults={vaults} isLoading={isLoading} />
+        <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "2rem 2rem 4rem" }}>
+          <section style={{ marginBottom: "2.5rem" }}>
+            <UserPositionsPanel vaults={vaults} isLoading={isLoading} />
+          </section>
+          <section>
+            <VaultsTable vaults={vaults} isLoading={isLoading} />
+          </section>
+        </main>
+      </div>
     </div>
   );
 }

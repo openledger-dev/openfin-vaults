@@ -3,15 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --webpack",
     "lint": "eslint"
   },
   "dependencies": {
-    "next": "16.1.6",
+    "@carbon/icons-react": "^11.76.0",
+    "@carbon/react": "^1.103.0",
+    "@reown/appkit": "^1.8.19",
+    "@reown/appkit-adapter-wagmi": "^1.8.19",
+    "@tanstack/react-query": "^5.90.21",
+    "axios": "^1.13.6",
+    "next": "^16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "viem": "^2.47.2",
+    "wagmi": "^3.5.0"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -19,6 +27,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "sass": "^1.98.0",
     "typescript": "^5"
   }
 }
