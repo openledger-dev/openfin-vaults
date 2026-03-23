@@ -37,7 +37,7 @@ const SECONDS_PER_BLOCK_DEFAULT = 12;
 
 // Maximum blocks to query in a single eth_getLogs call.
 // Most public RPCs (Alchemy free tier, Infura) support up to 10k–50k.
-const MAX_QUERY_BLOCKS = 50_000n;
+const MAX_QUERY_BLOCKS = BigInt(50_000);
 
 // Minimum days of history required to report an APY
 const MIN_DAYS = 0.5;
@@ -84,7 +84,7 @@ export function use7dApy(
       // How many blocks cover 7 days? Cap at MAX_QUERY_BLOCKS.
       const blocks7d = BigInt(blocksPerDay * 7);
       const queryRange = blocks7d < MAX_QUERY_BLOCKS ? blocks7d : MAX_QUERY_BLOCKS;
-      const fromBlock = currentBlock > queryRange ? currentBlock - queryRange : 0n;
+      const fromBlock = currentBlock > queryRange ? currentBlock - queryRange : BigInt(0);
 
       // Fetch all PriceUpdated events for this (vault, asset) pair in the window
       const logs = await publicClient.getLogs({
@@ -108,7 +108,7 @@ export function use7dApy(
       const priceStart = oldestLog.args.price;
       const priceEnd   = newestLog.args.price;
 
-      if (!priceStart || !priceEnd || priceStart === 0n) return null;
+      if (!priceStart || !priceEnd || priceStart === BigInt(0)) return null;
 
       // Blocks actually covered — convert to days
       const blocksCovered = Number(newestLog.blockNumber - oldestLog.blockNumber);

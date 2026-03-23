@@ -1,5 +1,7 @@
-import path from "path";
 import type { NextConfig } from "next";
+
+/** Relative to project root — Turbopack rejects absolute paths in resolveAlias. */
+const EMPTY_STUB = "./src/lib/empty.ts";
 
 // Optional wagmi/Reown connector peer deps — not needed at runtime.
 const STUB_PACKAGES = [
@@ -20,7 +22,7 @@ const nextConfig: NextConfig = {
   // Turbopack (used for `next build`)
   turbopack: {
     resolveAlias: Object.fromEntries(
-      STUB_PACKAGES.map((pkg) => [pkg, path.resolve("./src/lib/empty.ts")])
+      STUB_PACKAGES.map((pkg) => [pkg, EMPTY_STUB])
     ),
   },
 

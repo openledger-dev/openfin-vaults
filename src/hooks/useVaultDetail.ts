@@ -66,9 +66,9 @@ function fmt(raw: bigint | undefined, dec: number, sym?: string): string {
 
 /**
  * Fetches complete on-chain detail for a single UltraVault.
- * Two-stage multicall:
- *  Stage 1 — vault metadata + user reads (requires vaultAddress)
- *  Stage 2 — asset token metadata (requires asset address from stage 1)
+ *
+ * Each `useReadContracts` batch uses a single ABI — mixing VAULT_READ_ABI and
+ * ERC20_ABI in one call breaks wagmi/viem's inferred `functionName` types.
  */
 export function useVaultDetail(
   vaultAddress: `0x${string}` | undefined,
@@ -76,43 +76,35 @@ export function useVaultDetail(
 ): VaultDetail {
   const enabled = !!vaultAddress;
 
-  // ── Stage 1: vault + user reads ─────────────────────────────────────────
+  // ── Stage 1a: vault view calls only ───────────────────────────────────────
   const { data: s1, isLoading: s1Loading } = useReadContracts({
     contracts: [
-      // [0] name
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "name" },
-      // [1] symbol
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "symbol" },
-      // [2] decimals
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "decimals" },
-      // [3] totalSupply
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "totalSupply" },
-      // [4] asset address
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "asset" },
-      // [5] totalAssets
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "totalAssets" },
-      // [6] paused
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "paused" },
-      // [7] getFees
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "getFees" },
-      // [8] fundsHolder
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "fundsHolder" },
-      // [9] oracle
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "oracle" },
-      // [10] feeRecipient
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "feeRecipient" },
-      // [11] rateProvider
       { address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "rateProvider" },
-      // [12] user vault share balance (if connected)
-      ...(userAddress
-        ? [{ address: vaultAddress!, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress] }]
-        : []),
-      // [13] user vault share allowance (for requestRedeemOfAsset)
-      ...(userAddress
-        ? [{ address: vaultAddress!, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, vaultAddress!] }]
-        : []),
     ],
     query: { enabled },
+  });
+
+  // ── Stage 1b: user vault-share balance + allowance (ERC-20 on vault) ─────
+  const { data: s1Shares, isLoading: s1SharesLoading } = useReadContracts({
+    contracts:
+      userAddress && vaultAddress
+        ? [
+            { address: vaultAddress, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress] },
+            { address: vaultAddress, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, vaultAddress] },
+          ]
+        : [],
+    query: { enabled: enabled && !!userAddress },
   });
 
   // Extract asset address from stage 1
@@ -121,33 +113,49 @@ export function useVaultDetail(
 
   const hasAsset = !!assetAddress;
 
-  // ── Stage 2: asset token + user reads on asset ───────────────────────────
-  const { data: s2, isLoading: s2Loading } = useReadContracts({
+  // ── Stage 2a: asset symbol + decimals (fixed shape — no conditional spread)
+  const { data: s2Meta, isLoading: s2MetaLoading } = useReadContracts({
     contracts: assetAddress
       ? [
-          // [0] asset symbol
           { address: assetAddress, abi: ERC20_ABI, functionName: "symbol" },
-          // [1] asset decimals
           { address: assetAddress, abi: ERC20_ABI, functionName: "decimals" },
-          // [2] user asset balance
-          ...(userAddress
-            ? [{ address: assetAddress, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress] }]
-            : []),
-          // [3] user asset allowance granted to vault
-          ...(userAddress && vaultAddress
-            ? [{ address: assetAddress, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, vaultAddress] }]
-            : []),
-          // [4] pending redeem
-          ...(userAddress
-            ? [{ address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "getPendingRedeemForAsset" as const, args: [assetAddress, userAddress] }]
-            : []),
-          // [5] claimable redeem
-          ...(userAddress
-            ? [{ address: vaultAddress!, abi: VAULT_READ_ABI, functionName: "getClaimableRedeemForAsset" as const, args: [assetAddress, userAddress] }]
-            : []),
         ]
       : [],
     query: { enabled: hasAsset },
+  });
+
+  // ── Stage 2a′: user balance + allowance on underlying asset ───────────────
+  const { data: s2AssetUser, isLoading: s2AssetUserLoading } = useReadContracts({
+    contracts:
+      assetAddress && userAddress && vaultAddress
+        ? [
+            { address: assetAddress, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress] },
+            { address: assetAddress, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, vaultAddress] },
+          ]
+        : [],
+    query: { enabled: hasAsset && !!userAddress },
+  });
+
+  // ── Stage 2b: async redeem state (vault ABI only) ─────────────────────────
+  const { data: s2Redeem, isLoading: s2RedeemLoading } = useReadContracts({
+    contracts:
+      userAddress && assetAddress && vaultAddress
+        ? [
+            {
+              address: vaultAddress,
+              abi: VAULT_READ_ABI,
+              functionName: "getPendingRedeemForAsset" as const,
+              args: [assetAddress, userAddress],
+            },
+            {
+              address: vaultAddress,
+              abi: VAULT_READ_ABI,
+              functionName: "getClaimableRedeemForAsset" as const,
+              args: [assetAddress, userAddress],
+            },
+          ]
+        : [],
+    query: { enabled: hasAsset && !!userAddress },
   });
 
   // ── Assemble ─────────────────────────────────────────────────────────────
@@ -171,36 +179,39 @@ export function useVaultDetail(
   const feeRecipient = s1?.[10]?.status === "success" ? (s1[10].result as `0x${string}`) : undefined;
   const rateProvider = s1?.[11]?.status === "success" ? (s1[11].result as `0x${string}`) : undefined;
 
-  // User vault share balance (index 12 when userAddress provided)
-  const userSharesIdx = userAddress ? 12 : undefined;
-  const userShares = userSharesIdx !== undefined && s1?.[userSharesIdx]?.status === "success"
-    ? (s1[userSharesIdx].result as bigint) : undefined;
-
-  const userShareAllowanceIdx = userAddress ? 13 : undefined;
-  const userShareAllowance = userShareAllowanceIdx !== undefined && s1?.[userShareAllowanceIdx]?.status === "success"
-    ? (s1[userShareAllowanceIdx].result as bigint) : undefined;
+  const userShares =
+    s1Shares?.[0]?.status === "success" ? (s1Shares[0].result as bigint) : undefined;
+  const userShareAllowance =
+    s1Shares?.[1]?.status === "success" ? (s1Shares[1].result as bigint) : undefined;
 
   // ERC-4626: userAssets = userShares × totalAssets / totalSupply
-  const userAssetsRaw = userShares !== undefined && totalAssets !== undefined && totalSupply !== undefined && totalSupply > 0n
+  const userAssetsRaw = userShares !== undefined && totalAssets !== undefined && totalSupply !== undefined && totalSupply > BigInt(0)
     ? (userShares * totalAssets) / totalSupply : undefined;
 
   // Share price = convertToAssets(10^vaultDecimals) via ERC-4626 math
-  const sharePrice = totalAssets !== undefined && totalSupply !== undefined && totalSupply > 0n
+  const sharePrice = totalAssets !== undefined && totalSupply !== undefined && totalSupply > BigInt(0)
     ? (BigInt(10 ** vDec) * totalAssets) / totalSupply : undefined;
 
-  // Stage 2 results (asset token)
-  const assetSymbol  = s2?.[0]?.status === "success" ? (s2[0].result as string) : undefined;
-  const assetDecimals = s2?.[1]?.status === "success" ? (s2[1].result as number) : undefined;
+  const assetSymbol =
+    s2Meta?.[0]?.status === "success" ? (s2Meta[0].result as string) : undefined;
+  const assetDecimals =
+    s2Meta?.[1]?.status === "success" ? (s2Meta[1].result as number) : undefined;
   const aDec = assetDecimals ?? 18;
 
-  // User asset reads (indices shift based on whether userAddress is provided)
-  const userAssetBalance    = userAddress && s2?.[2]?.status === "success" ? (s2[2].result as bigint) : undefined;
-  const userAssetAllowance  = userAddress && s2?.[3]?.status === "success" ? (s2[3].result as bigint) : undefined;
+  const userAssetBalance =
+    s2AssetUser?.[0]?.status === "success" ? (s2AssetUser[0].result as bigint) : undefined;
+  const userAssetAllowance =
+    s2AssetUser?.[1]?.status === "success" ? (s2AssetUser[1].result as bigint) : undefined;
 
-  const pendingRedeem = userAddress && s2?.[4]?.status === "success"
-    ? (s2[4].result as { shares: bigint; requestTime: bigint }) : undefined;
-  const claimableRedeem = userAddress && s2?.[5]?.status === "success"
-    ? (s2[5].result as { assets: bigint; shares: bigint }) : undefined;
+  // Stage 2b: redeem structs
+  const pendingRedeem =
+    userAddress && s2Redeem?.[0]?.status === "success"
+      ? (s2Redeem[0].result as { shares: bigint; requestTime: bigint })
+      : undefined;
+  const claimableRedeem =
+    userAddress && s2Redeem?.[1]?.status === "success"
+      ? (s2Redeem[1].result as { assets: bigint; shares: bigint })
+      : undefined;
 
   return {
     address: vaultAddress ?? "0x0000000000000000000000000000000000000000",
@@ -240,7 +251,8 @@ export function useVaultDetail(
     pendingRequestTime: pendingRedeem?.requestTime,
     claimableAssets: claimableRedeem?.assets,
     claimableShares: claimableRedeem?.shares,
-    isLoading: s1Loading || s2Loading,
+    isLoading:
+      s1Loading || s1SharesLoading || s2MetaLoading || s2AssetUserLoading || s2RedeemLoading,
     isError: s1?.[0]?.status === "failure" || s1?.[4]?.status === "failure",
   };
 }

@@ -16,7 +16,7 @@ import {
   Tag,
 } from "@carbon/react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseUnits, formatUnits, maxUint256 } from "viem";
+import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import type { Vault } from "@/types/vault";
 
@@ -52,17 +52,17 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
   const { data: reads, refetch } = useReadContracts({
     contracts: [
       // [0] asset wallet balance
-      { address: assetAddr!, abi: ERC20_ABI, functionName: "balanceOf", args: [userAddress!] },
+      { address: assetAddr!, abi: ERC20_ABI as Abi, functionName: "balanceOf", args: [userAddress!] },
       // [1] asset allowance granted to vault
-      { address: assetAddr!, abi: ERC20_ABI, functionName: "allowance", args: [userAddress!, vaultAddr!] },
+      { address: assetAddr!, abi: ERC20_ABI as Abi, functionName: "allowance", args: [userAddress!, vaultAddr!] },
       // [2] vault share balance (for request-redeem input)
-      { address: vaultAddr!, abi: ERC20_ABI, functionName: "balanceOf", args: [userAddress!] },
+      { address: vaultAddr!, abi: ERC20_ABI as Abi, functionName: "balanceOf", args: [userAddress!] },
       // [3] share allowance granted to vault (required before requestRedeemOfAsset)
-      { address: vaultAddr!, abi: ERC20_ABI, functionName: "allowance", args: [userAddress!, vaultAddr!] },
+      { address: vaultAddr!, abi: ERC20_ABI as Abi, functionName: "allowance", args: [userAddress!, vaultAddr!] },
       // [4] pending redeem for this asset
-      { address: vaultAddr!, abi: VAULT_READ_ABI, functionName: "getPendingRedeemForAsset", args: [assetAddr!, userAddress!] },
+      { address: vaultAddr!, abi: VAULT_READ_ABI as Abi, functionName: "getPendingRedeemForAsset", args: [assetAddr!, userAddress!] },
       // [5] claimable redeem for this asset
-      { address: vaultAddr!, abi: VAULT_READ_ABI, functionName: "getClaimableRedeemForAsset", args: [assetAddr!, userAddress!] },
+      { address: vaultAddr!, abi: VAULT_READ_ABI as Abi, functionName: "getClaimableRedeemForAsset", args: [assetAddr!, userAddress!] },
     ],
     query: { enabled },
   });
@@ -80,17 +80,17 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
 
   // ── Parsed deposit amount ─────────────────────────────────────────────────
   const depositAmountParsed = useMemo(() => {
-    try { return depositAmount ? parseUnits(depositAmount, decimals) : 0n; }
-    catch { return 0n; }
+    try { return depositAmount ? parseUnits(depositAmount, decimals) : BigInt(0); }
+    catch { return BigInt(0); }
   }, [depositAmount, decimals]);
 
   const requestSharesParsed = useMemo(() => {
-    try { return requestRedeemShares ? parseUnits(requestRedeemShares, 18) : 0n; }
-    catch { return 0n; }
+    try { return requestRedeemShares ? parseUnits(requestRedeemShares, 18) : BigInt(0); }
+    catch { return BigInt(0); }
   }, [requestRedeemShares]);
 
-  const needsApprove = assetAllowance !== undefined && depositAmountParsed > 0n && assetAllowance < depositAmountParsed;
-  const needsShareApprove = shareAllowance !== undefined && requestSharesParsed > 0n && shareAllowance < requestSharesParsed;
+  const needsApprove = assetAllowance !== undefined && depositAmountParsed > BigInt(0) && assetAllowance < depositAmountParsed;
+  const needsShareApprove = shareAllowance !== undefined && requestSharesParsed > BigInt(0) && shareAllowance < requestSharesParsed;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -100,7 +100,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
   }
 
   function handleDeposit() {
-    if (!vaultAddr || !assetAddr || !userAddress || depositAmountParsed <= 0n) return;
+    if (!vaultAddr || !assetAddr || !userAddress || depositAmountParsed <= BigInt(0)) return;
     writeContract({
       address: vaultAddr,
       abi: VAULT_WRITE_ABI,
@@ -116,7 +116,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
   }
 
   function handleRequestRedeem() {
-    if (!vaultAddr || !assetAddr || !userAddress || requestSharesParsed <= 0n) return;
+    if (!vaultAddr || !assetAddr || !userAddress || requestSharesParsed <= BigInt(0)) return;
     writeContract({
       address: vaultAddr,
       abi: VAULT_WRITE_ABI,
@@ -136,7 +136,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
   }
 
   function handleClaim() {
-    if (!vaultAddr || !assetAddr || !userAddress || !claimableRedeem || claimableRedeem.shares === 0n) return;
+    if (!vaultAddr || !assetAddr || !userAddress || !claimableRedeem || claimableRedeem.shares === BigInt(0)) return;
     writeContract({
       address: vaultAddr,
       abi: VAULT_WRITE_ABI,
@@ -258,7 +258,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
                     <Button
                       kind="primary" size="md"
                       onClick={handleDeposit}
-                      disabled={isBusy || !depositAmount || depositAmountParsed <= 0n}
+                      disabled={isBusy || !depositAmount || depositAmountParsed <= BigInt(0)}
                       style={{ width: "100%" }}
                     >
                       {isBusy ? <InlineLoading description="Depositing…" /> : `Deposit ${assetSymbol}`}
@@ -272,7 +272,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
                 <div style={{ paddingTop: "1rem" }}>
 
                   {/* Claimable section */}
-                  {claimableRedeem && claimableRedeem.shares > 0n && (
+                  {claimableRedeem && claimableRedeem.shares > BigInt(0) && (
                     <Tile style={{ background: "#1a2e1a", border: "1px solid #42be65", borderRadius: "4px", padding: "1rem", marginBottom: "1rem" }}>
                       <p style={{ fontSize: "0.8rem", color: "#42be65", fontWeight: 600, marginBottom: "0.5rem" }}>
                         Ready to claim
@@ -287,7 +287,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
                   )}
 
                   {/* Pending section */}
-                  {pendingRedeem && pendingRedeem.shares > 0n && (
+                  {pendingRedeem && pendingRedeem.shares > BigInt(0) && (
                     <Tile style={{ background: "#2a2000", border: "1px solid #f1c21b", borderRadius: "4px", padding: "1rem", marginBottom: "1rem" }}>
                       <p style={{ fontSize: "0.8rem", color: "#f1c21b", fontWeight: 600, marginBottom: "0.5rem" }}>
                         Pending redemption (≤72h)
@@ -337,7 +337,7 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
                     <Button
                       kind="secondary" size="md"
                       onClick={handleRequestRedeem}
-                      disabled={isBusy || !requestRedeemShares || requestSharesParsed <= 0n}
+                      disabled={isBusy || !requestRedeemShares || requestSharesParsed <= BigInt(0)}
                       style={{ width: "100%" }}
                     >
                       {isBusy ? <InlineLoading description="Requesting…" /> : "Request Redeem"}

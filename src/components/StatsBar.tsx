@@ -69,7 +69,9 @@ export function StatsBar({ vaults, isLoading }: StatsBarProps) {
             {stat.label}
           </p>
           {stat.value === null ? (
-            <SkeletonText style={{ width: "3rem", marginBottom: "0.4rem" }} />
+            <div style={{ width: "3rem", marginBottom: "0.4rem" }}>
+              <SkeletonText />
+            </div>
           ) : (
             <p
               style={{

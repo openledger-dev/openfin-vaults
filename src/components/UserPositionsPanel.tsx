@@ -48,7 +48,7 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
   }
 
   const activePositions = vaults.filter(
-    (v) => v.userShares !== undefined && v.userShares > 0n
+    (v) => v.userShares !== undefined && v.userShares > BigInt(0)
   );
 
   const totalActiveCount = activePositions.length;
@@ -113,7 +113,9 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
               {item.label}
             </p>
             {item.value === null ? (
-              <SkeletonText style={{ width: "2rem" }} />
+              <div style={{ width: "2rem" }}>
+                <SkeletonText />
+              </div>
             ) : (
               <p
                 style={{
