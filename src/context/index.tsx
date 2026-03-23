@@ -14,7 +14,7 @@ if (!projectId) {
 }
 
 const metadata = {
-  name: "VaultAgent",
+  name: "Open Yield",
   description: "Ethereum DeFi Vault Manager",
   url: "https://vaultagent.app",
   icons: ["https://avatars.githubusercontent.com/u/179229932"],

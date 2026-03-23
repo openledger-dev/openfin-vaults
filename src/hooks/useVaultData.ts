@@ -12,7 +12,7 @@ export type VaultOnChainData = {
   name: string;
   /** Vault share token symbol */
   symbol: string;
-  /** Underlying asset contract address */
+  /** Underlying asset contract address (ERC-4626 primary/base asset) */
   assetAddress: `0x${string}` | undefined;
   /** Underlying asset symbol (USDC / WETH / WBTC …) */
   assetSymbol: string | undefined;
@@ -33,6 +33,11 @@ export type VaultOnChainData = {
   /** UltraVaultOracle contract address — needed for 7-day APY log queries */
   oracleAddress: `0x${string}` | undefined;
   /**
+   * IUltraVaultRateProvider address — needed to discover all supported deposit
+   * assets (USDC, USDT, etc.) via AssetAdded / AssetRemoved event logs.
+   */
+  rateProviderAddress: `0x${string}` | undefined;
+  /**
    * Current share price in oracle units: totalAssets × 1e18 / totalSupply.
    * Used as the "current price" reference for 7-day APY computation.
    */
@@ -51,14 +56,15 @@ export type VaultOnChainData = {
 };
 
 const VAULT_FIELDS = [
-  "name",       // 0
-  "symbol",     // 1
-  "asset",      // 2
-  "totalAssets",// 3
-  "totalSupply",// 4
-  "paused",     // 5
-  "getFees",    // 6
-  "oracle",     // 7 — UltraVault.oracle() → IPriceSource address
+  "name",         // 0
+  "symbol",       // 1
+  "asset",        // 2 — ERC-4626 base asset address
+  "totalAssets",  // 3
+  "totalSupply",  // 4
+  "paused",       // 5
+  "getFees",      // 6
+  "oracle",       // 7 — UltraVault.oracle() → IPriceSource address
+  "rateProvider", // 8 — IUltraVaultRateProvider (for multi-asset discovery)
 ] as const;
 
 type VaultField = (typeof VAULT_FIELDS)[number];
@@ -140,14 +146,15 @@ export function useVaultData(
   // ── Assemble final array ─────────────────────────────────────────────────────
   const vaults: VaultOnChainData[] = allVaults.map((vault, i) => {
     const base = i * VAULT_FIELD_COUNT;
-    const nameRes        = stage1Data?.[base + 0];
-    const symbolRes      = stage1Data?.[base + 1];
-    const assetRes       = stage1Data?.[base + 2];
-    const totalAssetsRes = stage1Data?.[base + 3];
-    const totalSupplyRes = stage1Data?.[base + 4];
-    const pausedRes      = stage1Data?.[base + 5];
-    const feesRes        = stage1Data?.[base + 6];
-    const oracleRes      = stage1Data?.[base + 7];
+    const nameRes          = stage1Data?.[base + 0];
+    const symbolRes        = stage1Data?.[base + 1];
+    const assetRes         = stage1Data?.[base + 2];
+    const totalAssetsRes   = stage1Data?.[base + 3];
+    const totalSupplyRes   = stage1Data?.[base + 4];
+    const pausedRes        = stage1Data?.[base + 5];
+    const feesRes          = stage1Data?.[base + 6];
+    const oracleRes        = stage1Data?.[base + 7];
+    const rateProviderRes  = stage1Data?.[base + 8];
 
     const assetAddress =
       assetRes?.status === "success"
@@ -191,7 +198,7 @@ export function useVaultData(
       userShares !== undefined &&
       totalAssets !== undefined &&
       totalSupply !== undefined &&
-      totalSupply > 0n
+      totalSupply > BigInt(0)
         ? (userShares * totalAssets) / totalSupply
         : undefined;
 
@@ -225,8 +232,10 @@ export function useVaultData(
       withdrawalFee: fees?.withdrawalFee,
       oracleAddress:
         oracleRes?.status === "success" ? (oracleRes.result as `0x${string}`) : undefined,
+      rateProviderAddress:
+        rateProviderRes?.status === "success" ? (rateProviderRes.result as `0x${string}`) : undefined,
       sharePrice:
-        totalAssets !== undefined && totalSupply !== undefined && totalSupply > 0n
+        totalAssets !== undefined && totalSupply !== undefined && totalSupply > BigInt(0)
           ? (totalAssets * BigInt(1e18)) / totalSupply
           : undefined,
       userShares,

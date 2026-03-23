@@ -20,6 +20,7 @@ import {
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 import { use7dApy } from "@/hooks/use7dApy";
+import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import type { Vault } from "@/types/vault";
 import { VaultActionModal } from "./VaultActionModal";
 
@@ -108,6 +109,38 @@ function ApyCell({ v }: { v: VaultOnChainData }) {
   );
 }
 
+// ── Supported-assets cell — each row calls its own hook ───────────────────────
+
+function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
+  const { assets, isLoading } = useSupportedAssets(v.address);
+
+  if (isLoading) return <SkeletonText width="60px" />;
+
+  // Fallback: no rateProvider or empty result → show the single base asset
+  if (assets.length === 0) {
+    return (
+      <span style={{ color: "#c6c6c6", fontSize: "0.875rem", fontWeight: 500 }}>
+        {v.assetSymbol ?? "—"}
+      </span>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+      {assets.map((a) => (
+        <Tag
+          key={a.address}
+          type={a.isPegged ? "cool-gray" : "blue"}
+          size="sm"
+          title={a.address}
+        >
+          {a.symbol}
+        </Tag>
+      ))}
+    </div>
+  );
+}
+
 // ── Skeleton row ──────────────────────────────────────────────────────────────
 
 function SkeletonRows({ count }: { count: number }) {
@@ -180,11 +213,7 @@ function PlatformSection({
           </p>
         </button>
       ),
-      asset: (
-        <span style={{ color: "#c6c6c6", fontSize: "0.875rem", fontWeight: 500 }}>
-          {v.assetSymbol ?? "—"}
-        </span>
-      ),
+      asset: <SupportedAssetsCell v={v} />,
       tvl: (
         <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
           {formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol)}

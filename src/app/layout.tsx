@@ -4,7 +4,7 @@ import "./globals.scss";
 import { ContextProvider } from "@/context";
 
 export const metadata: Metadata = {
-  title: "VaultAgent — Ethereum DeFi Vaults",
+  title: "Open Yield — Ethereum DeFi Vaults",
   description:
     "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
 };

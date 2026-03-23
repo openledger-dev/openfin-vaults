@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseUnits, maxUint256 } from "viem";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from "wagmi";
+import { parseUnits, formatUnits, maxUint256 } from "viem";
 import {
   Button,
   Tag,
@@ -24,6 +24,7 @@ import { ArrowLeft, Launch, Information } from "@carbon/icons-react";
 import { Navbar } from "@/components/Navbar";
 import { useVaultDetail } from "@/hooks/useVaultDetail";
 import { use7dApy } from "@/hooks/use7dApy";
+import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,7 +55,7 @@ function StatCard({
         {label}
       </p>
       {loading
-        ? <SkeletonText style={{ width: "70%", marginBottom: "0.25rem" }} />
+        ? <div style={{ width: "70%", marginBottom: "0.25rem" }}><SkeletonText /></div>
         : <p style={{ fontSize: "1.5rem", fontWeight: 700, color, lineHeight: 1.2, marginBottom: "0.15rem" }}>{value}</p>
       }
       {sub && <p style={{ fontSize: "0.7rem", color: "#6f6f6f" }}>{sub}</p>}
@@ -118,6 +119,46 @@ export default function VaultDetailPage() {
     vaultAddress,
     vault.assetAddress,
   );
+  const { assets: supportedAssets, isLoading: assetsLoading } = useSupportedAssets(vaultAddress);
+
+  // ── Deposit asset selection ────────────────────────────────────────────
+  // Default to the first supported asset; if none configured, fall back to
+  // the ERC-4626 base asset reported by the contract.
+  const [selectedAssetAddr, setSelectedAssetAddr] = useState<`0x${string}` | undefined>(undefined);
+
+  // Once supportedAssets resolve, seed the selection
+  useEffect(() => {
+    if (supportedAssets.length > 0 && !selectedAssetAddr) {
+      setSelectedAssetAddr(supportedAssets[0].address);
+    }
+  }, [supportedAssets, selectedAssetAddr]);
+
+  const depositAsset = useMemo(() => {
+    if (supportedAssets.length === 0) return null;
+    return (
+      supportedAssets.find((a) => a.address === selectedAssetAddr) ??
+      supportedAssets[0]
+    );
+  }, [supportedAssets, selectedAssetAddr]);
+
+  // Read ERC-20 balance + allowance for the selected deposit asset
+  const { data: depositAssetMeta } = useReadContracts({
+    contracts: userAddress && depositAsset && vaultAddress
+      ? [
+          { address: depositAsset.address, abi: ERC20_ABI, functionName: "balanceOf" as const,  args: [userAddress] },
+          { address: depositAsset.address, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, vaultAddress] },
+        ]
+      : [],
+    query: { enabled: !!userAddress && !!depositAsset && !!vaultAddress },
+  });
+
+  const depositAssetBalance   = depositAssetMeta?.[0]?.status === "success" ? (depositAssetMeta[0].result as bigint) : undefined;
+  const depositAssetAllowance = depositAssetMeta?.[1]?.status === "success" ? (depositAssetMeta[1].result as bigint) : undefined;
+
+  const depositAssetBalanceFmt = useMemo(() => {
+    if (depositAssetBalance === undefined || !depositAsset) return "—";
+    return `${parseFloat(formatUnits(depositAssetBalance, depositAsset.decimals)).toFixed(4)} ${depositAsset.symbol}`;
+  }, [depositAssetBalance, depositAsset]);
 
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemShares, setRedeemShares] = useState("");
@@ -127,38 +168,39 @@ export default function VaultDetailPage() {
   const isBusy = isWritePending || isConfirming;
 
   const depositAmountParsed = useMemo(() => {
-    try { return depositAmount ? parseUnits(depositAmount, vault.assetDecimals ?? 18) : 0n; }
-    catch { return 0n; }
-  }, [depositAmount, vault.assetDecimals]);
+    try { return depositAmount && depositAsset ? parseUnits(depositAmount, depositAsset.decimals) : BigInt(0); }
+    catch { return BigInt(0); }
+  }, [depositAmount, depositAsset]);
 
   const redeemSharesParsed = useMemo(() => {
-    try { return redeemShares ? parseUnits(redeemShares, vault.decimals) : 0n; }
-    catch { return 0n; }
+    try { return redeemShares ? parseUnits(redeemShares, vault.decimals) : BigInt(0); }
+    catch { return BigInt(0); }
   }, [redeemShares, vault.decimals]);
 
-  const needsAssetApprove = vault.userAssetAllowance !== undefined
-    && depositAmountParsed > 0n
-    && vault.userAssetAllowance < depositAmountParsed;
+  const needsAssetApprove =
+    depositAssetAllowance !== undefined &&
+    depositAmountParsed > BigInt(0) &&
+    depositAssetAllowance < depositAmountParsed;
 
   const needsShareApprove = vault.userShareAllowance !== undefined
-    && redeemSharesParsed > 0n
+    && redeemSharesParsed > BigInt(0)
     && vault.userShareAllowance < redeemSharesParsed;
 
   // ── Tx handlers ─────────────────────────────────────────────────────────
   function handleApproveAsset() {
-    if (!vault.assetAddress || !vaultAddress) return;
-    writeContract({ address: vault.assetAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
+    if (!depositAsset || !vaultAddress) return;
+    writeContract({ address: depositAsset.address, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
   }
   function handleDeposit() {
-    if (!vaultAddress || !vault.assetAddress || !userAddress || depositAmountParsed <= 0n) return;
-    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "depositAsset", args: [vault.assetAddress, depositAmountParsed, userAddress] });
+    if (!vaultAddress || !depositAsset || !userAddress || depositAmountParsed <= BigInt(0)) return;
+    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "depositAsset", args: [depositAsset.address, depositAmountParsed, userAddress] });
   }
   function handleApproveShares() {
     if (!vaultAddress) return;
     writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
   }
   function handleRequestRedeem() {
-    if (!vaultAddress || !vault.assetAddress || !userAddress || redeemSharesParsed <= 0n) return;
+    if (!vaultAddress || !vault.assetAddress || !userAddress || redeemSharesParsed <= BigInt(0)) return;
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [vault.assetAddress, redeemSharesParsed, userAddress, userAddress] });
   }
   function handleCancelRedeem() {
@@ -166,7 +208,7 @@ export default function VaultDetailPage() {
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "cancelRedeemRequestOfAsset", args: [vault.assetAddress, userAddress, userAddress] });
   }
   function handleClaim() {
-    if (!vaultAddress || !vault.assetAddress || !userAddress || !vault.claimableShares || vault.claimableShares === 0n) return;
+    if (!vaultAddress || !vault.assetAddress || !userAddress || !vault.claimableShares || vault.claimableShares === BigInt(0)) return;
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "redeemAsset", args: [vault.assetAddress, vault.claimableShares, userAddress, userAddress] });
   }
 
@@ -210,12 +252,17 @@ export default function VaultDetailPage() {
               </button>
               <div>
                 {vault.isLoading
-                  ? <SkeletonText heading style={{ width: "200px" }} />
+                  ? <div style={{ width: "200px" }}><SkeletonText heading /></div>
                   : <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#f4f4f4", margin: 0, lineHeight: 1.2 }}>{vault.name}</h1>
                 }
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
                   {vault.symbol && <Tag type="cool-gray" size="sm">{vault.symbol}</Tag>}
-                  {assetSym !== "—" && <Tag type="blue" size="sm">Asset: {assetSym}</Tag>}
+                  {supportedAssets.length > 0
+                    ? supportedAssets.map((a) => (
+                        <Tag key={a.address} type="blue" size="sm">{a.symbol}</Tag>
+                      ))
+                    : assetSym !== "—" && <Tag type="blue" size="sm">{assetSym}</Tag>
+                  }
                   <Tag type={vault.isPaused ? "red" : "green"} size="sm">
                     {vault.isPaused ? "Paused" : "Active"}
                   </Tag>
@@ -293,7 +340,7 @@ export default function VaultDetailPage() {
                   </div>
 
                   {/* Pending redeem */}
-                  {vault.pendingShares !== undefined && vault.pendingShares > 0n && (
+                  {vault.pendingShares !== undefined && vault.pendingShares > BigInt(0) && (
                     <div style={{ background: "#1e1900", border: "1px solid #f1c21b", borderRadius: "4px", padding: "1rem", marginBottom: "1rem" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
@@ -310,7 +357,7 @@ export default function VaultDetailPage() {
                   )}
 
                   {/* Claimable redeem */}
-                  {vault.claimableAssets !== undefined && vault.claimableAssets > 0n && (
+                  {vault.claimableAssets !== undefined && vault.claimableAssets > BigInt(0) && (
                     <div style={{ background: "#0d1e0d", border: "1px solid #42be65", borderRadius: "4px", padding: "1rem" }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
@@ -375,6 +422,41 @@ export default function VaultDetailPage() {
                 </div>
               </section>
 
+              {/* Supported Assets */}
+              <section style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem" }}>
+                <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#f4f4f4", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "1.25rem" }}>
+                  Supported Deposit Assets
+                </h2>
+                {assetsLoading || vault.isLoading ? (
+                  <SkeletonText paragraph lineCount={2} />
+                ) : supportedAssets.length === 0 ? (
+                  <p style={{ fontSize: "0.8rem", color: "#6f6f6f" }}>
+                    {vault.assetSymbol ?? "—"} (base asset only)
+                  </p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {supportedAssets.map((a) => (
+                      <div key={a.address} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0", borderBottom: "1px solid #2e2e2e" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                          <Tag type={a.isPegged ? "cool-gray" : "blue"} size="sm">{a.symbol}</Tag>
+                          {a.isPegged && (
+                            <span style={{ fontSize: "0.7rem", color: "#8d8d8d" }}>1:1 pegged</span>
+                          )}
+                        </div>
+                        <a
+                          href={`https://etherscan.io/address/${a.address}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.75rem", color: "#4589ff", fontFamily: "monospace", textDecoration: "none" }}
+                        >
+                          {a.address.slice(0, 6)}…{a.address.slice(-4)} <Launch size={12} />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
               {/* Contract Addresses */}
               <section style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem" }}>
                 <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#f4f4f4", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "1.25rem" }}>
@@ -420,13 +502,45 @@ export default function VaultDetailPage() {
                       {/* Deposit */}
                       <TabPanel>
                         <div style={{ paddingTop: "1rem" }}>
+
+                          {/* Asset selector — shown when vault supports multiple assets */}
+                          {supportedAssets.length > 1 && (
+                            <div style={{ marginBottom: "1rem" }}>
+                              <p style={{ fontSize: "0.7rem", color: "#8d8d8d", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                Deposit asset
+                              </p>
+                              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                                {supportedAssets.map((a) => (
+                                  <button
+                                    key={a.address}
+                                    type="button"
+                                    onClick={() => { setSelectedAssetAddr(a.address); setDepositAmount(""); }}
+                                    style={{
+                                      padding: "0.35rem 0.85rem",
+                                      borderRadius: "4px",
+                                      border: "1px solid",
+                                      cursor: "pointer",
+                                      fontSize: "0.8rem",
+                                      fontWeight: 600,
+                                      background: depositAsset?.address === a.address ? "#0f62fe" : "#262626",
+                                      borderColor: depositAsset?.address === a.address ? "#0f62fe" : "#525252",
+                                      color: depositAsset?.address === a.address ? "#fff" : "#c6c6c6",
+                                    }}
+                                  >
+                                    {a.symbol}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           <p style={{ fontSize: "0.75rem", color: "#8d8d8d", marginBottom: "0.75rem" }}>
                             Balance:{" "}
-                            <span style={{ color: "#4589ff", fontWeight: 600 }}>{vault.userAssetBalanceFormatted}</span>
+                            <span style={{ color: "#4589ff", fontWeight: 600 }}>{depositAssetBalanceFmt}</span>
                           </p>
                           <TextInput
                             id="detail-deposit"
-                            labelText={`Amount (${assetSym})`}
+                            labelText={`Amount (${depositAsset?.symbol ?? assetSym})`}
                             placeholder="0.00"
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
@@ -440,16 +554,16 @@ export default function VaultDetailPage() {
                           ) : needsAssetApprove ? (
                             <>
                               <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "0.75rem" }}>
-                                Step 1 of 2: Approve vault to spend {assetSym}
+                                Step 1 of 2: Approve vault to spend {depositAsset?.symbol ?? assetSym}
                               </p>
                               <Button kind="tertiary" size="md" onClick={handleApproveAsset} disabled={isBusy} style={{ width: "100%" }}>
-                                {isBusy ? <InlineLoading description="Approving…" /> : `Approve ${assetSym}`}
+                                {isBusy ? <InlineLoading description="Approving…" /> : `Approve ${depositAsset?.symbol ?? assetSym}`}
                               </Button>
                             </>
                           ) : (
                             <Button kind="primary" size="md" onClick={handleDeposit}
-                              disabled={isBusy || depositAmountParsed <= 0n} style={{ width: "100%" }}>
-                              {isBusy ? <InlineLoading description="Depositing…" /> : `Deposit ${assetSym}`}
+                              disabled={isBusy || depositAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
+                              {isBusy ? <InlineLoading description="Depositing…" /> : `Deposit ${depositAsset?.symbol ?? assetSym}`}
                             </Button>
                           )}
                         </div>
@@ -488,7 +602,7 @@ export default function VaultDetailPage() {
                             </>
                           ) : (
                             <Button kind="secondary" size="md" onClick={handleRequestRedeem}
-                              disabled={isBusy || redeemSharesParsed <= 0n} style={{ width: "100%" }}>
+                              disabled={isBusy || redeemSharesParsed <= BigInt(0)} style={{ width: "100%" }}>
                               {isBusy ? <InlineLoading description="Requesting…" /> : "Request Redeem"}
                             </Button>
                           )}

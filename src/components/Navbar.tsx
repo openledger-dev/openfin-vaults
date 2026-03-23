@@ -23,10 +23,10 @@ export function Navbar() {
   const isVaults = pathname === "/" || pathname.startsWith("/vaults");
 
   return (
-    <Header aria-label="VaultAgent">
+    <Header aria-label="Open Yield">
       <HeaderName href="/" prefix="">
         <span style={{ fontWeight: 700, letterSpacing: "0.02em" }}>
-          Vault<span style={{ color: "#4589ff" }}>Agent</span>
+          Open<span style={{ color: "#4589ff" }}> Yield</span>
         </span>
       </HeaderName>
 
