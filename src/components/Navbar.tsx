@@ -34,8 +34,6 @@ export function Navbar() {
         <HeaderMenuItem href="/" isCurrentPage={isVaults}>
           Vaults
         </HeaderMenuItem>
-        <HeaderMenuItem href="/portfolio" isCurrentPage={pathname === "/portfolio"}>Portfolio</HeaderMenuItem>
-        <HeaderMenuItem href="/analytics" isCurrentPage={pathname === "/analytics"}>Analytics</HeaderMenuItem>
       </HeaderNavigation>
 
       <HeaderGlobalBar>
