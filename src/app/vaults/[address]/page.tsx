@@ -26,6 +26,7 @@ import { useVaultDetail } from "@/hooks/useVaultDetail";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
+import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -193,7 +194,12 @@ export default function VaultDetailPage() {
   }
   function handleDeposit() {
     if (!vaultAddress || !depositAsset || !userAddress || depositAmountParsed <= BigInt(0)) return;
-    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "depositAsset", args: [depositAsset.address, depositAmountParsed, userAddress] });
+    writeContract({
+      address: vaultAddress,
+      abi: VAULT_WRITE_ABI,
+      functionName: "depositAssetWithReferral",
+      args: [depositAsset.address, depositAmountParsed, userAddress, DEPOSIT_REFERRAL_ID],
+    });
   }
   function handleApproveShares() {
     if (!vaultAddress) return;

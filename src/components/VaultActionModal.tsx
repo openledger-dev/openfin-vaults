@@ -18,6 +18,7 @@ import {
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
+import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import type { Vault } from "@/types/vault";
 
 interface VaultActionModalProps {
@@ -104,8 +105,8 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
     writeContract({
       address: vaultAddr,
       abi: VAULT_WRITE_ABI,
-      functionName: "depositAsset",
-      args: [assetAddr, depositAmountParsed, userAddress],
+      functionName: "depositAssetWithReferral",
+      args: [assetAddr, depositAmountParsed, userAddress, DEPOSIT_REFERRAL_ID],
     });
   }
 

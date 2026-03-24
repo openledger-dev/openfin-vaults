@@ -210,6 +210,22 @@ export const VAULT_WRITE_ABI = [
     outputs: [{ name: "shares", type: "uint256" }],
   },
   /**
+   * BaseControlledAsyncRedeem.depositAssetWithReferral(address, uint256, address, string)
+   * Same as depositAsset plus referral tracking (Referral event).
+   */
+  {
+    name: "depositAssetWithReferral",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "asset", type: "address" },
+      { name: "assets", type: "uint256" },
+      { name: "receiver", type: "address" },
+      { name: "referralId", type: "string" },
+    ],
+    outputs: [{ name: "shares", type: "uint256" }],
+  },
+  /**
    * BaseControlledAsyncRedeem.requestRedeemOfAsset(address, uint256, address, address)
    * Step 1 of async redeem. Requires: vault.approve(vaultAddress, shareAmount) first
    * (vault spends its own shares from owner via _spendAllowance).
