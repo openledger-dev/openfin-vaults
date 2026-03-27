@@ -12,6 +12,8 @@ export type VaultOnChainData = {
   name: string;
   /** Vault share token symbol */
   symbol: string;
+  /** Vault share token decimals (ERC-20 `decimals()` on the vault contract) */
+  decimals: number;
   /** Underlying asset contract address (ERC-4626 primary/base asset) */
   assetAddress: `0x${string}` | undefined;
   /** Underlying asset symbol (USDC / WETH / WBTC …) */
@@ -65,6 +67,7 @@ const VAULT_FIELDS = [
   "getFees",      // 6
   "oracle",       // 7 — UltraVault.oracle() → IPriceSource address
   "rateProvider", // 8 — IUltraVaultRateProvider (for multi-asset discovery)
+  "decimals",     // 9 — share token decimals (must match balanceOf / totalSupply scale)
 ] as const;
 
 type VaultField = (typeof VAULT_FIELDS)[number];
@@ -155,6 +158,7 @@ export function useVaultData(
     const feesRes          = stage1Data?.[base + 6];
     const oracleRes        = stage1Data?.[base + 7];
     const rateProviderRes  = stage1Data?.[base + 8];
+    const decimalsRes      = stage1Data?.[base + 9];
 
     const assetAddress =
       assetRes?.status === "success"
@@ -212,6 +216,10 @@ export function useVaultData(
           : vault.address,
       symbol:
         symbolRes?.status === "success" ? (symbolRes.result as string) : "—",
+      decimals:
+        decimalsRes?.status === "success"
+          ? (decimalsRes.result as number)
+          : 18,
       assetAddress,
       assetSymbol:
         assetSymbolRes?.status === "success"

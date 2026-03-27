@@ -10,11 +10,16 @@
  * Why not a single contract call?
  * The UltraVaultOracle stores only the CURRENT Price struct — there is no
  * on-chain history array. Historical data lives exclusively in event logs.
+ *
+ * RPC transport: do NOT use wagmi's usePublicClient() here — AppKit swaps in a
+ * WalletConnect relay that often blocks or rate-limits eth_getLogs. Use
+ * getPublicClient() from @/lib/viemClient (direct HTTP / public fallbacks).
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { usePublicClient, useBlockNumber } from "wagmi";
+import { useChainId } from "wagmi";
 import { parseAbi } from "viem";
+import { getPublicClient } from "@/lib/viemClient";
 
 // PriceUpdated event from IUltraVaultOracle.sol
 const ORACLE_ABI = parseAbi([
@@ -59,27 +64,25 @@ export function use7dApy(
   vaultAddress: `0x${string}` | undefined,
   assetAddress: `0x${string}` | undefined,
 ): ApyResult {
-  const publicClient = usePublicClient();
-  const { data: currentBlock } = useBlockNumber({ watch: false });
-
-  const chainId: number = (publicClient as { chain?: { id: number } })?.chain?.id ?? 1;
+  const chainId = useChainId();
   const secondsPerBlock = SECONDS_PER_BLOCK[chainId] ?? SECONDS_PER_BLOCK_DEFAULT;
   const blocksPerDay = Math.floor(86_400 / secondsPerBlock);
 
   const enabled =
-    !!publicClient &&
     !!oracleAddress &&
     !!vaultAddress &&
-    !!assetAddress &&
-    currentBlock !== undefined;
+    !!assetAddress;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["7dApy", chainId, oracleAddress, vaultAddress, assetAddress, currentBlock?.toString()],
+    queryKey: ["7dApy", chainId, oracleAddress, vaultAddress, assetAddress],
     enabled,
     staleTime: 5 * 60 * 1_000,  // 5 minutes
     gcTime: 15 * 60 * 1_000,
     queryFn: async (): Promise<{ apy: number; daysBack: number } | null> => {
-      if (!publicClient || !oracleAddress || !vaultAddress || !assetAddress || currentBlock === undefined) return null;
+      if (!oracleAddress || !vaultAddress || !assetAddress) return null;
+
+      const client = getPublicClient(chainId);
+      const currentBlock = await client.getBlockNumber();
 
       // How many blocks cover 7 days? Cap at MAX_QUERY_BLOCKS.
       const blocks7d = BigInt(blocksPerDay * 7);
@@ -87,7 +90,7 @@ export function use7dApy(
       const fromBlock = currentBlock > queryRange ? currentBlock - queryRange : BigInt(0);
 
       // Fetch all PriceUpdated events for this (vault, asset) pair in the window
-      const logs = await publicClient.getLogs({
+      const logs = await client.getLogs({
         address: oracleAddress,
         event: ORACLE_ABI[0],
         args: { base: vaultAddress, quote: assetAddress },
@@ -101,9 +104,15 @@ export function use7dApy(
         return null;
       }
 
+      // getLogs order is not guaranteed by the JSON-RPC spec — sort for stable APY.
+      const sorted = [...logs].sort((a, b) => {
+        if (a.blockNumber !== b.blockNumber) return a.blockNumber < b.blockNumber ? -1 : 1;
+        return Number(a.logIndex - b.logIndex);
+      });
+
       // Oldest event = starting price; newest = ending price
-      const oldestLog = logs[0];
-      const newestLog = logs[logs.length - 1];
+      const oldestLog = sorted[0];
+      const newestLog = sorted[sorted.length - 1];
 
       const priceStart = oldestLog.args.price;
       const priceEnd   = newestLog.args.price;

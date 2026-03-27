@@ -150,7 +150,7 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
             {activePositions.map((vault) => {
-              const decimals = vault.assetDecimals ?? 18;
+              const assetDec = vault.assetDecimals ?? 18;
               return (
                 <Tile
                   key={vault.address}
@@ -177,13 +177,13 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
                     <div style={{ textAlign: "right" }}>
                       <p style={{ color: "#8d8d8d", fontSize: "0.75rem" }}>Shares</p>
                       <p style={{ color: "#f4f4f4", fontWeight: 600, fontSize: "0.875rem" }}>
-                        {formatBigIntAsset(vault.userShares, 18, vault.symbol)}
+                        {formatBigIntAsset(vault.userShares, vault.decimals, vault.symbol)}
                       </p>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <p style={{ color: "#8d8d8d", fontSize: "0.75rem" }}>Asset Value</p>
                       <p style={{ color: "#4589ff", fontWeight: 600, fontSize: "0.875rem" }}>
-                        {formatBigIntAsset(vault.userAssetsRaw, decimals, vault.assetSymbol)}
+                        {formatBigIntAsset(vault.userAssetsRaw, assetDec, vault.assetSymbol)}
                       </p>
                     </div>
                     <Tag type={vault.isPaused ? "red" : "green"} size="sm">
