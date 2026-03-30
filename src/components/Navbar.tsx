@@ -20,7 +20,8 @@ export function Navbar() {
   const { address, isConnected } = useAppKitAccount();
   const pathname = usePathname();
 
-  const isVaults = pathname === "/" || pathname.startsWith("/vaults");
+  const isVaults    = (pathname === "/" || pathname.startsWith("/vaults")) && !pathname.startsWith("/portfolio");
+  const isPortfolio = pathname.startsWith("/portfolio");
 
   return (
     <Header aria-label="Open Yield">
@@ -33,6 +34,9 @@ export function Navbar() {
       <HeaderNavigation aria-label="Main navigation">
         <HeaderMenuItem href="/" isCurrentPage={isVaults}>
           Vaults
+        </HeaderMenuItem>
+        <HeaderMenuItem href="/portfolio" isCurrentPage={isPortfolio}>
+          Portfolio
         </HeaderMenuItem>
       </HeaderNavigation>
 

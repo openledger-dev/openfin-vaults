@@ -18,11 +18,15 @@ import {
   InlineNotification,
 } from "@carbon/react";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
+import type { PlatformKind } from "@/lib/vaultConfig";
+import { getChainShortName } from "@/lib/chains";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import type { Vault } from "@/types/vault";
 import { VaultActionModal } from "./VaultActionModal";
+import { MorphoVaultActionModal } from "./MorphoVaultActionModal";
+import { MidasVaultActionModal } from "./MidasVaultActionModal";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +59,7 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
   return {
     id: v.address,
     address: v.address,
+    kind: v.kind,
     platform: v.platformId,
     platformLabel: v.platformLabel,
     name: v.name,
@@ -64,7 +69,7 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
     assetDecimals: decimals,
     tvlFormatted: formatBigIntAsset(v.totalAssets, decimals, v.assetSymbol),
     totalAssets: v.totalAssets,
-    // Fees: 1e18 = 100%, so divide by 1e16 to get percentage (verified against IUltraVault.sol)
+    // Fees: 1e18 = 100%, so divide by 1e16 to get percentage
     performanceFeePercent:
       v.performanceFee !== undefined ? Number(v.performanceFee) / 1e16 : undefined,
     managementFeePercent:
@@ -73,33 +78,46 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
       v.withdrawalFee !== undefined ? Number(v.withdrawalFee) / 1e16 : undefined,
     status: v.isPaused ? "paused" : "active",
     contractAddress: v.address,
+    depositVaultAddress: v.depositVaultAddress,
+    redemptionVaultAddress: v.redemptionVaultAddress,
+    midasApiKey: v.midasApiKey,
   };
 }
 
-// ── Table headers ─────────────────────────────────────────────────────────────
+// ── Table headers — differ by platform kind ───────────────────────────────────
 
-const headers = [
-  { key: "vault", header: "Vault" },
-  { key: "asset", header: "Asset" },
-  { key: "tvl", header: "TVL" },
-  { key: "apy", header: "7D APY" },
+const STANDARD_HEADERS = [
+  { key: "vault",   header: "Vault"     },
+  { key: "asset",   header: "Asset"     },
+  { key: "tvl",     header: "TVL"       },
+  { key: "apy",     header: "7D APY"    },
   { key: "perfFee", header: "Perf. Fee" },
   { key: "mgmtFee", header: "Mgmt. Fee" },
-  { key: "status", header: "Status" },
-  { key: "action", header: "" },
+  { key: "status",  header: "Status"    },
+  { key: "action",  header: ""          },
 ];
 
-// ── APY cell — needs its own component so each row can call use7dApy ──────────
+const MORPHO_HEADERS = [
+  { key: "vault",     header: "Vault"       },
+  { key: "asset",     header: "Asset"       },
+  { key: "tvl",       header: "TVL"         },
+  { key: "apy",       header: "7D Net APY"  },
+  { key: "liquidity", header: "Liquidity"   },
+  { key: "status",    header: "Status"      },
+  { key: "action",    header: ""            },
+];
 
-function ApyCell({ v }: { v: VaultOnChainData }) {
+// ── APY cell ──────────────────────────────────────────────────────────────────
+// Branches on vault kind:
+//   ultrayield → event-log derived APY via use7dApy (needs its own component
+//                so each row can call the hook without violating Rules of Hooks)
+//   morpho / midas → pre-fetched APY from apyPrefetched (set by adapters)
+
+function UltraYieldApyCell({ v }: { v: VaultOnChainData }) {
   const { apy, label, isLoading } = use7dApy(v.oracleAddress, v.address, v.assetAddress);
 
-  if (isLoading) {
-    return <SkeletonText width="40px" />;
-  }
-  if (apy === null) {
-    return <span style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>—</span>;
-  }
+  if (isLoading) return <SkeletonText width="40px" />;
+  if (apy === null) return <span style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>—</span>;
 
   const color = apy >= 0 ? "#42be65" : "#ff832b";
   return (
@@ -107,6 +125,22 @@ function ApyCell({ v }: { v: VaultOnChainData }) {
       {apy >= 0 ? "+" : ""}{apy.toFixed(2)}%
     </span>
   );
+}
+
+function PrefetchedApyCell({ apy }: { apy: number | null }) {
+  if (apy === null) return <span style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>—</span>;
+  const pct = apy * 100;
+  const color = pct >= 0 ? "#42be65" : "#ff832b";
+  return (
+    <span style={{ color, fontSize: "0.875rem", fontWeight: 600 }}>
+      {pct >= 0 ? "+" : ""}{pct.toFixed(2)}%
+    </span>
+  );
+}
+
+function ApyCell({ v }: { v: VaultOnChainData }) {
+  if (v.kind === "ultrayield") return <UltraYieldApyCell v={v} />;
+  return <PrefetchedApyCell apy={v.apyPrefetched} />;
 }
 
 // ── Supported-assets cell — each row calls its own hook ───────────────────────
@@ -143,13 +177,13 @@ function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
 
 // ── Skeleton row ──────────────────────────────────────────────────────────────
 
-function SkeletonRows({ count }: { count: number }) {
+function SkeletonRows({ count, colCount }: { count: number; colCount: number }) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (
         <TableRow key={`skel-${i}`} style={{ background: "#161616", borderBottom: "1px solid #262626" }}>
-          {headers.map((h) => (
-            <TableCell key={h.key} style={{ padding: "0.875rem 1rem" }}>
+          {Array.from({ length: colCount }).map((__, j) => (
+            <TableCell key={j} style={{ padding: "0.875rem 1rem" }}>
               <SkeletonText width="80%" />
             </TableCell>
           ))}
@@ -163,6 +197,7 @@ function SkeletonRows({ count }: { count: number }) {
 
 interface PlatformSectionProps {
   platformId: string;
+  platformKind: PlatformKind;
   label: string;
   description: string;
   vaults: VaultOnChainData[];
@@ -173,6 +208,7 @@ interface PlatformSectionProps {
 }
 
 function PlatformSection({
+  platformKind,
   label,
   description,
   vaults,
@@ -181,6 +217,9 @@ function PlatformSection({
   onDeposit,
   onView,
 }: PlatformSectionProps) {
+  const isMorpho = platformKind === "morpho";
+  const headers = isMorpho ? MORPHO_HEADERS : STANDARD_HEADERS;
+
   const filtered = useMemo(() => {
     if (!searchQuery) return vaults;
     const q = searchQuery.toLowerCase();
@@ -192,34 +231,74 @@ function PlatformSection({
     );
   }, [vaults, searchQuery]);
 
-  const tableRows = filtered.map((v) => {
-    const vault = chainVaultToVault(v);
-    return {
-      id: v.address,
-      vault: (
-        <button
-          type="button"
-          onClick={() => onView(v.address)}
-          style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}
+  const commonCells = (v: VaultOnChainData, vault: Vault) => ({
+    id: v.address,
+    vault: (
+      <button type="button" onClick={() => onView(v.address)}
+        style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}>
+        <p style={{ color: "#4589ff", fontWeight: 600, fontSize: "0.875rem", lineHeight: 1.3, textDecoration: "underline", textDecorationColor: "transparent" }}
+          onMouseEnter={(e) => (e.currentTarget.style.textDecorationColor = "#4589ff")}
+          onMouseLeave={(e) => (e.currentTarget.style.textDecorationColor = "transparent")}
         >
-          <p style={{ color: "#4589ff", fontWeight: 600, fontSize: "0.875rem", lineHeight: 1.3, textDecoration: "underline", textDecorationColor: "transparent" }}
-            onMouseEnter={(e) => (e.currentTarget.style.textDecorationColor = "#4589ff")}
-            onMouseLeave={(e) => (e.currentTarget.style.textDecorationColor = "transparent")}
-          >
-            {v.name}
-          </p>
+          {v.name}
+        </p>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginTop: "0.15rem", flexWrap: "wrap" }}>
           <p style={{ color: "#6f6f6f", fontSize: "0.75rem", fontFamily: "monospace" }}>
             {v.address.slice(0, 6)}…{v.address.slice(-4)}
           </p>
-        </button>
-      ),
-      asset: <SupportedAssetsCell v={v} />,
-      tvl: (
-        <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
-          {formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol)}
-        </span>
-      ),
-      apy: <ApyCell v={v} />,
+          <span style={{
+            fontSize: "0.65rem", fontWeight: 600, letterSpacing: "0.04em",
+            padding: "0.1rem 0.4rem", borderRadius: "3px",
+            background: "#262626", color: "#8d8d8d", border: "1px solid #393939",
+            lineHeight: 1.5,
+          }}>
+            {getChainShortName(v.chainId)}
+          </span>
+        </div>
+        {v.userShares !== undefined && v.userShares > BigInt(0) && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.3rem" }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#42be65", flexShrink: 0, display: "inline-block" }} />
+            <span style={{ fontSize: "0.7rem", color: "#42be65", fontWeight: 600 }}>
+              {formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol)} invested
+            </span>
+          </div>
+        )}
+      </button>
+    ),
+    asset: <SupportedAssetsCell v={v} />,
+    tvl: (
+      <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
+        {formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol)}
+      </span>
+    ),
+    apy: <ApyCell v={v} />,
+    status: v.isPaused
+      ? <Tag type="red"   size="sm">Paused</Tag>
+      : <Tag type="green" size="sm">Active</Tag>,
+    action: (
+      <div style={{ display: "flex", gap: "0.25rem" }}>
+        <Button kind="ghost" size="sm" onClick={() => onView(v.address)}
+          style={{ color: "#c6c6c6", fontSize: "0.8rem" }}>View</Button>
+        <Button kind="ghost" size="sm" onClick={() => onDeposit(vault)}
+          style={{ color: "#4589ff", fontSize: "0.8rem" }}>Deposit →</Button>
+      </div>
+    ),
+  });
+
+  const tableRows = filtered.map((v) => {
+    const vault = chainVaultToVault(v);
+    if (isMorpho) {
+      return {
+        ...commonCells(v, vault),
+        liquidity: (
+          <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
+            {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+          </span>
+        ),
+      };
+    }
+    return {
+      ...commonCells(v, vault),
       perfFee: (
         <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
           {feePercent(v.performanceFee)}
@@ -230,36 +309,14 @@ function PlatformSection({
           {feePercent(v.managementFee)}
         </span>
       ),
-      status: v.isPaused ? (
-        <Tag type="red" size="sm">Paused</Tag>
-      ) : (
-        <Tag type="green" size="sm">Active</Tag>
-      ),
-      action: (
-        <div style={{ display: "flex", gap: "0.25rem" }}>
-          <Button kind="ghost" size="sm" onClick={() => onView(v.address)}
-            style={{ color: "#c6c6c6", fontSize: "0.8rem" }}>
-            View
-          </Button>
-          <Button kind="ghost" size="sm" onClick={() => onDeposit(vault)}
-            style={{ color: "#4589ff", fontSize: "0.8rem" }}>
-            Deposit →
-          </Button>
-        </div>
-      ),
     };
   });
 
   return (
     <section style={{ marginBottom: "2.5rem" }}>
-      {/* Section header */}
       <div style={{ marginBottom: "1rem" }}>
-        <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#f4f4f4", margin: 0 }}>
-          {label}
-        </h2>
-        <p style={{ color: "#6f6f6f", fontSize: "0.8rem", marginTop: "0.25rem" }}>
-          {description}
-        </p>
+        <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#f4f4f4", margin: 0 }}>{label}</h2>
+        <p style={{ color: "#6f6f6f", fontSize: "0.8rem", marginTop: "0.25rem" }}>{description}</p>
       </div>
 
       {isLoading ? (
@@ -273,11 +330,7 @@ function PlatformSection({
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
                       const { key: _key, ...headerProps } = getHeaderProps({ header });
                       return (
-                        <TableHeader
-                          key={header.key}
-                          {...headerProps}
-                          style={headerStyle}
-                        >
+                        <TableHeader key={header.key} {...headerProps} style={headerStyle}>
                           {header.header}
                         </TableHeader>
                       );
@@ -285,7 +338,7 @@ function PlatformSection({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  <SkeletonRows count={vaults.length || 3} />
+                  <SkeletonRows count={vaults.length || 3} colCount={headers.length} />
                 </TableBody>
               </Table>
             </TableContainer>
@@ -317,13 +370,18 @@ function PlatformSection({
                   {rows.map((row) => {
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { key: _key, ...rowProps } = getRowProps({ row });
+                    const rowVault = filtered.find((x) => x.address === row.id);
+                    const hasPosition = rowVault?.userShares !== undefined && rowVault.userShares > BigInt(0);
                     return (
-                      <TableRow
-                        key={row.id}
-                        {...rowProps}
-                        style={{ background: "#161616", borderBottom: "1px solid #262626", cursor: "pointer" }}
+                      <TableRow key={row.id} {...rowProps}
+                        style={{
+                          background: hasPosition ? "#0d1e0d" : "#161616",
+                          borderBottom: "1px solid #262626",
+                          borderLeft: hasPosition ? "2px solid #42be65" : "2px solid transparent",
+                          cursor: "pointer",
+                        }}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#1c1c1c"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#161616"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = hasPosition ? "#0d1e0d" : "#161616"; }}
                       >
                         {row.cells.map((cell) => (
                           <TableCell key={cell.id} style={{ padding: "0.875rem 1rem", verticalAlign: "middle" }}>
@@ -403,6 +461,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
           <PlatformSection
             key={platform.id}
             platformId={platform.id}
+            platformKind={platform.kind}
             label={platform.label}
             description={platform.description}
             vaults={platformVaults}
@@ -417,11 +476,26 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
         );
       })}
 
-      <VaultActionModal
-        vault={selectedVault}
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-      />
+      {/* Route to the correct modal based on vault kind */}
+      {selectedVault?.kind === "morpho" ? (
+        <MorphoVaultActionModal
+          vault={selectedVault}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+        />
+      ) : selectedVault?.kind === "midas" ? (
+        <MidasVaultActionModal
+          vault={selectedVault}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+        />
+      ) : (
+        <VaultActionModal
+          vault={selectedVault}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </>
   );
 }

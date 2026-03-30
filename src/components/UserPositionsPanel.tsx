@@ -186,9 +186,17 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
                         {formatBigIntAsset(vault.userAssetsRaw, assetDec, vault.assetSymbol)}
                       </p>
                     </div>
-                    <Tag type={vault.isPaused ? "red" : "green"} size="sm">
-                      {vault.isPaused ? "Paused" : "Active"}
-                    </Tag>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", alignItems: "flex-end" }}>
+                      <Tag type={vault.isPaused ? "red" : "green"} size="sm">
+                        {vault.isPaused ? "Paused" : "Active"}
+                      </Tag>
+                      <Tag
+                        type={vault.kind === "morpho" ? "blue" : vault.kind === "midas" ? "purple" : "teal"}
+                        size="sm"
+                      >
+                        {vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Midas" : "UltraYield"}
+                      </Tag>
+                    </div>
                   </div>
                 </Tile>
               );
