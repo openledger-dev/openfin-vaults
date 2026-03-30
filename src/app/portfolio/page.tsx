@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { useAppKitAccount, useAppKit } from "@reown/appkit/react";
+import { useAppKit } from "@reown/appkit/react";
 import { SkeletonText, Tag } from "@carbon/react";
 import { formatUnits } from "viem";
 import { Navbar } from "@/components/Navbar";
@@ -135,11 +135,20 @@ function StatCard({ label, value, color = "#f4f4f4", loading }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
-  const { address: userAddress } = useAccount();
-  const { isConnected } = useAppKitAccount();
+  const { address: userAddress, isConnected, isReconnecting, isConnecting } = useAccount();
   const { open } = useAppKit();
   const { vaults, isLoading } = useVaultData(VAULT_PLATFORMS, userAddress);
   const router = useRouter();
+
+  // The wallet state (isConnected, isReconnecting, etc.) is meaningless during
+  // SSR and on the very first client render before wagmi has hydrated. Without
+  // this guard, the page always flashes "Connect Wallet" for one frame even
+  // when the user's wallet is already connected.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // After mounting, also guard against wagmi's transient reconnection window.
+  const walletPending = !mounted || isReconnecting || isConnecting;
 
   const positions = vaults.filter(
     (v) => v.userShares !== undefined && v.userShares > BigInt(0)
@@ -164,8 +173,28 @@ export default function PortfolioPage() {
             </p>
           </div>
 
-          {!isConnected ? (
-            /* ── Not connected ── */
+          {/* ── Wallet restoring session / data loading ── */}
+          {(walletPending || (isConnected && isLoading)) ? (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.25rem 1.5rem" }}>
+                    <div style={{ width: "40%", marginBottom: "0.75rem" }}><SkeletonText /></div>
+                    <div style={{ width: "25%" }}><SkeletonText heading /></div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem 2rem" }}>
+                    <SkeletonText paragraph lineCount={2} />
+                  </div>
+                ))}
+              </div>
+            </>
+
+          ) : !isConnected ? (
+            /* ── Truly not connected ── */
             <div style={{
               background: "#1c1c1c", border: "1px dashed #393939", borderRadius: "6px",
               padding: "5rem 2rem", textAlign: "center",
@@ -184,25 +213,17 @@ export default function PortfolioPage() {
                 Connect Wallet
               </button>
             </div>
+
           ) : (
+            /* ── Connected + data ready ── */
             <>
-              {/* ── Summary stats ── */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
-                <StatCard label="Active Positions" value={String(positions.length)} color="#f4f4f4" loading={isLoading} />
-                <StatCard label="Networks"         value={String(networkCount)}    color="#4589ff" loading={isLoading} />
-                <StatCard label="Protocols"        value={String(protocolCount)}   color="#be95ff" loading={isLoading} />
+                <StatCard label="Active Positions" value={String(positions.length)} color="#f4f4f4" loading={false} />
+                <StatCard label="Networks"         value={String(networkCount)}    color="#4589ff" loading={false} />
+                <StatCard label="Protocols"        value={String(protocolCount)}   color="#be95ff" loading={false} />
               </div>
 
-              {/* ── Position list ── */}
-              {isLoading ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem 2rem" }}>
-                      <SkeletonText paragraph lineCount={2} />
-                    </div>
-                  ))}
-                </div>
-              ) : positions.length === 0 ? (
+              {positions.length === 0 ? (
                 <div style={{
                   background: "#1c1c1c", border: "1px dashed #393939", borderRadius: "6px",
                   padding: "4rem 2rem", textAlign: "center",

@@ -140,7 +140,13 @@ export default function VaultDetailPage() {
     ? (rawAddress as `0x${string}`)
     : undefined;
 
-  const { address: userAddress, isConnected } = useAccount();
+  const { address: userAddress, isConnected, isReconnecting, isConnecting } = useAccount();
+
+  // Prevent wallet-sensitive UI from rendering before wagmi has hydrated.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const walletPending = !mounted || isReconnecting || isConnecting;
 
   // ── Look up vault kind + chainId from static config ───────────────────────
   const vaultConfig = useMemo(() => {
@@ -393,7 +399,7 @@ export default function VaultDetailPage() {
           </div>
 
           {/* Active position banner */}
-          {isConnected && vault.userShares !== undefined && vault.userShares > BigInt(0) && (
+          {isConnected && !walletPending && vault.userShares !== undefined && vault.userShares > BigInt(0) && (
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               background: "#0a2e14", border: "1px solid #1e5e2e", borderRadius: "6px",
@@ -458,7 +464,7 @@ export default function VaultDetailPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
 
               {/* Your Position */}
-              {isConnected && (
+              {(isConnected || walletPending) && (
                 <section style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem" }}>
                   <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#f4f4f4", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "1.25rem" }}>
                     Your Position
@@ -599,7 +605,11 @@ export default function VaultDetailPage() {
                   Actions
                 </h2>
 
-                {!isConnected ? (
+                {walletPending || (isConnected && vault.isLoading && !hasAssetAddr) ? (
+                  <p style={{ fontSize: "0.875rem", color: "#6f6f6f", textAlign: "center", padding: "1.5rem 0" }}>
+                    Loading vault data…
+                  </p>
+                ) : !isConnected ? (
                   <p style={{ fontSize: "0.875rem", color: "#8d8d8d", textAlign: "center", padding: "1.5rem 0" }}>
                     Connect your wallet to deposit or withdraw
                   </p>
