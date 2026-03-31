@@ -137,29 +137,57 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">
 // ── Midas static vault config ─────────────────────────────────────────────────
 
 /**
- * Static configuration for Midas token vaults.
- * Each entry maps the share token address to Midas-specific contract addresses
- * and the REST API key used for APY / price lookups.
+ * Static configuration for known Midas token vaults on Ethereum mainnet.
  *
- * To add a new Midas vault:
- *   1. Add its share token address to NEXT_PUBLIC_MIDAS_VAULT_ADDR in .env.local
- *   2. Add an entry here with the deposit/redemption vault addresses
- *      (found in the Midas contract deployment list they share with integrators)
+ * Each entry maps the share-token address → Midas-specific fields:
+ *   depositVaultAddress   — calls depositInstant(tokenIn, amountToken18, 0, referrerId)
+ *   redemptionVaultAddress — calls redeemInstant / redeemRequest
+ *   midasApiKey           — lowercase key used in /api/data/apys and /api/data/prices
+ *   assets                — optional static payment-token list; if omitted, the hook
+ *                           falls back to getPaymentTokens() on the deposit vault
  *
- * Contract addresses below are examples — replace with real deployed addresses.
+ * To add a new vault:
+ *   1. Add its share-token address to NEXT_PUBLIC_MIDAS_VAULT_ADDR in .env.local
+ *   2. Add an entry here (contract addresses are published by Midas at deploy time)
+ *
+ * Source: https://ludicrous-rate-748.notion.site/Midas-Vaults-Integration-Public
+ * All addresses below are Ethereum mainnet (chainId 1).
  */
 const MIDAS_VAULT_CONFIG: Record<
   string,
   Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets">
 > = {
-  // ── mMEV (example — replace with real addresses) ───────────────────────────
+  // ── mTBILL — Midas T-Bill token ───────────────────────────────────────────
+  "0xdd629e5241cbc5919847783e6c96b2de4754e438": {
+    depositVaultAddress:    "0x99361435420711723aF805F08187c9E6bF796683",
+    redemptionVaultAddress: "0x0312A9D1Ff2372DDEdCBB21e4B6389aFc919aC4b",
+    midasApiKey: "mtbill",
+    assets: [
+      { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
+      { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true  },
+    ],
+  },
+
+  // ── mBASIS — Midas Basis Trading token ───────────────────────────────────
+  "0x2a8c22e3b10036f3aef5875d04f8441d4188b656": {
+    depositVaultAddress:    "0x986C7d0fF6D54AC87BDdb5EdeF53C5B0c3Aa6045",
+    redemptionVaultAddress: "0x7bd3C30dDEbB17F9C5DfCa2fB3f5AB7bB56CD3F",
+    midasApiKey: "mbasis",
+    assets: [
+      { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
+      { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true  },
+    ],
+  },
+
+  // ── mMEV — Midas MEV Capture token ───────────────────────────────────────
+  // Addresses shared by Midas at deployment — replace if rotated.
   // "0x<mmev_share_token>": {
-  //   depositVaultAddress: "0x<mev_deposit_vault>",
+  //   depositVaultAddress:    "0x<mev_deposit_vault>",
   //   redemptionVaultAddress: "0x<mev_redemption_vault>",
   //   midasApiKey: "mmev",
   //   assets: [
   //     { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
-  //     { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true },
+  //     { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true  },
   //   ],
   // },
 };

@@ -30,6 +30,7 @@ import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
+import { fetchMidasApys, fetchMidasPrices, fetchMidasPendingRedemptions } from "@/lib/midasApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
 import { getChainName, getAddressExplorerLink } from "@/lib/chains";
 
@@ -48,6 +49,54 @@ const ERC4626_WRITE_ABI = [
     stateMutability: "nonpayable",
     inputs: [{ name: "shares", type: "uint256" }, { name: "receiver", type: "address" }, { name: "owner", type: "address" }],
     outputs: [{ name: "assets", type: "uint256" }],
+  },
+] as const;
+
+// Midas Deposit Vault write ABI
+const MIDAS_DEPOSIT_ABI = [
+  {
+    name: "depositInstant",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenIn",          type: "address" },
+      { name: "amountToken",      type: "uint256" }, // always 18 decimals
+      { name: "minReceiveAmount", type: "uint256" },
+      { name: "referrerId",       type: "bytes32"  },
+    ],
+    outputs: [],
+  },
+] as const;
+
+// Midas Redemption Vault write + fee read ABI
+const MIDAS_REDEEM_ABI = [
+  {
+    name: "redeemInstant",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenOut",         type: "address" },
+      { name: "amountMtokenIn",   type: "uint256" },
+      { name: "minReceiveAmount", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "redeemRequest",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenOut",       type: "address" },
+      { name: "amountMtokenIn", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "instantFee",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }], // 1e18 = 100%
   },
 ] as const;
 
@@ -125,9 +174,9 @@ function FeeRow({ label, pct, tooltip }: { label: string; pct: number | undefine
 // ── Vault kind badge ──────────────────────────────────────────────────────────
 
 function KindTag({ kind }: { kind: PlatformKind }) {
-  if (kind === "morpho")     return <Tag type="blue"   size="sm">ERC-4626 (Morpho)</Tag>;
-  if (kind === "midas")      return <Tag type="purple" size="sm">Midas RWA</Tag>;
-  return                            <Tag type="purple" size="sm">ERC-7540 Async Redeem</Tag>;
+  if (kind === "morpho") return <Tag type="blue"   size="sm">ERC-4626 (Morpho)</Tag>;
+  if (kind === "midas")  return <><Tag type="purple" size="sm">Midas RWA</Tag><Tag type="teal" size="sm" style={{ marginLeft: "0.25rem" }}>Instant + Async Redeem</Tag></>;
+  return                        <Tag type="purple" size="sm">ERC-7540 Async Redeem</Tag>;
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -156,12 +205,19 @@ export default function VaultDetailPage() {
       const entry = platform.vaults.find((v) => v.address.toLowerCase() === lower);
       if (entry) return {
         kind: platform.kind,
-        // vault-level chainId (set via address@chainId in env) takes precedence
         chainId: entry.chainId ?? platform.chainId,
+        // Midas-specific fields
+        midasApiKey:            entry.midasApiKey,
+        depositVaultAddress:    entry.depositVaultAddress,
+        redemptionVaultAddress: entry.redemptionVaultAddress,
       };
     }
     return null;
   }, [vaultAddress]);
+
+  const midasDepositVault    = vaultConfig?.depositVaultAddress;
+  const midasRedemptionVault = vaultConfig?.redemptionVaultAddress;
+  const midasApiKey          = vaultConfig?.midasApiKey?.toLowerCase();
 
   const vaultKind    = vaultConfig?.kind    ?? "ultrayield";
   const vaultChainId = vaultConfig?.chainId ?? 1;
@@ -191,6 +247,60 @@ export default function VaultDetailPage() {
     [morphoApiEntry]
   );
 
+  // ── Midas REST API — APY, price, pending redemptions ─────────────────────
+  const { data: midasApyMap, isLoading: midasApyLoading } = useQuery({
+    queryKey: ["midasDetailApys"],
+    enabled: vaultKind === "midas",
+    staleTime: 10 * 60 * 1_000,
+    gcTime:    20 * 60 * 1_000,
+    queryFn: fetchMidasApys,
+  });
+
+  const { data: midasPriceMap, isLoading: midasPriceLoading } = useQuery({
+    queryKey: ["midasDetailPrices"],
+    enabled: vaultKind === "midas",
+    staleTime: 10 * 60 * 1_000,
+    gcTime:    20 * 60 * 1_000,
+    queryFn: fetchMidasPrices,
+  });
+
+  const { data: midasPendingRedemptions = [], isLoading: midasPendingLoading } = useQuery({
+    queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
+    enabled: vaultKind === "midas" && !!vaultAddress && !!userAddress,
+    staleTime: 60 * 1_000,
+    gcTime:    5 * 60 * 1_000,
+    queryFn: () => fetchMidasPendingRedemptions(vaultChainId, vaultAddress!, userAddress),
+  });
+
+  // ── Midas instantFee from redemption vault ────────────────────────────────
+  const { data: midasFeeData } = useReadContracts({
+    contracts: midasRedemptionVault
+      ? [{ address: midasRedemptionVault, abi: MIDAS_REDEEM_ABI, functionName: "instantFee" as const, chainId: vaultChainId }]
+      : [],
+    query: { enabled: !!midasRedemptionVault },
+  });
+  const midasInstantFeeRaw = midasFeeData?.[0]?.status === "success" ? (midasFeeData[0].result as bigint) : undefined;
+  const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 1e16 : undefined;
+
+  // ── Derived Midas values ──────────────────────────────────────────────────
+  const midasPrice = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
+  const midasApy   = midasApiKey && midasApyMap   ? (midasApyMap[midasApiKey]   ?? null) : null;
+  const USDC_DEC   = 6;
+  // totalSupply is in 18-decimal share units; price is USD per share
+  const midasTvlFormatted = useMemo(() => {
+    if (!vault.totalSupply || midasPrice === null) return "—";
+    const tvl = (Number(vault.totalSupply) / 1e18) * midasPrice;
+    if (tvl >= 1_000_000) return `${(tvl / 1_000_000).toFixed(2)}M USD`;
+    if (tvl >= 1_000)     return `${(tvl / 1_000).toFixed(2)}K USD`;
+    return `${tvl.toFixed(2)} USD`;
+  }, [vault.totalSupply, midasPrice]);
+  const midasSharePriceFormatted = midasPrice !== null ? `$${midasPrice.toFixed(6)}` : "—";
+  const midasUserValueFormatted = useMemo(() => {
+    if (!vault.userShares || midasPrice === null) return "—";
+    const val = (Number(vault.userShares) / 1e18) * midasPrice;
+    return `${val.toFixed(4)} USD`;
+  }, [vault.userShares, midasPrice]);
+
   // When the on-chain name() call fails it falls back to the raw address.
   // Use the Morpho API name as a secondary fallback so the page always shows
   // a human-readable label even if the RPC call fails.
@@ -201,10 +311,18 @@ export default function VaultDetailPage() {
     return vault.name;
   }, [vault.name, morphoApiEntry]);
 
-  const displayApy      = vaultKind === "morpho" ? (morphoApy !== null ? morphoApy * 100 : null) : ultrayieldApy;
-  const displayApyLabel = vaultKind === "morpho" ? "7D Net APY" : apyLabel;
-  const displayApyLoading = vaultKind === "morpho" ? morphoApyLoading : apyLoading;
-  const displayApySub   = vaultKind === "morpho" ? "Weekly net APY via Morpho API" : "Annualised from oracle event logs";
+  const displayApy = vaultKind === "midas"
+    ? (midasApy !== null ? midasApy * 100 : null)
+    : vaultKind === "morpho"
+      ? (morphoApy !== null ? morphoApy * 100 : null)
+      : ultrayieldApy;
+  const displayApyLabel = vaultKind === "midas" ? "APY" : vaultKind === "morpho" ? "7D Net APY" : apyLabel;
+  const displayApyLoading = vaultKind === "midas" ? midasApyLoading : vaultKind === "morpho" ? morphoApyLoading : apyLoading;
+  const displayApySub = vaultKind === "midas"
+    ? "APY via Midas REST API (~10 min cache)"
+    : vaultKind === "morpho"
+      ? "Weekly net APY via Morpho API"
+      : "Annualised from oracle event logs";
 
   const { assets: supportedAssets } = useSupportedAssets(vaultAddress);
 
@@ -227,18 +345,28 @@ export default function VaultDetailPage() {
 
   // ── Read ERC-20 data for deposit asset ────────────────────────────────────
   const depositAssetAddr = vaultKind === "morpho" ? vault.assetAddress : depositAsset?.address;
+  // For Midas the spender is the deposit vault, not the share token
+  const depositSpenderAddr = vaultKind === "midas" ? midasDepositVault : vaultAddress;
   const { data: depositAssetMeta } = useReadContracts({
-    contracts: userAddress && depositAssetAddr && vaultAddress
+    contracts: userAddress && depositAssetAddr && depositSpenderAddr
       ? [
-          { address: depositAssetAddr, abi: ERC20_ABI, functionName: "balanceOf" as const,  args: [userAddress],          chainId: vaultChainId },
-          { address: depositAssetAddr, abi: ERC20_ABI, functionName: "allowance" as const,  args: [userAddress, vaultAddress], chainId: vaultChainId },
+          { address: depositAssetAddr,    abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress],                             chainId: vaultChainId },
+          { address: depositAssetAddr,    abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, depositSpenderAddr],         chainId: vaultChainId },
+          // For Midas redeems: share balance checked via vault.userShares but also read here for action panel
+          ...(vaultKind === "midas" && vaultAddress
+            ? [{ address: vaultAddress as `0x${string}`, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress], chainId: vaultChainId }]
+            : []),
         ]
       : [],
-    query: { enabled: !!userAddress && !!depositAssetAddr && !!vaultAddress },
+    query: { enabled: !!userAddress && !!depositAssetAddr && !!depositSpenderAddr },
   });
 
   const depositAssetBalance   = depositAssetMeta?.[0]?.status === "success" ? (depositAssetMeta[0].result as bigint) : undefined;
   const depositAssetAllowance = depositAssetMeta?.[1]?.status === "success" ? (depositAssetMeta[1].result as bigint) : undefined;
+  // For Midas: live share balance from the extra read (index 2)
+  const midasLiveShares = vaultKind === "midas" && depositAssetMeta?.[2]?.status === "success"
+    ? (depositAssetMeta[2].result as bigint)
+    : undefined;
 
   const assetDecForDisplay = vaultKind === "morpho" ? morphoDepositDec : (depositAsset?.decimals ?? 18);
   const assetSymForDisplay = vaultKind === "morpho" ? morphoDepositSym : (depositAsset?.symbol ?? "—");
@@ -276,11 +404,52 @@ export default function VaultDetailPage() {
     redeemAmountParsed > BigInt(0) &&
     vault.userShareAllowance < redeemAmountParsed;
 
+  // For Midas deposits: amount must be scaled to 18 decimals
+  const midasDepositParsed18 = useMemo(() => {
+    if (vaultKind !== "midas" || depositAmountParsed <= BigInt(0)) return BigInt(0);
+    const payDec = depositAsset?.decimals ?? 6;
+    if (payDec === 18) return depositAmountParsed;
+    return depositAmountParsed * BigInt(10 ** (18 - payDec));
+  }, [vaultKind, depositAmountParsed, depositAsset]);
+
   // ── Write handlers ────────────────────────────────────────────────────────
 
   function handleApproveAsset() {
-    if (!depositAssetAddr || !vaultAddress) return;
-    writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
+    if (!depositAssetAddr || !depositSpenderAddr) return;
+    writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, maxUint256] });
+  }
+
+  // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
+  function handleMidasDeposit() {
+    if (!midasDepositVault || !depositAssetAddr || midasDepositParsed18 <= BigInt(0)) return;
+    writeContract({
+      address: midasDepositVault,
+      abi: MIDAS_DEPOSIT_ABI,
+      functionName: "depositInstant",
+      args: [depositAssetAddr as `0x${string}`, midasDepositParsed18, BigInt(0), DEPOSIT_REFERRAL_ID],
+    });
+  }
+
+  // Midas instant redeem (with fee)
+  function handleMidasRedeemInstant() {
+    if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
+    writeContract({
+      address: midasRedemptionVault,
+      abi: MIDAS_REDEEM_ABI,
+      functionName: "redeemInstant",
+      args: [depositAssetAddr as `0x${string}`, redeemAmountParsed, BigInt(0)],
+    });
+  }
+
+  // Midas standard (async) redeem (fee-free, no cancel)
+  function handleMidasRedeemRequest() {
+    if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
+    writeContract({
+      address: midasRedemptionVault,
+      abi: MIDAS_REDEEM_ABI,
+      functionName: "redeemRequest",
+      args: [depositAssetAddr as `0x${string}`, redeemAmountParsed],
+    });
   }
 
   // UltraYield deposit
@@ -349,7 +518,11 @@ export default function VaultDetailPage() {
 
   const assetSym    = vault.assetSymbol ?? "—";
   const statusColor = vault.isPaused ? "#ff832b" : "#42be65";
-  const hasAssetAddr = !!vault.assetAddress;
+  // For Midas: asset address doesn't exist (not ERC-4626). Action panel should
+  // still show as long as we have payment tokens or deposit vault configured.
+  const hasAssetAddr = vaultKind === "midas"
+    ? (supportedAssets.length > 0 || !!midasDepositVault)
+    : !!vault.assetAddress;
 
   return (
     <div style={{ minHeight: "100vh", background: "#161616" }}>
@@ -421,7 +594,7 @@ export default function VaultDetailPage() {
                 <div>
                   <span style={{ color: "#42be65", fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.06em", marginRight: "0.5rem" }}>Value</span>
                   <span style={{ color: "#4589ff", fontWeight: 700, fontSize: "1rem" }}>
-                    {vault.userAssetsFormatted}
+                    {vaultKind === "midas" ? midasUserValueFormatted : vault.userAssetsFormatted}
                   </span>
                 </div>
               </div>
@@ -442,9 +615,21 @@ export default function VaultDetailPage() {
 
           {/* Stat cards row */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
-            <StatCard label="Total Value Locked" value={vault.tvlFormatted} sub="totalAssets() via contract" color="#4589ff" loading={vault.isLoading} />
+            <StatCard
+              label="Total Value Locked"
+              value={vaultKind === "midas" ? midasTvlFormatted : vault.tvlFormatted}
+              sub={vaultKind === "midas" ? "totalSupply × price (Midas API)" : "totalAssets() via contract"}
+              color="#4589ff"
+              loading={vault.isLoading || (vaultKind === "midas" && midasPriceLoading)}
+            />
             <StatCard label="Total Supply" value={vault.totalSupplyFormatted} sub="Vault shares outstanding" loading={vault.isLoading} />
-            <StatCard label="Share Price" value={vault.sharePriceFormatted} sub={`1 ${vault.symbol || "share"} = X ${assetSym}`} color="#be95ff" loading={vault.isLoading} />
+            <StatCard
+              label="Share Price"
+              value={vaultKind === "midas" ? midasSharePriceFormatted : vault.sharePriceFormatted}
+              sub={vaultKind === "midas" ? "USD price via Midas API" : `1 ${vault.symbol || "share"} = X ${assetSym}`}
+              color="#be95ff"
+              loading={vault.isLoading || (vaultKind === "midas" && midasPriceLoading)}
+            />
             <StatCard
               label={displayApyLabel}
               value={displayApy !== null ? `${displayApy >= 0 ? "+" : ""}${displayApy.toFixed(2)}%` : "—"}
@@ -452,9 +637,13 @@ export default function VaultDetailPage() {
               color={displayApy === null ? "#6f6f6f" : displayApy >= 0 ? "#42be65" : "#ff832b"}
               loading={vault.isLoading || displayApyLoading}
             />
-            <StatCard label="Status" value={vault.isPaused ? "Paused" : "Active"}
-              sub={vault.isPaused ? "Deposits disabled" : "Accepting deposits"}
-              color={statusColor} loading={vault.isLoading} />
+            <StatCard
+              label="Status"
+              value={vaultKind === "midas" ? "Active" : vault.isPaused ? "Paused" : "Active"}
+              sub={vaultKind === "midas" ? "Functions pausable per Midas team" : vault.isPaused ? "Deposits disabled" : "Accepting deposits"}
+              color={vaultKind === "midas" ? "#42be65" : statusColor}
+              loading={vault.isLoading}
+            />
           </div>
 
           {/* Two-column layout */}
@@ -471,9 +660,15 @@ export default function VaultDetailPage() {
                   </h2>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
                     {[
-                      { label: "Shares Held",    value: vault.isLoading ? "…" : vault.userSharesFormatted,    color: "#be95ff" },
-                      { label: "Asset Value",     value: vault.isLoading ? "…" : vault.userAssetsFormatted,    color: "#4589ff" },
-                      { label: "Wallet Balance",  value: vault.isLoading ? "…" : vault.userAssetBalanceFormatted, color: "#c6c6c6" },
+                      { label: "Shares Held",
+                        value: vault.isLoading ? "…" : vault.userSharesFormatted,
+                        color: "#be95ff" },
+                      { label: "Asset Value",
+                        value: vault.isLoading ? "…" : (vaultKind === "midas" ? midasUserValueFormatted : vault.userAssetsFormatted),
+                        color: "#4589ff" },
+                      { label: "Wallet Balance",
+                        value: vault.isLoading ? "…" : (vaultKind === "midas" ? (depositAssetBalance !== undefined ? `${parseFloat(formatUnits(depositAssetBalance, assetDecForDisplay)).toFixed(4)} ${assetSymForDisplay}` : "—") : vault.userAssetBalanceFormatted),
+                        color: "#c6c6c6" },
                     ].map((s) => (
                       <div key={s.label} style={{ background: "#262626", borderRadius: "4px", padding: "1rem" }}>
                         <p style={{ fontSize: "0.7rem", color: "#6f6f6f", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.4rem" }}>{s.label}</p>
@@ -489,7 +684,10 @@ export default function VaultDetailPage() {
                         <div>
                           <p style={{ fontSize: "0.75rem", color: "#f1c21b", fontWeight: 600, marginBottom: "0.25rem" }}>Pending Redemption</p>
                           <p style={{ fontSize: "0.875rem", color: "#f4f4f4" }}>
-                            {vault.userSharesFormatted} shares escrowed · fulfillment ≤ 72h
+                            {vault.pendingShares !== undefined
+                              ? `${parseFloat(formatUnits(vault.pendingShares, vault.decimals)).toFixed(6)} ${vault.symbol}`
+                              : "—"
+                            } escrowed · fulfillment ≤ 72h
                           </p>
                         </div>
                         <Button kind="danger--ghost" size="sm" onClick={handleCancelRedeem} disabled={isBusy}>
@@ -503,12 +701,63 @@ export default function VaultDetailPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div>
                           <p style={{ fontSize: "0.75rem", color: "#42be65", fontWeight: 600, marginBottom: "0.25rem" }}>Ready to Claim</p>
-                          <p style={{ fontSize: "0.875rem", color: "#f4f4f4" }}>{vault.userAssetsFormatted} available</p>
+                          <p style={{ fontSize: "0.875rem", color: "#f4f4f4" }}>
+                            {vault.claimableAssets !== undefined
+                              ? `${parseFloat(formatUnits(vault.claimableAssets, vault.assetDecimals ?? 18)).toFixed(6)} ${vault.assetSymbol ?? ""}`
+                              : "—"
+                            } available
+                          </p>
                         </div>
                         <Button kind="primary" size="sm" onClick={handleClaim} disabled={isBusy}>
                           {isBusy ? <InlineLoading /> : "Claim Assets"}
                         </Button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Midas: pending (async) redemption requests */}
+                  {vaultKind === "midas" && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <p style={{ fontSize: "0.75rem", color: "#8d8d8d", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>
+                        Pending Standard Redemptions
+                      </p>
+                      {midasPendingLoading ? (
+                        <SkeletonText paragraph lineCount={2} />
+                      ) : midasPendingRedemptions.length === 0 ? (
+                        <p style={{ fontSize: "0.8rem", color: "#6f6f6f" }}>No pending redemption requests.</p>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                          {midasPendingRedemptions.map((r, idx) => (
+                            <div key={idx} style={{ background: "#1e1900", border: "1px solid #f1c21b", borderRadius: "4px", padding: "0.875rem" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+                                <div>
+                                  <p style={{ fontSize: "0.75rem", color: "#f1c21b", fontWeight: 600, marginBottom: "0.2rem" }}>
+                                    Async Redemption Pending
+                                  </p>
+                                  <p style={{ fontSize: "0.8rem", color: "#c6c6c6" }}>
+                                    Amount: {r.amount ? `${parseFloat(formatUnits(BigInt(r.amount), 18)).toFixed(6)} ${vault.symbol}` : "—"}
+                                  </p>
+                                  {r.createdAt && (
+                                    <p style={{ fontSize: "0.7rem", color: "#8d8d8d", marginTop: "0.2rem" }}>
+                                      Requested: {new Date(r.createdAt).toLocaleString()}
+                                    </p>
+                                  )}
+                                </div>
+                                <div style={{ textAlign: "right" }}>
+                                  <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "0.2rem" }}>Processing on first-come basis</p>
+                                  <p style={{ fontSize: "0.7rem", color: "#ff832b" }}>No cancellation possible</p>
+                                  {r.txHash && (
+                                    <a href={getAddressExplorerLink(`0x${r.txHash.replace(/^0x/, "")}` as `0x${string}`, vaultChainId)} target="_blank" rel="noopener noreferrer"
+                                      style={{ fontSize: "0.7rem", color: "#4589ff" }}>
+                                      View tx ↗
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </section>
@@ -519,31 +768,44 @@ export default function VaultDetailPage() {
                 <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#f4f4f4", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "1.25rem" }}>
                   Fee Structure
                 </h2>
-                {vault.isLoading
-                  ? <SkeletonText paragraph lineCount={3} />
-                  : <>
-                      <FeeRow label="Performance Fee" pct={vault.performanceFeePercent}
-                        tooltip={vaultKind === "morpho"
-                          ? "Fee on yield taken by the vault's fee recipient."
-                          : "Charged on profits above the high-water mark. Max 30%."} />
-                      {vaultKind === "ultrayield" && (
-                        <>
-                          <FeeRow label="Management Fee" pct={vault.managementFeePercent}
-                            tooltip="Annual fee on total assets under management. Max 5%." />
-                          <FeeRow label="Withdrawal Fee" pct={vault.withdrawalFeePercent}
-                            tooltip="One-time fee deducted at redemption fulfillment. Max 1%." />
-                          {vault.highwaterMark !== undefined && (
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0" }}>
-                              <span style={{ fontSize: "0.8rem", color: "#8d8d8d" }}>High-Water Mark</span>
-                              <span style={{ fontSize: "0.875rem", color: "#c6c6c6", fontFamily: "monospace" }}>
-                                {vault.highwaterMark.toString()}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </>
-                }
+                {vaultKind === "midas" ? (
+                  <>
+                    <FeeRow label="Instant Redemption Fee"
+                      pct={midasInstantFeePct}
+                      tooltip="Fee charged for atomic (instant) redemptions. Read from the redemption vault's instantFee parameter." />
+                    <FeeRow label="Standard Redemption Fee"
+                      pct={0}
+                      tooltip="No fee for standard (async) redemptions — processed in order by the Midas team." />
+                    <FeeRow label="Deposit Fee"
+                      pct={0}
+                      tooltip="No fee for minting Midas tokens via depositInstant." />
+                  </>
+                ) : vault.isLoading ? (
+                  <SkeletonText paragraph lineCount={3} />
+                ) : (
+                  <>
+                    <FeeRow label="Performance Fee" pct={vault.performanceFeePercent}
+                      tooltip={vaultKind === "morpho"
+                        ? "Fee on yield taken by the vault's fee recipient."
+                        : "Charged on profits above the high-water mark. Max 30%."} />
+                    {vaultKind === "ultrayield" && (
+                      <>
+                        <FeeRow label="Management Fee" pct={vault.managementFeePercent}
+                          tooltip="Annual fee on total assets under management. Max 5%." />
+                        <FeeRow label="Withdrawal Fee" pct={vault.withdrawalFeePercent}
+                          tooltip="One-time fee deducted at redemption fulfillment. Max 1%." />
+                        {vault.highwaterMark !== undefined && (
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.625rem 0" }}>
+                            <span style={{ fontSize: "0.8rem", color: "#8d8d8d" }}>High-Water Mark</span>
+                            <span style={{ fontSize: "0.875rem", color: "#c6c6c6", fontFamily: "monospace" }}>
+                              {vault.highwaterMark.toString()}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
               </section>
 
               {/* Vault Mechanics — platform-specific */}
@@ -552,20 +814,29 @@ export default function VaultDetailPage() {
                   Vault Mechanics
                 </h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {(vaultKind === "morpho"
+                  {(vaultKind === "midas"
                     ? [
-                        { title: "Deposit",   desc: "Standard ERC-4626 — deposit assets, receive shares instantly." },
-                        { title: "Withdraw",  desc: "Standard ERC-4626 — redeem shares, receive assets instantly (subject to available liquidity)." },
-                        { title: "Pricing",   desc: "Share price derived from totalAssets / totalSupply. Liquidity allocated across Morpho markets by curators." },
-                        { title: "Curation",  desc: "Curators manage market allocations and risk parameters. No operator queue — withdrawals are immediate." },
+                        { title: "Token",          desc: "ERC-20 RWA token — NOT ERC-4626. Each token has a separate Deposit Vault and Redemption Vault." },
+                        { title: "Deposit",        desc: "Call depositInstant(tokenIn, amount18, 0, referrerId) on the Deposit Vault. amountToken is always 18 decimals regardless of payment token decimals." },
+                        { title: "Instant Redeem", desc: `Call redeemInstant on the Redemption Vault. Atomic — funds returned immediately. Fee: ${midasInstantFeePct !== undefined ? `${midasInstantFeePct.toFixed(2)}%` : "see instantFee"}.` },
+                        { title: "Async Redeem",   desc: "Call redeemRequest on the Redemption Vault. Token leaves wallet, processed first-come first-served. No fee. No cancellation possible." },
+                        { title: "Pricing",        desc: "Share price updated by Midas via NAV report → customFeed → dataFeed. Price reflects yield but not side rewards." },
+                        { title: "Upgrades",       desc: "Contracts are upgradable (progressively tied to timelock). Midas communicates upgrades with notice and audits." },
                       ]
-                    : [
-                        { title: "Deposit",       desc: "Synchronous — assets move to fundsHolder immediately. Returns vault shares." },
-                        { title: "Redeem Request", desc: "Async (ERC-7540) — shares escrowed in vault. Operator fulfills within 72h." },
-                        { title: "Claim",         desc: "After operator fulfillment, assets become claimable via redeemAsset()." },
-                        { title: "Pricing",       desc: "Share price set by on-chain oracle (UltraVaultOracle). totalAssets() = oracle.getQuote(totalSupply, share, asset)." },
-                        { title: "Cancel",        desc: "Pending redeem requests can be cancelled before operator fulfillment." },
-                      ]
+                    : vaultKind === "morpho"
+                      ? [
+                          { title: "Deposit",   desc: "Standard ERC-4626 — deposit assets, receive shares instantly." },
+                          { title: "Withdraw",  desc: "Standard ERC-4626 — redeem shares, receive assets instantly (subject to available liquidity)." },
+                          { title: "Pricing",   desc: "Share price derived from totalAssets / totalSupply. Liquidity allocated across Morpho markets by curators." },
+                          { title: "Curation",  desc: "Curators manage market allocations and risk parameters. No operator queue — withdrawals are immediate." },
+                        ]
+                      : [
+                          { title: "Deposit",        desc: "Synchronous — assets move to fundsHolder immediately. Returns vault shares." },
+                          { title: "Redeem Request",  desc: "Async (ERC-7540) — shares escrowed in vault. Operator fulfills within 72h." },
+                          { title: "Claim",          desc: "After operator fulfillment, assets become claimable via redeemAsset()." },
+                          { title: "Pricing",        desc: "Share price set by on-chain oracle (UltraVaultOracle). totalAssets() = oracle.getQuote(totalSupply, share, asset)." },
+                          { title: "Cancel",         desc: "Pending redeem requests can be cancelled before operator fulfillment." },
+                        ]
                   ).map((item) => (
                     <div key={item.title} style={{ display: "flex", gap: "0.75rem" }}>
                       <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#4589ff", minWidth: "110px", paddingTop: "0.1rem" }}>{item.title}</span>
@@ -582,18 +853,27 @@ export default function VaultDetailPage() {
                 </h2>
                 {vault.isLoading
                   ? <SkeletonText paragraph lineCount={4} />
-                  : <>
-                      <AddressRow label="Vault"        value={vaultAddress}        chainId={vaultChainId} />
-                      <AddressRow label="Asset Token"  value={vault.assetAddress}  chainId={vaultChainId} />
-                      <AddressRow label="Fee Recipient" value={vault.feeRecipient}  chainId={vaultChainId} />
-                      {vaultKind === "ultrayield" && (
-                        <>
-                          <AddressRow label="Funds Holder" value={vault.fundsHolder}   chainId={vaultChainId} />
-                          <AddressRow label="Oracle"       value={vault.oracle}         chainId={vaultChainId} />
-                          <AddressRow label="Rate Provider" value={vault.rateProvider}  chainId={vaultChainId} />
-                        </>
-                      )}
-                    </>
+                  : vaultKind === "midas"
+                    ? <>
+                        <AddressRow label="Share Token"      value={vaultAddress}            chainId={vaultChainId} />
+                        <AddressRow label="Deposit Vault"    value={midasDepositVault}         chainId={vaultChainId} />
+                        <AddressRow label="Redemption Vault" value={midasRedemptionVault}      chainId={vaultChainId} />
+                        {supportedAssets.map((a) => (
+                          <AddressRow key={a.address} label={`${a.symbol} (payment token)`} value={a.address} chainId={vaultChainId} />
+                        ))}
+                      </>
+                    : <>
+                        <AddressRow label="Vault"         value={vaultAddress}        chainId={vaultChainId} />
+                        <AddressRow label="Asset Token"   value={vault.assetAddress}  chainId={vaultChainId} />
+                        <AddressRow label="Fee Recipient" value={vault.feeRecipient}  chainId={vaultChainId} />
+                        {vaultKind === "ultrayield" && (
+                          <>
+                            <AddressRow label="Funds Holder"  value={vault.fundsHolder}   chainId={vaultChainId} />
+                            <AddressRow label="Oracle"        value={vault.oracle}         chainId={vaultChainId} />
+                            <AddressRow label="Rate Provider" value={vault.rateProvider}  chainId={vaultChainId} />
+                          </>
+                        )}
+                      </>
                 }
               </section>
             </div>
@@ -621,18 +901,18 @@ export default function VaultDetailPage() {
                   <Tabs>
                     <TabList aria-label="Vault actions">
                       <Tab>Deposit</Tab>
-                      <Tab>Withdraw</Tab>
+                      <Tab>{vaultKind === "midas" ? "Redeem" : "Withdraw"}</Tab>
                     </TabList>
                     <TabPanels>
 
                       {/* ── Deposit ────────────────────────────────────── */}
                       <TabPanel>
                         <div style={{ paddingTop: "1rem" }}>
-                          {/* UltraYield multi-asset selector */}
-                          {vaultKind === "ultrayield" && supportedAssets.length > 1 && (
+                          {/* Midas / UltraYield payment token selector */}
+                          {(vaultKind === "midas" || vaultKind === "ultrayield") && supportedAssets.length > 1 && (
                             <div style={{ marginBottom: "1rem" }}>
                               <p style={{ fontSize: "0.7rem", color: "#8d8d8d", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                                Deposit asset
+                                {vaultKind === "midas" ? "Payment token" : "Deposit asset"}
                               </p>
                               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                                 {supportedAssets.map((a) => (
@@ -663,16 +943,21 @@ export default function VaultDetailPage() {
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
                             type="number" min="0"
-                            style={{ marginBottom: "1rem" }}
+                            style={{ marginBottom: "0.5rem" }}
                             disabled={isBusy || vault.isPaused}
                           />
+                          {vaultKind === "midas" && (
+                            <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "1rem" }}>
+                              Instant mint — {vault.symbol || "token"} delivered to your wallet immediately.
+                            </p>
+                          )}
 
                           {vault.isPaused ? (
                             <p style={{ fontSize: "0.8rem", color: "#ff832b" }}>Vault is paused — deposits disabled.</p>
                           ) : needsAssetApprove ? (
                             <>
                               <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "0.75rem" }}>
-                                Step 1: Approve vault to spend {assetSymForDisplay}
+                                Step 1: Approve {vaultKind === "midas" ? "deposit vault" : "vault"} to spend {assetSymForDisplay}
                               </p>
                               <Button kind="tertiary" size="md" onClick={handleApproveAsset} disabled={isBusy} style={{ width: "100%" }}>
                                 {isBusy ? <InlineLoading description="Approving…" /> : `Approve ${assetSymForDisplay}`}
@@ -680,23 +965,55 @@ export default function VaultDetailPage() {
                             </>
                           ) : (
                             <Button kind="primary" size="md"
-                              onClick={vaultKind === "morpho" ? handleMorphoDeposit : handleUYDeposit}
-                              disabled={isBusy || depositAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
+                              onClick={vaultKind === "midas" ? handleMidasDeposit : vaultKind === "morpho" ? handleMorphoDeposit : handleUYDeposit}
+                              disabled={isBusy || (vaultKind === "midas" ? midasDepositParsed18 <= BigInt(0) : depositAmountParsed <= BigInt(0))}
+                              style={{ width: "100%" }}>
                               {isBusy ? <InlineLoading description="Depositing…" /> : `Deposit ${assetSymForDisplay}`}
                             </Button>
                           )}
                         </div>
                       </TabPanel>
 
-                      {/* ── Withdraw ───────────────────────────────────── */}
+                      {/* ── Redeem / Withdraw ──────────────────────────── */}
                       <TabPanel>
                         <div style={{ paddingTop: "1rem" }}>
                           <p style={{ fontSize: "0.75rem", color: "#8d8d8d", marginBottom: "0.75rem" }}>
-                            Shares: <span style={{ color: "#be95ff", fontWeight: 600 }}>{vault.userSharesFormatted}</span>
+                            {vault.symbol || "Shares"}:{" "}
+                            <span style={{ color: "#be95ff", fontWeight: 600 }}>
+                              {midasLiveShares !== undefined
+                                ? `${parseFloat(formatUnits(midasLiveShares, 18)).toFixed(6)} ${vault.symbol}`
+                                : vault.userSharesFormatted}
+                            </span>
                           </p>
+
+                          {/* Midas: select payment token for redemption output */}
+                          {vaultKind === "midas" && supportedAssets.length > 1 && (
+                            <div style={{ marginBottom: "1rem" }}>
+                              <p style={{ fontSize: "0.7rem", color: "#8d8d8d", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                                Receive as
+                              </p>
+                              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                                {supportedAssets.map((a) => (
+                                  <button key={a.address} type="button"
+                                    onClick={() => setSelectedAssetAddr(a.address)}
+                                    style={{
+                                      padding: "0.35rem 0.85rem", borderRadius: "4px", border: "1px solid",
+                                      cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
+                                      background: depositAsset?.address === a.address ? "#0f62fe" : "#262626",
+                                      borderColor: depositAsset?.address === a.address ? "#0f62fe" : "#525252",
+                                      color: depositAsset?.address === a.address ? "#fff" : "#c6c6c6",
+                                    }}
+                                  >
+                                    {a.symbol}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           <TextInput
                             id="detail-redeem"
-                            labelText={`Shares to redeem (${vault.symbol})`}
+                            labelText={`${vault.symbol || "Shares"} to redeem`}
                             placeholder="0.00"
                             value={redeemAmount}
                             onChange={(e) => setRedeemAmount(e.target.value)}
@@ -704,32 +1021,65 @@ export default function VaultDetailPage() {
                             style={{ marginBottom: "0.5rem" }}
                             disabled={isBusy}
                           />
-                          <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "1rem", lineHeight: 1.4 }}>
-                            {vaultKind === "morpho"
-                              ? "Synchronous ERC-4626 redemption — assets returned immediately."
-                              : `Async redemption — operator fulfills within 72h.${vault.withdrawalFeePercent ? ` Withdrawal fee: ${vault.withdrawalFeePercent.toFixed(2)}%.` : ""}`
-                            }
-                          </p>
 
-                          {vaultKind === "morpho" ? (
-                            <Button kind="secondary" size="md" onClick={handleMorphoRedeem}
-                              disabled={isBusy || redeemAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
-                              {isBusy ? <InlineLoading description="Redeeming…" /> : "Redeem Shares"}
-                            </Button>
-                          ) : needsShareApprove ? (
+                          {vaultKind === "midas" ? (
                             <>
-                              <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "0.75rem" }}>
-                                Step 1 of 2: Approve vault to escrow shares
+                              {/* Midas fee info grid */}
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                                <div style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "4px", padding: "0.6rem" }}>
+                                  <p style={{ fontSize: "0.65rem", color: "#8d8d8d", marginBottom: "0.15rem" }}>Instant Fee</p>
+                                  <p style={{ fontSize: "0.9rem", fontWeight: 700, color: midasInstantFeePct !== undefined ? "#ff832b" : "#6f6f6f" }}>
+                                    {midasInstantFeePct !== undefined ? `${midasInstantFeePct.toFixed(2)}%` : "—"}
+                                  </p>
+                                </div>
+                                <div style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "4px", padding: "0.6rem" }}>
+                                  <p style={{ fontSize: "0.65rem", color: "#8d8d8d", marginBottom: "0.15rem" }}>Standard Fee</p>
+                                  <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#42be65" }}>0%</p>
+                                </div>
+                              </div>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                                <Button kind="primary" size="md" onClick={handleMidasRedeemInstant}
+                                  disabled={isBusy || redeemAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
+                                  {isBusy ? <InlineLoading description="Redeeming…" /> : `Instant${midasInstantFeePct !== undefined ? ` (${midasInstantFeePct.toFixed(2)}%)` : ""}`}
+                                </Button>
+                                <Button kind="secondary" size="md" onClick={handleMidasRedeemRequest}
+                                  disabled={isBusy || redeemAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
+                                  {isBusy ? <InlineLoading description="Requesting…" /> : "Async (free)"}
+                                </Button>
+                              </div>
+                              <p style={{ fontSize: "0.68rem", color: "#6f6f6f", marginTop: "0.5rem", lineHeight: 1.4 }}>
+                                Standard redemptions are processed in order. Once submitted, they cannot be cancelled.
                               </p>
-                              <Button kind="tertiary" size="md" onClick={handleApproveShares} disabled={isBusy} style={{ width: "100%" }}>
-                                {isBusy ? <InlineLoading description="Approving…" /> : `Approve ${vault.symbol}`}
-                              </Button>
                             </>
                           ) : (
-                            <Button kind="secondary" size="md" onClick={handleRequestRedeem}
-                              disabled={isBusy || redeemAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
-                              {isBusy ? <InlineLoading description="Requesting…" /> : "Request Redeem"}
-                            </Button>
+                            <>
+                              <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "1rem", lineHeight: 1.4 }}>
+                                {vaultKind === "morpho"
+                                  ? "Synchronous ERC-4626 redemption — assets returned immediately."
+                                  : `Async redemption — operator fulfills within 72h.${vault.withdrawalFeePercent ? ` Withdrawal fee: ${vault.withdrawalFeePercent.toFixed(2)}%.` : ""}`
+                                }
+                              </p>
+                              {vaultKind === "morpho" ? (
+                                <Button kind="secondary" size="md" onClick={handleMorphoRedeem}
+                                  disabled={isBusy || redeemAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
+                                  {isBusy ? <InlineLoading description="Redeeming…" /> : "Redeem Shares"}
+                                </Button>
+                              ) : needsShareApprove ? (
+                                <>
+                                  <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "0.75rem" }}>
+                                    Step 1 of 2: Approve vault to escrow shares
+                                  </p>
+                                  <Button kind="tertiary" size="md" onClick={handleApproveShares} disabled={isBusy} style={{ width: "100%" }}>
+                                    {isBusy ? <InlineLoading description="Approving…" /> : `Approve ${vault.symbol}`}
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button kind="secondary" size="md" onClick={handleRequestRedeem}
+                                  disabled={isBusy || redeemAmountParsed <= BigInt(0)} style={{ width: "100%" }}>
+                                  {isBusy ? <InlineLoading description="Requesting…" /> : "Request Redeem"}
+                                </Button>
+                              )}
+                            </>
                           )}
                         </div>
                       </TabPanel>

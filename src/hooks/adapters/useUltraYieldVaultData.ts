@@ -92,6 +92,21 @@ export function useUltraYieldVaultData(
     query: { enabled: !!userAddress && hasAllAssets },
   });
 
+  // ── Stage 4: pending + claimable redeem state per vault ───────────────────
+  const stage4Contracts = (userAddress && hasAllAssets ? allVaults : []).flatMap((v, i) => {
+    const addr = assetAddresses[i];
+    if (!addr) return [];
+    return [
+      { address: v.address, abi: VAULT_READ_ABI, functionName: "getPendingRedeemForAsset"   as const, args: [addr, userAddress!] as [`0x${string}`, `0x${string}`], chainId: v.chainId },
+      { address: v.address, abi: VAULT_READ_ABI, functionName: "getClaimableRedeemForAsset" as const, args: [addr, userAddress!] as [`0x${string}`, `0x${string}`], chainId: v.chainId },
+    ];
+  });
+
+  const { data: stage4Data, isLoading: s4Loading } = useReadContracts({
+    contracts: stage4Contracts,
+    query: { enabled: !!userAddress && hasAllAssets },
+  });
+
   // ── Assemble ──────────────────────────────────────────────────────────────
   const vaults: VaultOnChainData[] = allVaults.map((vault, i) => {
     const base = i * VAULT_FIELD_COUNT;
@@ -124,6 +139,13 @@ export function useUltraYieldVaultData(
     const totalSupply  = totalSupplyRes?.status  === "success" ? (totalSupplyRes.result  as bigint) : undefined;
     const userSharesRaw = stage3Data?.[i];
     const userShares   = userSharesRaw?.status === "success" ? (userSharesRaw.result as bigint) : undefined;
+
+    const pendingRedeemRes   = stage4Data?.[i * 2 + 0];
+    const claimableRedeemRes = stage4Data?.[i * 2 + 1];
+    const pendingRedeem   = pendingRedeemRes?.status   === "success"
+      ? (pendingRedeemRes.result   as { shares: bigint; requestTime: bigint }) : undefined;
+    const claimableRedeem = claimableRedeemRes?.status === "success"
+      ? (claimableRedeemRes.result as { assets: bigint; shares: bigint })      : undefined;
 
     const userAssetsRaw =
       userShares !== undefined && totalAssets !== undefined &&
@@ -159,13 +181,17 @@ export function useUltraYieldVaultData(
       userShares,
       userAssetsRaw,
       apyPrefetched: null,
+      pendingShares:      pendingRedeem?.shares,
+      pendingRequestTime: pendingRedeem?.requestTime,
+      claimableAssets:    claimableRedeem?.assets,
+      claimableShares:    claimableRedeem?.shares,
       depositVaultAddress: undefined,
       redemptionVaultAddress: undefined,
       midasApiKey: undefined,
-      isLoading: s1Loading || s2Loading || s3Loading,
+      isLoading: s1Loading || s2Loading || s3Loading || s4Loading,
       isError: nameRes?.status === "failure" || assetRes?.status === "failure",
     };
   });
 
-  return { vaults, isLoading: s1Loading || s2Loading || s3Loading };
+  return { vaults, isLoading: s1Loading || s2Loading || s3Loading || s4Loading };
 }

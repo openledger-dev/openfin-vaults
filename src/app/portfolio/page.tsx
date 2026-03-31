@@ -4,13 +4,16 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
+import { useQueries } from "@tanstack/react-query";
 import { SkeletonText, Tag } from "@carbon/react";
 import { formatUnits } from "viem";
 import { Navbar } from "@/components/Navbar";
 import { useVaultData } from "@/hooks/useVaultData";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import { getChainName } from "@/lib/chains";
+import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
+import type { MidasPendingRedemption } from "@/lib/midasApi";
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
@@ -132,6 +135,86 @@ function StatCard({ label, value, color = "#f4f4f4", loading }: {
   );
 }
 
+// ── Pending withdrawal card ───────────────────────────────────────────────────
+
+type PendingItem =
+  | { type: "ultrayield-pending";   vault: VaultOnChainData; shares: bigint; requestTime: bigint }
+  | { type: "ultrayield-claimable"; vault: VaultOnChainData; assets: bigint; shares: bigint }
+  | { type: "midas";                vault: VaultOnChainData; redemption: MidasPendingRedemption };
+
+function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void }) {
+  const kindLabel    = item.vault.kind === "midas" ? "Midas" : "UltraYield";
+  const kindTagType  = item.vault.kind === "midas" ? "purple" : "teal";
+  const isClaimable  = item.type === "ultrayield-claimable";
+  const borderColor  = isClaimable ? "#42be65" : "#f1c21b";
+  const accentColor  = isClaimable ? "#42be65" : "#f1c21b";
+  const bgColor      = isClaimable ? "#0a2e14" : "#1e1900";
+
+  let statusLabel: string;
+  let amountLabel: string;
+  let subLabel: string;
+
+  if (item.type === "ultrayield-pending") {
+    statusLabel = "Pending";
+    amountLabel = `${parseFloat(formatUnits(item.shares, item.vault.decimals)).toFixed(6)} ${item.vault.symbol}`;
+    const elapsed  = Math.floor((Date.now() / 1_000) - Number(item.requestTime));
+    const hoursAgo = Math.floor(elapsed / 3_600);
+    subLabel = `Requested ${hoursAgo}h ago · fulfilled within 72h of request`;
+  } else if (item.type === "ultrayield-claimable") {
+    statusLabel = "Ready to Claim";
+    const assetDec = item.vault.assetDecimals ?? 18;
+    amountLabel = `${parseFloat(formatUnits(item.assets, assetDec)).toFixed(6)} ${item.vault.assetSymbol ?? ""}`;
+    subLabel = "Operator has fulfilled your request — visit the vault to claim";
+  } else {
+    statusLabel = "Async Pending";
+    const raw = item.redemption.amount ? BigInt(item.redemption.amount) : undefined;
+    amountLabel = raw !== undefined
+      ? `${parseFloat(formatUnits(raw, 18)).toFixed(6)} ${item.vault.symbol}`
+      : "—";
+    const ts = item.redemption.createdAt ? new Date(item.redemption.createdAt).toLocaleString() : null;
+    subLabel = ts ? `Requested ${ts} · processed in order` : "Processing in order · no cancellation";
+  }
+
+  return (
+    <div
+      style={{
+        background: bgColor,
+        border: `1px solid ${borderColor}`,
+        borderLeft: `3px solid ${borderColor}`,
+        borderRadius: "6px",
+        padding: "1rem 1.5rem",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "1.5rem",
+        cursor: "pointer",
+      }}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.3rem" }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: accentColor,
+            background: "transparent", border: `1px solid ${accentColor}`,
+            padding: "0.1rem 0.4rem", borderRadius: "3px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {statusLabel}
+          </span>
+          <span style={{ color: "#f4f4f4", fontWeight: 600, fontSize: "0.9375rem" }}>{item.vault.name}</span>
+          <Tag type={kindTagType as "purple" | "teal"} size="sm">{kindLabel}</Tag>
+          <Tag type="warm-gray" size="sm">{getChainName(item.vault.chainId)}</Tag>
+        </div>
+        <p style={{ color: accentColor, fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.2rem" }}>
+          {amountLabel}
+        </p>
+        <p style={{ color: "#8d8d8d", fontSize: "0.75rem" }}>{subLabel}</p>
+      </div>
+      <span style={{ color: "#525252", fontSize: "1rem", flexShrink: 0 }}>→</span>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
@@ -140,22 +223,76 @@ export default function PortfolioPage() {
   const { vaults, isLoading } = useVaultData(VAULT_PLATFORMS, userAddress);
   const router = useRouter();
 
-  // The wallet state (isConnected, isReconnecting, etc.) is meaningless during
-  // SSR and on the very first client render before wagmi has hydrated. Without
-  // this guard, the page always flashes "Connect Wallet" for one frame even
-  // when the user's wallet is already connected.
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  // After mounting, also guard against wagmi's transient reconnection window.
   const walletPending = !mounted || isReconnecting || isConnecting;
 
   const positions = vaults.filter(
     (v) => v.userShares !== undefined && v.userShares > BigInt(0)
   );
 
-  const networkCount = new Set(positions.map((p) => p.chainId)).size;
+  // ── Midas async pending redemptions (one API call per Midas position) ──────
+  const midasPositions = vaults.filter((v) => v.kind === "midas");
+  const midasPendingQueries = useQueries({
+    queries: midasPositions.map((v) => ({
+      queryKey: ["midasPendingPortfolio", v.chainId, v.address, userAddress],
+      enabled: !!userAddress && !!v.address,
+      staleTime: 60 * 1_000,
+      gcTime:    5 * 60 * 1_000,
+      queryFn: () => fetchMidasPendingRedemptions(v.chainId, v.address, userAddress),
+    })),
+  });
+
+  // ── Collate all pending items ─────────────────────────────────────────────
+  const pendingItems: PendingItem[] = [
+    // UltraYield pending requests
+    ...vaults
+      .filter((v) => v.kind === "ultrayield" && v.pendingShares !== undefined && v.pendingShares > BigInt(0))
+      .map((v): PendingItem => ({
+        type: "ultrayield-pending",
+        vault: v,
+        shares: v.pendingShares!,
+        requestTime: v.pendingRequestTime ?? BigInt(0),
+      })),
+    // UltraYield ready-to-claim
+    ...vaults
+      .filter((v) => v.kind === "ultrayield" && v.claimableAssets !== undefined && v.claimableAssets > BigInt(0))
+      .map((v): PendingItem => ({
+        type: "ultrayield-claimable",
+        vault: v,
+        assets: v.claimableAssets!,
+        shares: v.claimableShares ?? BigInt(0),
+      })),
+    // Midas async redemptions
+    ...midasPositions.flatMap((v, i): PendingItem[] => {
+      const data = midasPendingQueries[i]?.data ?? [];
+      return data.map((r) => ({ type: "midas" as const, vault: v, redemption: r }));
+    }),
+  ];
+
+  const networkCount  = new Set(positions.map((p) => p.chainId)).size;
   const protocolCount = new Set(positions.map((p) => p.kind)).size;
+
+  const skeletonCards = (
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.25rem 1.5rem" }}>
+            <div style={{ width: "40%", marginBottom: "0.75rem" }}><SkeletonText /></div>
+            <div style={{ width: "25%" }}><SkeletonText heading /></div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem 2rem" }}>
+            <SkeletonText paragraph lineCount={2} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: "#161616" }}>
@@ -173,28 +310,9 @@ export default function PortfolioPage() {
             </p>
           </div>
 
-          {/* ── Wallet restoring session / data loading ── */}
-          {(walletPending || (isConnected && isLoading)) ? (
-            <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.25rem 1.5rem" }}>
-                    <div style={{ width: "40%", marginBottom: "0.75rem" }}><SkeletonText /></div>
-                    <div style={{ width: "25%" }}><SkeletonText heading /></div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "6px", padding: "1.5rem 2rem" }}>
-                    <SkeletonText paragraph lineCount={2} />
-                  </div>
-                ))}
-              </div>
-            </>
+          {(walletPending || (isConnected && isLoading)) ? skeletonCards
 
-          ) : !isConnected ? (
-            /* ── Truly not connected ── */
+          : !isConnected ? (
             <div style={{
               background: "#1c1c1c", border: "1px dashed #393939", borderRadius: "6px",
               padding: "5rem 2rem", textAlign: "center",
@@ -215,18 +333,23 @@ export default function PortfolioPage() {
             </div>
 
           ) : (
-            /* ── Connected + data ready ── */
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
-                <StatCard label="Active Positions" value={String(positions.length)} color="#f4f4f4" loading={false} />
-                <StatCard label="Networks"         value={String(networkCount)}    color="#4589ff" loading={false} />
-                <StatCard label="Protocols"        value={String(protocolCount)}   color="#be95ff" loading={false} />
+              {/* Summary stats */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+                <StatCard label="Active Positions"    value={String(positions.length)}   color="#f4f4f4" loading={false} />
+                <StatCard label="Pending Withdrawals" value={String(pendingItems.length)} color={pendingItems.length > 0 ? "#f1c21b" : "#6f6f6f"} loading={false} />
+                <StatCard label="Networks"            value={String(networkCount)}        color="#4589ff" loading={false} />
+                <StatCard label="Protocols"           value={String(protocolCount)}       color="#be95ff" loading={false} />
               </div>
 
+              {/* ── Active Positions ── */}
+              <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#8d8d8d", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>
+                Active Positions
+              </h2>
               {positions.length === 0 ? (
                 <div style={{
                   background: "#1c1c1c", border: "1px dashed #393939", borderRadius: "6px",
-                  padding: "4rem 2rem", textAlign: "center",
+                  padding: "4rem 2rem", textAlign: "center", marginBottom: "2rem",
                 }}>
                   <p style={{ color: "#6f6f6f", fontSize: "0.9375rem", marginBottom: "0.5rem" }}>
                     No vault positions found for this wallet.
@@ -245,12 +368,35 @@ export default function PortfolioPage() {
                   </button>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "2.5rem" }}>
                   {positions.map((vault) => (
                     <PositionCard
                       key={vault.address}
                       vault={vault}
                       onClick={() => router.push(`/vaults/${vault.address}`)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* ── Pending Withdrawals ── */}
+              <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#8d8d8d", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>
+                Pending Withdrawals
+              </h2>
+              {pendingItems.length === 0 ? (
+                <div style={{
+                  background: "#1c1c1c", border: "1px dashed #393939", borderRadius: "6px",
+                  padding: "2rem", textAlign: "center",
+                }}>
+                  <p style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>No pending withdrawal requests.</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {pendingItems.map((item, idx) => (
+                    <PendingCard
+                      key={idx}
+                      item={item}
+                      onClick={() => router.push(`/vaults/${item.vault.address}`)}
                     />
                   ))}
                 </div>

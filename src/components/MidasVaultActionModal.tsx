@@ -81,6 +81,17 @@ const MIDAS_REDEEM_ABI = [
   },
 ] as const;
 
+// Read-only ABI for redemption vault fee
+const MIDAS_REDEEM_READ_ABI = [
+  {
+    name: "instantFee",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "uint256" }], // 1e18 = 100%
+  },
+] as const;
+
 interface Props {
   vault: Vault | null;
   open: boolean;
@@ -121,6 +132,16 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
   const paymentSym = activeAsset?.symbol ?? "—";
 
   const enabled = !!shareAddr && !!userAddress && open;
+
+  // ── instantFee from redemption vault (1e18 = 100%) ───────────────────────
+  const { data: feeData } = useReadContracts({
+    contracts: redeemVault
+      ? [{ address: redeemVault, abi: MIDAS_REDEEM_READ_ABI, functionName: "instantFee" as const }]
+      : [],
+    query: { enabled: !!redeemVault },
+  });
+  const instantFeeRaw = feeData?.[0]?.status === "success" ? (feeData[0].result as bigint) : undefined;
+  const instantFeePct = instantFeeRaw !== undefined ? Number(instantFeeRaw) / 1e16 : undefined;
 
   const { data: reads, refetch } = useReadContracts({
     contracts: [
@@ -363,10 +384,25 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
                       style={{ marginBottom: "0.5rem" }}
                       disabled={isBusy}
                     />
-                    <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "1rem" }}>
-                      Instant redemption includes a fee. Standard redemption is fee-free
-                      but processed async (no cancellation possible once submitted).
-                    </p>
+                    {/* Fee + mode comparison */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+                      <div style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "4px", padding: "0.75rem" }}>
+                        <p style={{ fontSize: "0.65rem", color: "#8d8d8d", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
+                          Instant Fee
+                        </p>
+                        <p style={{ fontSize: "0.9rem", fontWeight: 700, color: instantFeePct !== undefined ? "#ff832b" : "#6f6f6f" }}>
+                          {instantFeePct !== undefined ? `${instantFeePct.toFixed(2)}%` : "—"}
+                        </p>
+                        <p style={{ fontSize: "0.65rem", color: "#6f6f6f", marginTop: "0.2rem" }}>Atomic, funds returned immediately</p>
+                      </div>
+                      <div style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "4px", padding: "0.75rem" }}>
+                        <p style={{ fontSize: "0.65rem", color: "#8d8d8d", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
+                          Standard Fee
+                        </p>
+                        <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#42be65" }}>0%</p>
+                        <p style={{ fontSize: "0.65rem", color: "#6f6f6f", marginTop: "0.2rem" }}>Async, processed in order — no cancel</p>
+                      </div>
+                    </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
                       <Button
@@ -375,7 +411,7 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
                         disabled={isBusy || redeemParsed <= BigInt(0)}
                         style={{ width: "100%" }}
                       >
-                        {isBusy ? <InlineLoading description="Redeeming…" /> : "Instant Redeem"}
+                        {isBusy ? <InlineLoading description="Redeeming…" /> : `Instant${instantFeePct !== undefined ? ` (${instantFeePct.toFixed(2)}% fee)` : ""}`}
                       </Button>
                       <Button
                         kind="secondary" size="md"
@@ -383,7 +419,7 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
                         disabled={isBusy || redeemParsed <= BigInt(0)}
                         style={{ width: "100%" }}
                       >
-                        {isBusy ? <InlineLoading description="Requesting…" /> : "Async Request"}
+                        {isBusy ? <InlineLoading description="Requesting…" /> : "Async (free)"}
                       </Button>
                     </div>
                   </div>

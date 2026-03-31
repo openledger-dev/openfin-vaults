@@ -73,6 +73,15 @@ export type VaultOnChainData = {
    * Populated by Midas and Morpho adapters. Null for UltraYield (event-derived).
    */
   apyPrefetched: number | null;
+  // ── UltraYield async redeem state ─────────────────────────────────────────
+  /** Shares currently escrowed in a pending (unfulfilled) redeem request */
+  pendingShares: bigint | undefined;
+  /** Unix timestamp when the redeem request was submitted */
+  pendingRequestTime: bigint | undefined;
+  /** Claimable asset amount after operator fulfilment */
+  claimableAssets: bigint | undefined;
+  /** Share tokens locked against claimable assets */
+  claimableShares: bigint | undefined;
   // ── Midas-only ────────────────────────────────────────────────────────────
   depositVaultAddress: `0x${string}` | undefined;
   redemptionVaultAddress: `0x${string}` | undefined;
