@@ -40,7 +40,13 @@ export function useUltraYieldVaultData(
   const allVaults = platforms
     .filter((p) => p.kind === "ultrayield")
     .flatMap((p) =>
-      p.vaults.map((v) => ({ ...v, platformId: p.id, platformLabel: p.label, chainId: p.chainId }))
+      p.vaults.map((v) => ({
+        ...v,
+        platformId: p.id,
+        platformLabel: p.label,
+        // vault-level chainId (set via address@chainId in env) takes precedence
+        chainId: v.chainId ?? p.chainId,
+      }))
     );
 
   // ── Stage 1: vault metadata (chainId forces correct chain) ───────────────

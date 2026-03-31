@@ -214,17 +214,21 @@ const MORPHO_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">> = 
 
 export const VAULT_PLATFORMS: PlatformConfig[] = [
   // ── UltraYield ──────────────────────────────────────────────────────────────
-  // Set NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID (default: 1 = Ethereum mainnet)
+  // Vaults may span multiple networks. Use address@chainId syntax in
+  // NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR to specify per-vault chains, e.g.:
+  //   0xABCD@1,0xEF01@8453
+  // NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID is used as the fallback when no @chainId is given.
   {
     id: "ultrayield",
     label: "UltraYield Vaults",
     description: "Institutional-grade yield vaults with async redemptions (ERC-7540)",
     kind: "ultrayield",
     chainId: parseChainId(process.env.NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID, 1),
-    vaults: parseAddresses(process.env.NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR).map(
-      (address) => ({
+    vaults: parseAddressesWithOptionalChain(process.env.NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR).map(
+      ({ address, chainId }) => ({
         address,
         kind: "ultrayield" as const,
+        ...(chainId !== undefined ? { chainId } : {}),
         ...ULTRAYIELD_ASSET_CONFIG[address.toLowerCase()],
       })
     ),
