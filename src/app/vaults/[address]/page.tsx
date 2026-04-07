@@ -347,26 +347,29 @@ export default function VaultDetailPage() {
   const depositAssetAddr = vaultKind === "morpho" ? vault.assetAddress : depositAsset?.address;
   // For Midas the spender is the deposit vault, not the share token
   const depositSpenderAddr = vaultKind === "midas" ? midasDepositVault : vaultAddress;
+
+  // balance + allowance for the payment/deposit asset
   const { data: depositAssetMeta } = useReadContracts({
     contracts: userAddress && depositAssetAddr && depositSpenderAddr
       ? [
-          { address: depositAssetAddr,    abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress],                             chainId: vaultChainId },
-          { address: depositAssetAddr,    abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, depositSpenderAddr],         chainId: vaultChainId },
-          // For Midas redeems: share balance checked via vault.userShares but also read here for action panel
-          ...(vaultKind === "midas" && vaultAddress
-            ? [{ address: vaultAddress as `0x${string}`, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress], chainId: vaultChainId }]
-            : []),
+          { address: depositAssetAddr, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress]                              as [`0x${string}`],                    chainId: vaultChainId },
+          { address: depositAssetAddr, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, depositSpenderAddr]           as [`0x${string}`, `0x${string}`],     chainId: vaultChainId },
         ]
       : [],
     query: { enabled: !!userAddress && !!depositAssetAddr && !!depositSpenderAddr },
   });
 
+  // For Midas: live share token balance (separate call to avoid mixed-functionName inference)
+  const { data: midasShareBalData } = useReadContracts({
+    contracts: vaultKind === "midas" && userAddress && vaultAddress
+      ? [{ address: vaultAddress, abi: ERC20_ABI, functionName: "balanceOf" as const, args: [userAddress] as [`0x${string}`], chainId: vaultChainId }]
+      : [],
+    query: { enabled: vaultKind === "midas" && !!userAddress && !!vaultAddress },
+  });
+
   const depositAssetBalance   = depositAssetMeta?.[0]?.status === "success" ? (depositAssetMeta[0].result as bigint) : undefined;
   const depositAssetAllowance = depositAssetMeta?.[1]?.status === "success" ? (depositAssetMeta[1].result as bigint) : undefined;
-  // For Midas: live share balance from the extra read (index 2)
-  const midasLiveShares = vaultKind === "midas" && depositAssetMeta?.[2]?.status === "success"
-    ? (depositAssetMeta[2].result as bigint)
-    : undefined;
+  const midasLiveShares       = midasShareBalData?.[0]?.status === "success" ? (midasShareBalData[0].result as bigint) : undefined;
 
   const assetDecForDisplay = vaultKind === "morpho" ? morphoDepositDec : (depositAsset?.decimals ?? 18);
   const assetSymForDisplay = vaultKind === "morpho" ? morphoDepositSym : (depositAsset?.symbol ?? "—");
@@ -426,7 +429,7 @@ export default function VaultDetailPage() {
       address: midasDepositVault,
       abi: MIDAS_DEPOSIT_ABI,
       functionName: "depositInstant",
-      args: [depositAssetAddr as `0x${string}`, midasDepositParsed18, BigInt(0), DEPOSIT_REFERRAL_ID],
+      args: [depositAssetAddr as `0x${string}`, midasDepositParsed18, BigInt(0), DEPOSIT_REFERRAL_ID as `0x${string}`],
     });
   }
 

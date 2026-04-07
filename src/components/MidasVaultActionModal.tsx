@@ -205,7 +205,7 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
         activePaymentToken as `0x${string}`,
         depositParsed18,
         BigInt(0), // minReceiveAmount — no sandwich risk on Midas
-        DEPOSIT_REFERRAL_ID,
+        DEPOSIT_REFERRAL_ID as `0x${string}`,
       ],
     });
   }

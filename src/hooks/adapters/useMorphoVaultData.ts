@@ -21,6 +21,7 @@ import { ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
+import type { MorphoVaultApy } from "@/lib/morphoApi";
 
 // MetaMorpho read ABI — ERC-4626 standard + totalIdle (MetaMorpho-specific)
 const ERC4626_READ_ABI = [
@@ -115,7 +116,7 @@ export function useMorphoVaultData(
     staleTime: 5 * 60 * 1_000,
     gcTime: 15 * 60 * 1_000,
     queryFn: async () => {
-      const results: Record<string, { weeklyNetApy: number | null; totalAssetsUsd: number | null }> = {};
+      const results: Record<string, MorphoVaultApy> = {};
       await Promise.all(
         Object.entries(chainGroups).map(async ([chainIdStr, addresses]) => {
           const data = await fetchMorphoVaultApys(addresses, parseInt(chainIdStr, 10));

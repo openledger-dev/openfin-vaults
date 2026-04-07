@@ -94,9 +94,9 @@ export function useMidasVaultData(
     const totalSupplyRes = stage1Data?.[base + 3];
     const userSharesRaw  = stage2Data?.[i];
 
-    const totalSupply = totalSupplyRes?.status === "success" ? (totalSupplyRes.result as bigint) : undefined;
-    const userShares  = userSharesRaw?.status  === "success" ? (userSharesRaw.result  as bigint) : undefined;
-    const vaultDec    = decimalsRes?.status    === "success" ? (decimalsRes.result    as number) : 18;
+    const totalSupply = totalSupplyRes?.status === "success" ? (totalSupplyRes.result as unknown as bigint) : undefined;
+    const userShares  = userSharesRaw?.status  === "success" ? (userSharesRaw.result  as unknown as bigint) : undefined;
+    const vaultDec    = decimalsRes?.status    === "success" ? (decimalsRes.result    as unknown as number) : 18;
 
     // Use midasApiKey (lowercase) to look up APY and price
     const apiKey = vault.midasApiKey?.toLowerCase();

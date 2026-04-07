@@ -5,6 +5,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0xBcca60bB61934080951369a648Fb03DF4F96263C",
     address: "0xBcca60bB61934080951369a648Fb03DF4F96263C",
+    kind: "morpho",
     platform: "aave",
     platformLabel: "Aave V3",
     name: "USDC Lending",
@@ -31,6 +32,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0x030bA81f1c18d280636F32af80b9AAd02Cf0854e",
     address: "0x030bA81f1c18d280636F32af80b9AAd02Cf0854e",
+    kind: "morpho",
     platform: "aave",
     platformLabel: "Aave V3",
     name: "WETH Lending",
@@ -57,6 +59,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0x3Afdc9BCA9213A35503b077a6072F3D0d5AB0840",
     address: "0x3Afdc9BCA9213A35503b077a6072F3D0d5AB0840",
+    kind: "morpho",
     platform: "compound",
     platformLabel: "Compound V3",
     name: "USDT Lending",
@@ -80,6 +83,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656",
     address: "0x9ff58f4fFB29fA2266Ab25e75e2A8b3503311656",
+    kind: "morpho",
     platform: "morpho",
     platformLabel: "Morpho Blue",
     name: "WBTC Vault",
@@ -103,6 +107,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0xdA816459F1AB5631232FE5e97a05BBBb94970c95",
     address: "0xdA816459F1AB5631232FE5e97a05BBBb94970c95",
+    kind: "ultrayield",
     platform: "yearn",
     platformLabel: "Yearn V3",
     name: "DAI Vault",
@@ -126,6 +131,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
     address: "0x625E7708f30cA75bfd92586e17077590C60eb4cD",
+    kind: "morpho",
     platform: "aave",
     platformLabel: "Aave V3 (Arbitrum)",
     name: "USDC Lending",
@@ -149,6 +155,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
     address: "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+    kind: "morpho",
     platform: "euler",
     platformLabel: "Euler V2",
     name: "wstETH Vault",
@@ -172,6 +179,7 @@ export const MOCK_VAULTS: Vault[] = [
   {
     id: "0x83F20F44975D03b1b09e64809B757c47f942BEeA",
     address: "0x83F20F44975D03b1b09e64809B757c47f942BEeA",
+    kind: "morpho",
     platform: "spark",
     platformLabel: "Spark Protocol",
     name: "sDAI Savings",
