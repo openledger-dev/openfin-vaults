@@ -559,9 +559,10 @@ export default function VaultDetailPage() {
   }
   function handleRequestRedeem() {
     if (!vaultAddress || !vault.assetAddress || !userAddress || redeemAmountParsed <= BigInt(0)) return;
+    const assetAddress = vault.assetAddress;
     setConfirmMessage(`Confirm request redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
-      writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [vault.assetAddress, redeemAmountParsed, userAddress, userAddress] });
+      writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [assetAddress, redeemAmountParsed, userAddress, userAddress] });
     });
     setConfirmOpen(true);
   }
@@ -673,20 +674,25 @@ export default function VaultDetailPage() {
 
           {/* Tx feedback */}
           {isConfirmed && (
-            <InlineNotification kind="success" title="Transaction confirmed"
-              subtitle={
-                txHash ? (
-                  <a
-                    href={getTxExplorerLink(txHash, vaultChainId)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "#4589ff", textDecoration: "underline" }}
-                  >
-                    View transaction: {txHash.slice(0, 18)}…
-                  </a>
-                ) : "Transaction confirmed"
-              }
-              style={{ marginBottom: "1.5rem" }} onCloseButtonClick={() => { resetWrite(); }} />
+            <>
+              <InlineNotification
+                kind="success"
+                title="Transaction confirmed"
+                subtitle={txHash ? `Hash: ${txHash.slice(0, 18)}…` : "Transaction confirmed"}
+                style={{ marginBottom: "0.5rem" }}
+                onCloseButtonClick={() => { resetWrite(); }}
+              />
+              {txHash && (
+                <a
+                  href={getTxExplorerLink(txHash, vaultChainId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#4589ff", textDecoration: "underline", fontSize: "0.8rem", display: "inline-block", marginBottom: "1.5rem" }}
+                >
+                  View transaction
+                </a>
+              )}
+            </>
           )}
           {writeError && (
             <InlineNotification kind="error" title="Transaction failed"

@@ -303,20 +303,25 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
         </div>
 
         {isConfirmed && (
-          <InlineNotification kind="success" title="Transaction confirmed"
-            subtitle={
-              txHash ? (
-                <a
-                  href={getTxExplorerLink(txHash, chainId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: "#4589ff", textDecoration: "underline" }}
-                >
-                  View transaction: {txHash.slice(0, 10)}…
-                </a>
-              ) : "Transaction confirmed"
-            }
-            style={{ marginBottom: "1rem" }} onCloseButtonClick={() => { resetWrite(); refetch(); }} />
+          <>
+            <InlineNotification
+              kind="success"
+              title="Transaction confirmed"
+              subtitle={txHash ? `Hash: ${txHash.slice(0, 10)}…` : "Transaction confirmed"}
+              style={{ marginBottom: "0.5rem" }}
+              onCloseButtonClick={() => { resetWrite(); refetch(); }}
+            />
+            {txHash && (
+              <a
+                href={getTxExplorerLink(txHash, chainId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#4589ff", textDecoration: "underline", fontSize: "0.8rem", display: "inline-block", marginBottom: "1rem" }}
+              >
+                View transaction
+              </a>
+            )}
+          </>
         )}
         {writeError && (
           <InlineNotification kind="error" title="Transaction failed"
