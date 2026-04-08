@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from "wagmi";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
 import {
   Button,
@@ -29,8 +29,8 @@ import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
-import { fetchMorphoVaultApys } from "@/lib/morphoApi";
-import { fetchMidasApys, fetchMidasPrices, fetchMidasPendingRedemptions } from "@/lib/midasApi";
+import type { MidasApyMap, MidasPriceMap, MidasPendingRedemption } from "@/lib/midasApi";
+import type { MorphoVaultApy } from "@/lib/morphoApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
 import { getChainName, getAddressExplorerLink } from "@/lib/chains";
 
@@ -230,6 +230,7 @@ export default function VaultDetailPage() {
     vaultKind === "ultrayield" ? vault.oracle : undefined,
     vaultKind === "ultrayield" ? vaultAddress : undefined,
     vaultKind === "ultrayield" ? vault.assetAddress : undefined,
+    vaultChainId,
   );
 
   const { data: morphoApyData, isLoading: morphoApyLoading } = useQuery({
@@ -237,7 +238,15 @@ export default function VaultDetailPage() {
     enabled: vaultKind === "morpho" && !!vaultAddress,
     staleTime: 5 * 60 * 1_000,
     gcTime: 15 * 60 * 1_000,
-    queryFn: () => fetchMorphoVaultApys([vaultAddress!], vaultChainId),
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        addresses: vaultAddress!,
+        chainId: String(vaultChainId),
+      });
+      const res = await fetch(`/api/morpho/apys?${params}`);
+      if (!res.ok) throw new Error(`Morpho APY API error: ${res.status}`);
+      return res.json() as Promise<Record<string, MorphoVaultApy>>;
+    },
   });
 
   const morphoApiEntry = morphoApyData?.[vaultAddress?.toLowerCase() ?? ""];
@@ -251,9 +260,13 @@ export default function VaultDetailPage() {
   const { data: midasApyMap, isLoading: midasApyLoading } = useQuery({
     queryKey: ["midasDetailApys"],
     enabled: vaultKind === "midas",
-    staleTime: 10 * 60 * 1_000,
-    gcTime:    20 * 60 * 1_000,
-    queryFn: fetchMidasApys,
+    staleTime: 5 * 60 * 1_000,
+    gcTime:    15 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/midas/apys").then((r) => {
+        if (!r.ok) throw new Error(`Midas APY API error: ${r.status}`);
+        return r.json() as Promise<MidasApyMap>;
+      }),
   });
 
   const { data: midasPriceMap, isLoading: midasPriceLoading } = useQuery({
@@ -261,7 +274,11 @@ export default function VaultDetailPage() {
     enabled: vaultKind === "midas",
     staleTime: 10 * 60 * 1_000,
     gcTime:    20 * 60 * 1_000,
-    queryFn: fetchMidasPrices,
+    queryFn: () =>
+      fetch("/api/midas/prices").then((r) => {
+        if (!r.ok) throw new Error(`Midas prices API error: ${r.status}`);
+        return r.json() as Promise<MidasPriceMap>;
+      }),
   });
 
   const { data: midasPendingRedemptions = [], isLoading: midasPendingLoading } = useQuery({
@@ -269,7 +286,16 @@ export default function VaultDetailPage() {
     enabled: vaultKind === "midas" && !!vaultAddress && !!userAddress,
     staleTime: 60 * 1_000,
     gcTime:    5 * 60 * 1_000,
-    queryFn: () => fetchMidasPendingRedemptions(vaultChainId, vaultAddress!, userAddress),
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        chainId: String(vaultChainId),
+        token: vaultAddress!,
+        ...(userAddress ? { address: userAddress } : {}),
+      });
+      const res = await fetch(`/api/midas/pending?${params}`);
+      if (!res.ok) return [] as MidasPendingRedemption[];
+      return res.json() as Promise<MidasPendingRedemption[]>;
+    },
   });
 
   // ── Midas instantFee from redemption vault ────────────────────────────────
@@ -386,6 +412,17 @@ export default function VaultDetailPage() {
   const { writeContract, data: txHash, isPending: isWritePending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
   const isBusy = isWritePending || isConfirming;
+
+  const queryClient = useQueryClient();
+
+  // When a Midas redeemRequest tx confirms, bust the server-side pending cache
+  // so the new request appears immediately instead of waiting up to 60 s.
+  useEffect(() => {
+    if (!isConfirmed || vaultKind !== "midas" || !vaultAddress || !userAddress) return;
+    void queryClient.invalidateQueries({
+      queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
+    });
+  }, [isConfirmed, vaultKind, vaultAddress, vaultChainId, userAddress, queryClient]);
 
   const depositAmountParsed = useMemo(() => {
     try { return depositAmount ? parseUnits(depositAmount, assetDecForDisplay) : BigInt(0); }

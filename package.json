@@ -16,9 +16,11 @@
     "@reown/appkit-adapter-wagmi": "^1.8.19",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.6",
+    "ioredis": "^5.10.1",
     "next": "^16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "server-only": "^0.0.1",
     "viem": "^2.47.2",
     "wagmi": "^3.5.0"
   },

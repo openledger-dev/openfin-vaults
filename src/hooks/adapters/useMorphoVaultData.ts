@@ -20,7 +20,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
-import { fetchMorphoVaultApys } from "@/lib/morphoApi";
 import type { MorphoVaultApy } from "@/lib/morphoApi";
 
 // MetaMorpho read ABI — ERC-4626 standard + totalIdle (MetaMorpho-specific)
@@ -119,7 +118,13 @@ export function useMorphoVaultData(
       const results: Record<string, MorphoVaultApy> = {};
       await Promise.all(
         Object.entries(chainGroups).map(async ([chainIdStr, addresses]) => {
-          const data = await fetchMorphoVaultApys(addresses, parseInt(chainIdStr, 10));
+          const params = new URLSearchParams({
+            addresses: addresses.join(","),
+            chainId: chainIdStr,
+          });
+          const res = await fetch(`/api/morpho/apys?${params}`);
+          if (!res.ok) throw new Error(`Morpho APY API error: ${res.status}`);
+          const data = (await res.json()) as Record<string, MorphoVaultApy>;
           Object.assign(results, data);
         })
       );

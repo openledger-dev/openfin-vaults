@@ -4,16 +4,15 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { SkeletonText, Tag } from "@carbon/react";
 import { formatUnits } from "viem";
 import { Navbar } from "@/components/Navbar";
 import { useVaultData } from "@/hooks/useVaultData";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import { getChainName } from "@/lib/chains";
-import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
-import type { VaultOnChainData } from "@/hooks/useVaultData";
 import type { MidasPendingRedemption } from "@/lib/midasApi";
+import type { VaultOnChainData } from "@/hooks/useVaultData";
 
 // ── Formatting helpers ────────────────────────────────────────────────────────
 
@@ -240,7 +239,18 @@ export default function PortfolioPage() {
       enabled: !!userAddress && !!v.address,
       staleTime: 60 * 1_000,
       gcTime:    5 * 60 * 1_000,
-      queryFn: () => fetchMidasPendingRedemptions(v.chainId, v.address, userAddress),
+      // Re-fetch when the user returns to this tab (e.g. after submitting on detail page)
+      refetchOnWindowFocus: true,
+      queryFn: async () => {
+        const params = new URLSearchParams({
+          chainId: String(v.chainId),
+          token: v.address,
+          ...(userAddress ? { address: userAddress } : {}),
+        });
+        const res = await fetch(`/api/midas/pending?${params}`);
+        if (!res.ok) return [] as MidasPendingRedemption[];
+        return res.json() as Promise<MidasPendingRedemption[]>;
+      },
     })),
   });
 

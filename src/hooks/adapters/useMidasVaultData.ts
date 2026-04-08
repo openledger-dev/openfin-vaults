@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
-import { fetchMidasApys, fetchMidasPrices } from "@/lib/midasApi";
+import type { MidasApyMap, MidasPriceMap } from "@/lib/midasApi";
 
 // USDC has 6 decimals — we use it as the "display asset" for Midas tokens
 // since most Midas tokens accept USDC as a payment token.
@@ -68,13 +68,17 @@ export function useMidasVaultData(
     query: { enabled: !!userAddress && allVaults.length > 0 },
   });
 
-  // ── Midas REST: APYs + prices ─────────────────────────────────────────────
+  // ── Midas REST: APYs + prices (via Redis-cached API routes) ──────────────
   const { data: midasApys, isLoading: apyLoading } = useQuery({
     queryKey: ["midasApys"],
     enabled: allVaults.length > 0,
-    staleTime: 10 * 60 * 1_000,
-    gcTime:   20 * 60 * 1_000,
-    queryFn: fetchMidasApys,
+    staleTime: 5 * 60 * 1_000,
+    gcTime:   15 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/midas/apys").then((r) => {
+        if (!r.ok) throw new Error(`Midas APY API error: ${r.status}`);
+        return r.json() as Promise<MidasApyMap>;
+      }),
   });
 
   const { data: midasPrices, isLoading: priceLoading } = useQuery({
@@ -82,7 +86,11 @@ export function useMidasVaultData(
     enabled: allVaults.length > 0,
     staleTime: 10 * 60 * 1_000,
     gcTime:   20 * 60 * 1_000,
-    queryFn: fetchMidasPrices,
+    queryFn: () =>
+      fetch("/api/midas/prices").then((r) => {
+        if (!r.ok) throw new Error(`Midas prices API error: ${r.status}`);
+        return r.json() as Promise<MidasPriceMap>;
+      }),
   });
 
   // ── Assemble ──────────────────────────────────────────────────────────────
