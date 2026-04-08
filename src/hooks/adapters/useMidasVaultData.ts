@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
-import type { MidasApyMap, MidasPriceMap } from "@/lib/midasApi";
+import type { MidasApyMap, MidasPriceMap, MidasTvlMap } from "@/lib/midasApi";
 
 // USDC has 6 decimals — we use it as the "display asset" for Midas tokens
 // since most Midas tokens accept USDC as a payment token.
@@ -93,6 +93,18 @@ export function useMidasVaultData(
       }),
   });
 
+  const { data: midasTvls, isLoading: tvlLoading } = useQuery({
+    queryKey: ["midasTvls"],
+    enabled: allVaults.length > 0,
+    staleTime: 10 * 60 * 1_000,
+    gcTime:   20 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/midas/tvl").then((r) => {
+        if (!r.ok) throw new Error(`Midas TVL API error: ${r.status}`);
+        return r.json() as Promise<MidasTvlMap>;
+      }),
+  });
+
   // ── Assemble ──────────────────────────────────────────────────────────────
   const vaults: VaultOnChainData[] = allVaults.map((vault, i) => {
     const base = i * FIELD_COUNT;
@@ -106,19 +118,25 @@ export function useMidasVaultData(
     const userShares  = userSharesRaw?.status  === "success" ? (userSharesRaw.result  as unknown as bigint) : undefined;
     const vaultDec    = decimalsRes?.status    === "success" ? (decimalsRes.result    as unknown as number) : 18;
 
-    // Use midasApiKey (lowercase) to look up APY and price
-    const apiKey = vault.midasApiKey?.toLowerCase();
+    // Use explicit midasApiKey, with symbol fallback for newly listed tokens.
+    const symbolFromChain =
+      symbolRes?.status === "success" ? String(symbolRes.result).toLowerCase() : undefined;
+    const apiKey = vault.midasApiKey?.toLowerCase() ?? symbolFromChain;
     const apy    = apiKey && midasApys  ? (midasApys[apiKey]   ?? null) : null;
     const price  = apiKey && midasPrices ? (midasPrices[apiKey] ?? null) : null;
+    const tvlUsd = apiKey && midasTvls ? (midasTvls[apiKey] ?? null) : null;
 
     // Derive totalAssets in the primary payment token's unit.
     // price is USD per share (18-decimal token) → scale to 6-decimal USDC units.
     // totalAssets ≈ totalSupply × price × 10^(USDC_decimals) / 10^(share_decimals)
-    const totalAssets =
-      totalSupply !== undefined && price !== null
-        ? BigInt(Math.round(
+    const totalAssets = totalSupply !== undefined && price !== null
+      ? BigInt(
+          Math.round(
             (Number(totalSupply) / 10 ** vaultDec) * price * 10 ** USDC_DECIMALS
-          ))
+          )
+        )
+      : tvlUsd !== null
+        ? BigInt(Math.round(tvlUsd * 10 ** USDC_DECIMALS))
         : undefined;
 
     const userAssetsRaw =
@@ -137,7 +155,10 @@ export function useMidasVaultData(
       platformId: vault.platformId,
       platformLabel: vault.platformLabel,
       chainId: vault.chainId,
-      name: nameRes?.status === "success" ? (nameRes.result as string) : vault.address,
+      name:
+        nameRes?.status === "success"
+          ? (nameRes.result as string)
+          : vault.displayName ?? vault.address,
       symbol: symbolRes?.status === "success" ? (symbolRes.result as string) : "—",
       decimals: vaultDec,
       assetAddress: primaryAsset?.address,
@@ -166,10 +187,10 @@ export function useMidasVaultData(
       depositVaultAddress: vault.depositVaultAddress,
       redemptionVaultAddress: vault.redemptionVaultAddress,
       midasApiKey: vault.midasApiKey,
-      isLoading: s1Loading || s2Loading || apyLoading || priceLoading,
+      isLoading: s1Loading || s2Loading || apyLoading || priceLoading || tvlLoading,
       isError: nameRes?.status === "failure",
     };
   });
 
-  return { vaults, isLoading: s1Loading || s2Loading || apyLoading || priceLoading };
+  return { vaults, isLoading: s1Loading || s2Loading || apyLoading || priceLoading || tvlLoading };
 }

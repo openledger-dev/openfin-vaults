@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Modal,
   Tabs,
@@ -20,11 +20,14 @@ import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import type { Vault } from "@/types/vault";
+import { useQueryClient } from "@tanstack/react-query";
+import { getTxExplorerLink } from "@/lib/chains";
 
 interface VaultActionModalProps {
   vault: Vault | null;
   open: boolean;
   onClose: () => void;
+  onTxCompleted?: () => void;
 }
 
 function formatAsset(raw: bigint, decimals: number, symbol: string): string {
@@ -34,10 +37,14 @@ function formatAsset(raw: bigint, decimals: number, symbol: string): string {
   return `${n.toFixed(4)} ${symbol}`;
 }
 
-export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps) {
+export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultActionModalProps) {
   const { address: userAddress, isConnected } = useAccount();
+  const queryClient = useQueryClient();
   const [depositAmount, setDepositAmount] = useState("");
   const [requestRedeemShares, setRequestRedeemShares] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const { writeContract, data: txHash, isPending: isWritePending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
@@ -67,6 +74,13 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
     ],
     query: { enabled },
   });
+
+  useEffect(() => {
+    if (!isConfirmed) return;
+    void refetch();
+    void queryClient.invalidateQueries();
+    onTxCompleted?.();
+  }, [isConfirmed, refetch, queryClient, onTxCompleted]);
 
   const assetBalance   = reads?.[0]?.status === "success" ? reads[0].result as bigint : undefined;
   const assetAllowance = reads?.[1]?.status === "success" ? reads[1].result as bigint : undefined;
@@ -118,12 +132,16 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
 
   function handleRequestRedeem() {
     if (!vaultAddr || !assetAddr || !userAddress || requestSharesParsed <= BigInt(0)) return;
-    writeContract({
-      address: vaultAddr,
-      abi: VAULT_WRITE_ABI,
-      functionName: "requestRedeemOfAsset",
-      args: [assetAddr, requestSharesParsed, userAddress, userAddress],
+    setConfirmMessage(`Confirm request redeem ${requestRedeemShares || "0"} ${vault.symbol} shares?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: vaultAddr,
+        abi: VAULT_WRITE_ABI,
+        functionName: "requestRedeemOfAsset",
+        args: [assetAddr, requestSharesParsed, userAddress, userAddress],
+      });
     });
+    setConfirmOpen(true);
   }
 
   function handleCancelRedeem() {
@@ -159,14 +177,15 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
   const isBusy = isWritePending || isConfirming;
 
   return (
-    <Modal
-      open={open}
-      onRequestClose={handleClose}
-      modalHeading={`${vault.name} — ${vault.platformLabel}`}
-      passiveModal
-      size="sm"
-    >
-      <div style={{ padding: "0 0 1rem 0" }}>
+    <>
+      <Modal
+        open={open}
+        onRequestClose={handleClose}
+        modalHeading={`${vault.name} — ${vault.platformLabel}`}
+        passiveModal
+        size="sm"
+      >
+        <div style={{ padding: "0 0 1rem 0" }}>
 
         {/* Vault stats */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.25rem" }}>
@@ -198,7 +217,18 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
         {/* Tx feedback */}
         {isConfirmed && (
           <InlineNotification kind="success" title="Transaction confirmed"
-            subtitle={`Hash: ${txHash?.slice(0, 10)}…`}
+            subtitle={
+              txHash ? (
+                <a
+                  href={getTxExplorerLink(txHash, vault.chainId ?? 1)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#4589ff", textDecoration: "underline" }}
+                >
+                  View transaction: {txHash.slice(0, 10)}…
+                </a>
+              ) : "Transaction confirmed"
+            }
             style={{ marginBottom: "1rem" }} onCloseButtonClick={() => { resetWrite(); refetch(); }} />
         )}
         {writeError && (
@@ -350,7 +380,24 @@ export function VaultActionModal({ vault, open, onClose }: VaultActionModalProps
             </TabPanels>
           </Tabs>
         )}
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmOpen}
+        modalHeading="Confirm Redemption"
+        primaryButtonText="Confirm"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setConfirmOpen(false)}
+        onRequestSubmit={() => {
+          confirmAction?.();
+          setConfirmOpen(false);
+          setConfirmAction(null);
+        }}
+        size="sm"
+      >
+        <p>{confirmMessage}</p>
+      </Modal>
+    </>
   );
 }

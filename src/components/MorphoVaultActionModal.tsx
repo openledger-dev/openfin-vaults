@@ -10,7 +10,7 @@
  * No async redemption queue, no share approval step.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Modal,
   Tabs,
@@ -29,6 +29,8 @@ import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionRe
 import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
 import { ERC20_ABI } from "@/lib/vaultAbi";
 import type { Vault } from "@/types/vault";
+import { useQueryClient } from "@tanstack/react-query";
+import { getTxExplorerLink } from "@/lib/chains";
 
 // Minimal ERC-4626 write ABI for Morpho vaults
 const MORPHO_WRITE_ABI = [
@@ -59,6 +61,7 @@ interface Props {
   vault: Vault | null;
   open: boolean;
   onClose: () => void;
+  onTxCompleted?: () => void;
 }
 
 function fmt(raw: bigint, dec: number, sym: string): string {
@@ -68,10 +71,14 @@ function fmt(raw: bigint, dec: number, sym: string): string {
   return `${n.toFixed(4)} ${sym}`;
 }
 
-export function MorphoVaultActionModal({ vault, open, onClose }: Props) {
+export function MorphoVaultActionModal({ vault, open, onClose, onTxCompleted }: Props) {
   const { address: userAddress, isConnected } = useAccount();
+  const queryClient = useQueryClient();
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemShares, setRedeemShares] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const { writeContract, data: txHash, isPending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
@@ -96,6 +103,13 @@ export function MorphoVaultActionModal({ vault, open, onClose }: Props) {
     ],
     query: { enabled },
   });
+
+  useEffect(() => {
+    if (!isConfirmed) return;
+    void refetch();
+    void queryClient.invalidateQueries();
+    onTxCompleted?.();
+  }, [isConfirmed, refetch, queryClient, onTxCompleted]);
 
   const assetBalance   = reads?.[0]?.status === "success" ? (reads[0].result as bigint) : undefined;
   const assetAllowance = reads?.[1]?.status === "success" ? (reads[1].result as bigint) : undefined;
@@ -131,12 +145,16 @@ export function MorphoVaultActionModal({ vault, open, onClose }: Props) {
 
   function handleRedeem() {
     if (!vaultAddr || !userAddress || redeemParsed <= BigInt(0)) return;
-    writeContract({
-      address: vaultAddr,
-      abi: MORPHO_WRITE_ABI,
-      functionName: "redeem",
-      args: [redeemParsed, userAddress, userAddress],
+    setConfirmMessage(`Confirm redeem ${redeemShares || "0"} ${shareSym} shares?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: vaultAddr,
+        abi: MORPHO_WRITE_ABI,
+        functionName: "redeem",
+        args: [redeemParsed, userAddress, userAddress],
+      });
     });
+    setConfirmOpen(true);
   }
 
   function handleClose() {
@@ -150,14 +168,15 @@ export function MorphoVaultActionModal({ vault, open, onClose }: Props) {
   if (!vault) return null;
 
   return (
-    <Modal
-      open={open}
-      onRequestClose={handleClose}
-      modalHeading={`${vault.name} — ${vault.platformLabel}`}
-      passiveModal
-      size="sm"
-    >
-      <div style={{ padding: "0 0 1rem 0" }}>
+    <>
+      <Modal
+        open={open}
+        onRequestClose={handleClose}
+        modalHeading={`${vault.name} — ${vault.platformLabel}`}
+        passiveModal
+        size="sm"
+      >
+        <div style={{ padding: "0 0 1rem 0" }}>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.25rem" }}>
           {[
@@ -179,7 +198,18 @@ export function MorphoVaultActionModal({ vault, open, onClose }: Props) {
 
         {isConfirmed && (
           <InlineNotification kind="success" title="Transaction confirmed"
-            subtitle={`Hash: ${txHash?.slice(0, 10)}…`}
+            subtitle={
+              txHash ? (
+                <a
+                  href={getTxExplorerLink(txHash, vault.chainId ?? 1)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#4589ff", textDecoration: "underline" }}
+                >
+                  View transaction: {txHash.slice(0, 10)}…
+                </a>
+              ) : "Transaction confirmed"
+            }
             style={{ marginBottom: "1rem" }} onCloseButtonClick={() => { resetWrite(); refetch(); }} />
         )}
         {writeError && (
@@ -286,7 +316,24 @@ export function MorphoVaultActionModal({ vault, open, onClose }: Props) {
             </TabPanels>
           </Tabs>
         )}
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmOpen}
+        modalHeading="Confirm Redemption"
+        primaryButtonText="Confirm"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setConfirmOpen(false)}
+        onRequestSubmit={() => {
+          confirmAction?.();
+          setConfirmOpen(false);
+          setConfirmAction(null);
+        }}
+        size="sm"
+      >
+        <p>{confirmMessage}</p>
+      </Modal>
+    </>
   );
 }

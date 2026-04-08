@@ -37,6 +37,8 @@ export type PlatformVaultEntry = {
    * Configured statically — avoids expensive event-log discovery.
    */
   assets?: AssetConfig[];
+  /** Optional UI fallback display name when on-chain name() is unavailable */
+  displayName?: string;
 
   // ── Midas-only fields ──────────────────────────────────────────────────────
   /** Midas Deposit Vault contract address */
@@ -155,7 +157,7 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">
  */
 const MIDAS_VAULT_CONFIG: Record<
   string,
-  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets">
+  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "displayName">
 > = {
   // ── mTBILL — Midas T-Bill token ───────────────────────────────────────────
   "0xdd629e5241cbc5919847783e6c96b2de4754e438": {
@@ -190,6 +192,22 @@ const MIDAS_VAULT_CONFIG: Record<
   //     { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true  },
   //   ],
   // },
+
+  // ── mRe7YIELD — Re7 strategy token ────────────────────────────────────────
+  "0x87c9053c819bb28e0d73d33059e1b3da80afb0cf": {
+    displayName: "mRe7YIELD",
+    depositVaultAddress:    "0xcE0A2953a5d46400Af601a9857235312d1924aC7",
+    redemptionVaultAddress: "0x5356B8E06589DE894D86B24F4079c629E8565234",
+    midasApiKey: "mre7",
+  },
+
+  // ── mRe7BTC — Re7 BTC strategy token ──────────────────────────────────────
+  "0x9fb442d6b612a6dcd2acc67bb53771ef1d9f661a": {
+    displayName: "mRe7BTC",
+    depositVaultAddress:    "0x5E154946561AEA4E750AAc6DeaD23D37e00E47f6",
+    redemptionVaultAddress: "0x4Fd4DD7171D14e5bD93025ec35374d2b9b4321b0",
+    midasApiKey: "mre7btc",
+  },
 };
 
 // ── Morpho static vault config ────────────────────────────────────────────────
@@ -270,5 +288,26 @@ export const VAULT_PLATFORMS: PlatformConfig[] = [
         ...MIDAS_VAULT_CONFIG[address.toLowerCase()],
       })
     ),
+  },
+
+  // ── Re7 (Midas-powered) ────────────────────────────────────────────────────
+  {
+    id: "re7",
+    label: "Re7 Vaults",
+    description: "Midas Re7 strategy vaults with instant and async redemption flows",
+    kind: "midas",
+    chainId: parseChainId(process.env.NEXT_PUBLIC_MIDAS_CHAIN_ID, 1),
+    vaults: [
+      {
+        address: "0x87C9053C819bB28e0D73d33059E1b3DA80AFb0cf",
+        kind: "midas" as const,
+        ...MIDAS_VAULT_CONFIG["0x87c9053c819bb28e0d73d33059e1b3da80afb0cf"],
+      },
+      {
+        address: "0x9FB442d6B612a6dcD2acC67bb53771eF1D9F661A",
+        kind: "midas" as const,
+        ...MIDAS_VAULT_CONFIG["0x9fb442d6b612a6dcd2acc67bb53771ef1d9f661a"],
+      },
+    ],
   },
 ];

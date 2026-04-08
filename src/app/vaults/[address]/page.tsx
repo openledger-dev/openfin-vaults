@@ -6,6 +6,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseUnits, formatUnits, maxUint256 } from "viem";
 import {
+  Modal,
   Button,
   Tag,
   InlineNotification,
@@ -27,12 +28,12 @@ import { useVaultDetail } from "@/hooks/useVaultDetail";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
-import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
+import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import type { MidasApyMap, MidasPriceMap, MidasPendingRedemption } from "@/lib/midasApi";
 import type { MorphoVaultApy } from "@/lib/morphoApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
-import { getChainName, getAddressExplorerLink } from "@/lib/chains";
+import { getChainName, getAddressExplorerLink, getTxExplorerLink } from "@/lib/chains";
 
 // Minimal ERC-4626 write ABI for Morpho (standard sync deposit/redeem)
 const ERC4626_WRITE_ABI = [
@@ -63,6 +64,7 @@ const MIDAS_DEPOSIT_ABI = [
       { name: "amountToken",      type: "uint256" }, // always 18 decimals
       { name: "minReceiveAmount", type: "uint256" },
       { name: "referrerId",       type: "bytes32"  },
+      { name: "recipient",        type: "address"  },
     ],
     outputs: [],
   },
@@ -217,13 +219,16 @@ export default function VaultDetailPage() {
 
   const midasDepositVault    = vaultConfig?.depositVaultAddress;
   const midasRedemptionVault = vaultConfig?.redemptionVaultAddress;
-  const midasApiKey          = vaultConfig?.midasApiKey?.toLowerCase();
 
   const vaultKind    = vaultConfig?.kind    ?? "ultrayield";
   const vaultChainId = vaultConfig?.chainId ?? 1;
 
   // ── On-chain detail ───────────────────────────────────────────────────────
   const vault = useVaultDetail(vaultAddress, userAddress, vaultChainId, vaultKind);
+  const midasApiKey = useMemo(() => {
+    if (vaultConfig?.midasApiKey) return vaultConfig.midasApiKey.toLowerCase();
+    return vault.symbol ? vault.symbol.toLowerCase() : undefined;
+  }, [vaultConfig?.midasApiKey, vault.symbol]);
 
   // ── APY: event-log for UltraYield; Morpho API otherwise ──────────────────
   const { apy: ultrayieldApy, label: apyLabel, isLoading: apyLoading } = use7dApy(
@@ -408,6 +413,9 @@ export default function VaultDetailPage() {
   // ── State + write contract ────────────────────────────────────────────────
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemAmount, setRedeemAmount]   = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const { writeContract, data: txHash, isPending: isWritePending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
@@ -423,6 +431,12 @@ export default function VaultDetailPage() {
       queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
     });
   }, [isConfirmed, vaultKind, vaultAddress, vaultChainId, userAddress, queryClient]);
+
+  // Refresh all data sources after any confirmed tx (deposit/redeem/approve/claim).
+  useEffect(() => {
+    if (!isConfirmed) return;
+    void queryClient.invalidateQueries();
+  }, [isConfirmed, queryClient]);
 
   const depositAmountParsed = useMemo(() => {
     try { return depositAmount ? parseUnits(depositAmount, assetDecForDisplay) : BigInt(0); }
@@ -461,35 +475,43 @@ export default function VaultDetailPage() {
 
   // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
   function handleMidasDeposit() {
-    if (!midasDepositVault || !depositAssetAddr || midasDepositParsed18 <= BigInt(0)) return;
+    if (!midasDepositVault || !depositAssetAddr || !userAddress || midasDepositParsed18 <= BigInt(0)) return;
     writeContract({
       address: midasDepositVault,
       abi: MIDAS_DEPOSIT_ABI,
       functionName: "depositInstant",
-      args: [depositAssetAddr as `0x${string}`, midasDepositParsed18, BigInt(0), DEPOSIT_REFERRAL_ID as `0x${string}`],
+      args: [depositAssetAddr as `0x${string}`, midasDepositParsed18, BigInt(0), MIDAS_DEPOSIT_REFERRAL_ID, userAddress],
     });
   }
 
   // Midas instant redeem (with fee)
   function handleMidasRedeemInstant() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
-    writeContract({
-      address: midasRedemptionVault,
-      abi: MIDAS_REDEEM_ABI,
-      functionName: "redeemInstant",
-      args: [depositAssetAddr as `0x${string}`, redeemAmountParsed, BigInt(0)],
+    setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: midasRedemptionVault,
+        abi: MIDAS_REDEEM_ABI,
+        functionName: "redeemInstant",
+        args: [depositAssetAddr as `0x${string}`, redeemAmountParsed, BigInt(0)],
+      });
     });
+    setConfirmOpen(true);
   }
 
   // Midas standard (async) redeem (fee-free, no cancel)
   function handleMidasRedeemRequest() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
-    writeContract({
-      address: midasRedemptionVault,
-      abi: MIDAS_REDEEM_ABI,
-      functionName: "redeemRequest",
-      args: [depositAssetAddr as `0x${string}`, redeemAmountParsed],
+    setConfirmMessage(`Confirm async redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: midasRedemptionVault,
+        abi: MIDAS_REDEEM_ABI,
+        functionName: "redeemRequest",
+        args: [depositAssetAddr as `0x${string}`, redeemAmountParsed],
+      });
     });
+    setConfirmOpen(true);
   }
 
   // UltraYield deposit
@@ -518,12 +540,16 @@ export default function VaultDetailPage() {
   // Morpho redeem (sync)
   function handleMorphoRedeem() {
     if (!vaultAddress || !userAddress || redeemAmountParsed <= BigInt(0)) return;
-    writeContract({
-      address: vaultAddress,
-      abi: ERC4626_WRITE_ABI,
-      functionName: "redeem",
-      args: [redeemAmountParsed, userAddress, userAddress],
+    setConfirmMessage(`Confirm redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: vaultAddress,
+        abi: ERC4626_WRITE_ABI,
+        functionName: "redeem",
+        args: [redeemAmountParsed, userAddress, userAddress],
+      });
     });
+    setConfirmOpen(true);
   }
 
   // UltraYield share approval + async redeem
@@ -533,7 +559,11 @@ export default function VaultDetailPage() {
   }
   function handleRequestRedeem() {
     if (!vaultAddress || !vault.assetAddress || !userAddress || redeemAmountParsed <= BigInt(0)) return;
-    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [vault.assetAddress, redeemAmountParsed, userAddress, userAddress] });
+    setConfirmMessage(`Confirm request redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
+    setConfirmAction(() => () => {
+      writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [vault.assetAddress, redeemAmountParsed, userAddress, userAddress] });
+    });
+    setConfirmOpen(true);
   }
   function handleCancelRedeem() {
     if (!vaultAddress || !vault.assetAddress || !userAddress) return;
@@ -644,7 +674,18 @@ export default function VaultDetailPage() {
           {/* Tx feedback */}
           {isConfirmed && (
             <InlineNotification kind="success" title="Transaction confirmed"
-              subtitle={`Hash: ${txHash?.slice(0, 18)}…`}
+              subtitle={
+                txHash ? (
+                  <a
+                    href={getTxExplorerLink(txHash, vaultChainId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: "#4589ff", textDecoration: "underline" }}
+                  >
+                    View transaction: {txHash.slice(0, 18)}…
+                  </a>
+                ) : "Transaction confirmed"
+              }
               style={{ marginBottom: "1.5rem" }} onCloseButtonClick={() => { resetWrite(); }} />
           )}
           {writeError && (
@@ -1132,6 +1173,22 @@ export default function VaultDetailPage() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={confirmOpen}
+        modalHeading="Confirm Redemption"
+        primaryButtonText="Confirm"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setConfirmOpen(false)}
+        onRequestSubmit={() => {
+          confirmAction?.();
+          setConfirmOpen(false);
+          setConfirmAction(null);
+        }}
+        size="sm"
+      >
+        <p>{confirmMessage}</p>
+      </Modal>
     </div>
   );
 }

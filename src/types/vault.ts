@@ -12,6 +12,8 @@ export interface Vault {
   platform: string;
   /** Human-readable platform label, e.g. "UltraYield Vaults" */
   platformLabel: string;
+  /** EVM chain ID where this vault is deployed */
+  chainId?: number;
   /** Vault share token name */
   name: string;
   /** Vault share token symbol */

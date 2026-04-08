@@ -16,7 +16,7 @@
  * or redemption vault address is missing.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Modal,
   Tabs,
@@ -36,9 +36,11 @@ import {
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
 import { ERC20_ABI } from "@/lib/vaultAbi";
-import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
+import { MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import type { Vault } from "@/types/vault";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
+import { useQueryClient } from "@tanstack/react-query";
+import { getTxExplorerLink } from "@/lib/chains";
 
 // Midas Deposit Vault ABI fragments
 const MIDAS_DEPOSIT_ABI = [
@@ -51,6 +53,7 @@ const MIDAS_DEPOSIT_ABI = [
       { name: "amountToken",      type: "uint256" }, // always 18 decimals
       { name: "minReceiveAmount", type: "uint256" },
       { name: "referrerId",       type: "bytes32"  },
+      { name: "recipient",        type: "address"  },
     ],
     outputs: [],
   },
@@ -96,6 +99,7 @@ interface Props {
   vault: Vault | null;
   open: boolean;
   onClose: () => void;
+  onTxCompleted?: () => void;
 }
 
 function fmt(raw: bigint, dec: number, sym: string): string {
@@ -105,11 +109,15 @@ function fmt(raw: bigint, dec: number, sym: string): string {
   return `${n.toFixed(4)} ${sym}`;
 }
 
-export function MidasVaultActionModal({ vault, open, onClose }: Props) {
+export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: Props) {
   const { address: userAddress, isConnected } = useAccount();
+  const queryClient = useQueryClient();
   const [depositAmount, setDepositAmount]     = useState("");
   const [redeemAmount, setRedeemAmount]       = useState("");
   const [selectedPaymentToken, setSelectedPaymentToken] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
 
   const { writeContract, data: txHash, isPending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
@@ -126,6 +134,7 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
   const shareAddr  = vault?.address;
   const depositVault  = vault?.depositVaultAddress;
   const redeemVault   = vault?.redemptionVaultAddress;
+  const chainId = vault?.chainId ?? 1;
   const shareDec   = 18; // Midas share tokens are always 18 decimals
   const shareSym   = vault?.symbol ?? "—";
   const paymentDec = activeAsset?.decimals ?? 6;
@@ -136,7 +145,7 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
   // ── instantFee from redemption vault (1e18 = 100%) ───────────────────────
   const { data: feeData } = useReadContracts({
     contracts: redeemVault
-      ? [{ address: redeemVault, abi: MIDAS_REDEEM_READ_ABI, functionName: "instantFee" as const }]
+      ? [{ address: redeemVault, abi: MIDAS_REDEEM_READ_ABI, functionName: "instantFee" as const, chainId }]
       : [],
     query: { enabled: !!redeemVault },
   });
@@ -146,14 +155,21 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
   const { data: reads, refetch } = useReadContracts({
     contracts: [
       // [0] payment token wallet balance
-      { address: (activePaymentToken || shareAddr) as `0x${string}`, abi: ERC20_ABI as Abi, functionName: "balanceOf",  args: [userAddress!] },
+      { address: (activePaymentToken || shareAddr) as `0x${string}`, abi: ERC20_ABI as Abi, functionName: "balanceOf",  args: [userAddress!], chainId },
       // [1] payment token allowance to deposit vault
-      { address: (activePaymentToken || shareAddr) as `0x${string}`, abi: ERC20_ABI as Abi, functionName: "allowance",  args: [userAddress!, (depositVault || shareAddr) as `0x${string}`] },
+      { address: (activePaymentToken || shareAddr) as `0x${string}`, abi: ERC20_ABI as Abi, functionName: "allowance",  args: [userAddress!, (depositVault || shareAddr) as `0x${string}`], chainId },
       // [2] share balance (for redeem)
-      { address: shareAddr!, abi: ERC20_ABI as Abi, functionName: "balanceOf", args: [userAddress!] },
+      { address: shareAddr!, abi: ERC20_ABI as Abi, functionName: "balanceOf", args: [userAddress!], chainId },
     ],
     query: { enabled: enabled && !!activePaymentToken },
   });
+
+  useEffect(() => {
+    if (!isConfirmed) return;
+    void refetch();
+    void queryClient.invalidateQueries();
+    onTxCompleted?.();
+  }, [isConfirmed, refetch, queryClient, onTxCompleted]);
 
   const paymentBalance   = reads?.[0]?.status === "success" ? (reads[0].result as bigint) : undefined;
   const paymentAllowance = reads?.[1]?.status === "success" ? (reads[1].result as bigint) : undefined;
@@ -189,6 +205,7 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
     if (!activePaymentToken || !depositVault) return;
     writeContract({
       address: activePaymentToken as `0x${string}`,
+      chainId,
       abi: ERC20_ABI,
       functionName: "approve",
       args: [depositVault, maxUint256],
@@ -196,42 +213,54 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
   }
 
   function handleDeposit() {
-    if (!depositVault || !activePaymentToken || depositParsed18 <= BigInt(0)) return;
+    if (!depositVault || !activePaymentToken || !userAddress || depositParsed18 <= BigInt(0)) return;
     writeContract({
       address: depositVault,
+      chainId,
       abi: MIDAS_DEPOSIT_ABI,
       functionName: "depositInstant",
       args: [
         activePaymentToken as `0x${string}`,
         depositParsed18,
         BigInt(0), // minReceiveAmount — no sandwich risk on Midas
-        DEPOSIT_REFERRAL_ID as `0x${string}`,
+        MIDAS_DEPOSIT_REFERRAL_ID,
+        userAddress,
       ],
     });
   }
 
   function handleRedeemInstant() {
     if (!redeemVault || !activePaymentToken || redeemParsed <= BigInt(0)) return;
-    writeContract({
-      address: redeemVault,
-      abi: MIDAS_REDEEM_ABI,
-      functionName: "redeemInstant",
-      args: [
-        activePaymentToken as `0x${string}`,
-        redeemParsed,
-        BigInt(0),
-      ],
+    setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${shareSym} shares?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: redeemVault,
+        chainId,
+        abi: MIDAS_REDEEM_ABI,
+        functionName: "redeemInstant",
+        args: [
+          activePaymentToken as `0x${string}`,
+          redeemParsed,
+          BigInt(0),
+        ],
+      });
     });
+    setConfirmOpen(true);
   }
 
   function handleRedeemRequest() {
     if (!redeemVault || !activePaymentToken || redeemParsed <= BigInt(0)) return;
-    writeContract({
-      address: redeemVault,
-      abi: MIDAS_REDEEM_ABI,
-      functionName: "redeemRequest",
-      args: [activePaymentToken as `0x${string}`, redeemParsed],
+    setConfirmMessage(`Confirm async redeem request for ${redeemAmount || "0"} ${shareSym} shares?`);
+    setConfirmAction(() => () => {
+      writeContract({
+        address: redeemVault,
+        chainId,
+        abi: MIDAS_REDEEM_ABI,
+        functionName: "redeemRequest",
+        args: [activePaymentToken as `0x${string}`, redeemParsed],
+      });
     });
+    setConfirmOpen(true);
   }
 
   function handleClose() {
@@ -245,14 +274,15 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
   if (!vault) return null;
 
   return (
-    <Modal
-      open={open}
-      onRequestClose={handleClose}
-      modalHeading={`${vault.name} — ${vault.platformLabel}`}
-      passiveModal
-      size="sm"
-    >
-      <div style={{ padding: "0 0 1rem 0" }}>
+    <>
+      <Modal
+        open={open}
+        onRequestClose={handleClose}
+        modalHeading={`${vault.name} — ${vault.platformLabel}`}
+        passiveModal
+        size="sm"
+      >
+        <div style={{ padding: "0 0 1rem 0" }}>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.25rem" }}>
           {[
@@ -274,7 +304,18 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
 
         {isConfirmed && (
           <InlineNotification kind="success" title="Transaction confirmed"
-            subtitle={`Hash: ${txHash?.slice(0, 10)}…`}
+            subtitle={
+              txHash ? (
+                <a
+                  href={getTxExplorerLink(txHash, chainId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#4589ff", textDecoration: "underline" }}
+                >
+                  View transaction: {txHash.slice(0, 10)}…
+                </a>
+              ) : "Transaction confirmed"
+            }
             style={{ marginBottom: "1rem" }} onCloseButtonClick={() => { resetWrite(); refetch(); }} />
         )}
         {writeError && (
@@ -429,7 +470,24 @@ export function MidasVaultActionModal({ vault, open, onClose }: Props) {
             </Tabs>
           </>
         )}
-      </div>
-    </Modal>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirmOpen}
+        modalHeading="Confirm Redemption"
+        primaryButtonText="Confirm"
+        secondaryButtonText="Cancel"
+        onRequestClose={() => setConfirmOpen(false)}
+        onRequestSubmit={() => {
+          confirmAction?.();
+          setConfirmOpen(false);
+          setConfirmAction(null);
+        }}
+        size="sm"
+      >
+        <p>{confirmMessage}</p>
+      </Modal>
+    </>
   );
 }

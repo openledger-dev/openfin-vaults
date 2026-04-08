@@ -23,6 +23,7 @@ const BASE = "https://api-prod.midas.app/api/data";
 
 export type MidasApyMap   = Record<string, number>;
 export type MidasPriceMap = Record<string, number>;
+export type MidasTvlMap   = Record<string, number>;
 
 export type MidasPendingRedemption = {
   /** Midas token address being redeemed */
@@ -43,6 +44,10 @@ export type MidasPendingRedemptionsResponse = {
   data: MidasPendingRedemption[];
 };
 
+type RawMidasTvlResponse = {
+  tokenTvl?: Record<string, number | { usd?: number; native?: number }>;
+};
+
 /** Returns a map of lowercase symbol → APY decimal (e.g. { mmev: 0.0443 }). */
 export async function fetchMidasApys(): Promise<MidasApyMap> {
   const res = await fetch(`${BASE}/apys`, { next: { revalidate: 600 } });
@@ -57,6 +62,27 @@ export async function fetchMidasPrices(): Promise<MidasPriceMap> {
   const raw = (await res.json()) as Record<string, string>;
   return Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k.toLowerCase(), parseFloat(v)])
+  );
+}
+
+/** Returns a map of lowercase symbol -> TVL in USD (e.g. { mre7: 14423063 }). */
+export async function fetchMidasTvls(): Promise<MidasTvlMap> {
+  const res = await fetch(`${BASE}/tvl`, { next: { revalidate: 600 } });
+  if (!res.ok) throw new Error(`Midas TVL fetch failed: ${res.status}`);
+
+  const raw = (await res.json()) as RawMidasTvlResponse;
+  const tokenTvl = raw.tokenTvl ?? {};
+
+  return Object.fromEntries(
+    Object.entries(tokenTvl).map(([k, v]) => {
+      const usd =
+        typeof v === "number"
+          ? v
+          : typeof v?.usd === "number"
+            ? v.usd
+            : 0;
+      return [k.toLowerCase(), usd];
+    })
   );
 }
 

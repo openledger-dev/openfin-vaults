@@ -36,3 +36,7 @@ export function getExplorerUrl(chainId: number): string {
 export function getAddressExplorerLink(address: string, chainId: number): string {
   return `${getExplorerUrl(chainId)}/address/${address}`;
 }
+
+export function getTxExplorerLink(txHash: string, chainId: number): string {
+  return `${getExplorerUrl(chainId)}/tx/${txHash}`;
+}

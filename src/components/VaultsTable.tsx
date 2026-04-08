@@ -62,6 +62,7 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
     kind: v.kind,
     platform: v.platformId,
     platformLabel: v.platformLabel,
+    chainId: v.chainId,
     name: v.name,
     symbol: v.symbol,
     assetAddress: v.assetAddress,
@@ -105,6 +106,15 @@ const MORPHO_HEADERS = [
   { key: "liquidity", header: "Liquidity"   },
   { key: "status",    header: "Status"      },
   { key: "action",    header: ""            },
+];
+
+const RE7_HEADERS = [
+  { key: "vault",  header: "Vault"   },
+  { key: "asset",  header: "Asset"   },
+  { key: "tvl",    header: "TVL"     },
+  { key: "apy",    header: "7D APY"  },
+  { key: "status", header: "Status"  },
+  { key: "action", header: ""        },
 ];
 
 // ── APY cell ──────────────────────────────────────────────────────────────────
@@ -208,6 +218,7 @@ interface PlatformSectionProps {
 }
 
 function PlatformSection({
+  platformId,
   platformKind,
   label,
   description,
@@ -218,7 +229,8 @@ function PlatformSection({
   onView,
 }: PlatformSectionProps) {
   const isMorpho = platformKind === "morpho";
-  const headers = isMorpho ? MORPHO_HEADERS : STANDARD_HEADERS;
+  const isRe7 = platformId === "re7";
+  const headers = isMorpho ? MORPHO_HEADERS : isRe7 ? RE7_HEADERS : STANDARD_HEADERS;
 
   const filtered = useMemo(() => {
     if (!searchQuery) return vaults;
@@ -295,6 +307,11 @@ function PlatformSection({
             {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
           </span>
         ),
+      };
+    }
+    if (isRe7) {
+      return {
+        ...commonCells(v, vault),
       };
     }
     return {
@@ -424,6 +441,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
   const [selectedVault, setSelectedVault] = useState<Vault | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [txCompletedNotice, setTxCompletedNotice] = useState(false);
 
   const activePlatforms = VAULT_PLATFORMS.filter((p) => p.vaults.length > 0);
 
@@ -440,6 +458,16 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
 
   return (
     <>
+      {txCompletedNotice && (
+        <InlineNotification
+          kind="success"
+          title="Transaction completed"
+          subtitle="Vault data has been refreshed."
+          onCloseButtonClick={() => setTxCompletedNotice(false)}
+          style={{ marginBottom: "1rem" }}
+        />
+      )}
+
       {/* Global search */}
       <div style={{ marginBottom: "1.5rem", maxWidth: "360px" }}>
         <Search
@@ -482,18 +510,21 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
           vault={selectedVault}
           open={modalOpen}
           onClose={() => setModalOpen(false)}
+          onTxCompleted={() => setTxCompletedNotice(true)}
         />
       ) : selectedVault?.kind === "midas" ? (
         <MidasVaultActionModal
           vault={selectedVault}
           open={modalOpen}
           onClose={() => setModalOpen(false)}
+          onTxCompleted={() => setTxCompletedNotice(true)}
         />
       ) : (
         <VaultActionModal
           vault={selectedVault}
           open={modalOpen}
           onClose={() => setModalOpen(false)}
+          onTxCompleted={() => setTxCompletedNotice(true)}
         />
       )}
     </>
