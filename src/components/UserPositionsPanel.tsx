@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { Tile, Tag, SkeletonText } from "@carbon/react";
 import { useAppKitAccount } from "@reown/appkit/react";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 
@@ -31,19 +30,9 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
 
   if (!isConnected) {
     return (
-      <Tile
-        style={{
-          background: "#1c1c1c",
-          border: "1px dashed #393939",
-          borderRadius: "4px",
-          padding: "2rem",
-          textAlign: "center",
-        }}
-      >
-        <p style={{ color: "#8d8d8d", fontSize: "0.875rem" }}>
-          Connect your wallet to view your positions
-        </p>
-      </Tile>
+      <div className="rounded-xl border border-dashed border-[#E1E5E1] bg-[#F1F2F0] p-8 text-center">
+        <p className="text-sm text-zinc-500">Connect your wallet to view your positions</p>
+      </div>
     );
   }
 
@@ -55,26 +44,9 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
 
   return (
     <div>
-      <h3
-        style={{
-          fontSize: "1rem",
-          fontWeight: 600,
-          color: "#f4f4f4",
-          marginBottom: "1rem",
-          letterSpacing: "0.02em",
-        }}
-      >
-        Your Portfolio
-      </h3>
+      <h3 className="mb-4 text-base font-semibold tracking-wide text-zinc-900">Your Portfolio</h3>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: "1rem",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         {[
           {
             label: "Active Positions",
@@ -92,121 +64,80 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
             color: "#42be65",
           },
         ].map((item) => (
-          <Tile
+          <div
             key={item.label}
-            style={{
-              background: "#1c1c1c",
-              border: "1px solid #393939",
-              borderRadius: "4px",
-              padding: "1.25rem 1.5rem",
-            }}
+            className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] px-6 py-5"
           >
-            <p
-              style={{
-                fontSize: "0.75rem",
-                color: "#8d8d8d",
-                marginBottom: "0.5rem",
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-              }}
-            >
-              {item.label}
-            </p>
+            <p className="mb-2 text-xs uppercase tracking-[0.06em] text-zinc-500">{item.label}</p>
             {item.value === null ? (
-              <div style={{ width: "2rem" }}>
-                <SkeletonText />
-              </div>
+              <div className="h-6 w-10 animate-pulse rounded bg-zinc-200" />
             ) : (
-              <p
-                style={{
-                  fontSize: "1.5rem",
-                  fontWeight: 700,
-                  color: item.color,
-                }}
-              >
+              <p className="text-2xl font-bold" style={{ color: item.color }}>
                 {item.value}
               </p>
             )}
-          </Tile>
+          </div>
         ))}
       </div>
 
       {isLoading ? (
-        <p style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>
-          Loading your on-chain positions…
-        </p>
+        <p className="text-sm text-zinc-500">Loading your on-chain positions...</p>
       ) : activePositions.length > 0 ? (
         <div>
-          <p
-            style={{
-              fontSize: "0.75rem",
-              color: "#6f6f6f",
-              marginBottom: "0.75rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
-            Active Positions
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          <p className="mb-3 text-xs uppercase tracking-[0.06em] text-zinc-500">Active Positions</p>
+          <div className="flex flex-col gap-2">
             {activePositions.map((vault) => {
               const assetDec = vault.assetDecimals ?? 18;
               return (
-                <Tile
+                <div
                   key={vault.address}
-                  style={{
-                    background: "#1c1c1c",
-                    border: "1px solid #393939",
-                    borderRadius: "4px",
-                    padding: "1rem 1.5rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
+                  className="flex items-center justify-between rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] px-6 py-4"
                 >
                   <div>
-                    <p style={{ color: "#f4f4f4", fontWeight: 600, fontSize: "0.875rem" }}>
-                      {vault.name}
-                    </p>
-                    <p style={{ color: "#6f6f6f", fontSize: "0.75rem", fontFamily: "monospace" }}>
+                    <p className="text-sm font-semibold text-zinc-900">{vault.name}</p>
+                    <p className="font-mono text-xs text-zinc-500">
                       {vault.address.slice(0, 6)}…{vault.address.slice(-4)}
                     </p>
                   </div>
 
-                  <div style={{ display: "flex", gap: "3rem", alignItems: "center" }}>
-                    <div style={{ textAlign: "right" }}>
-                      <p style={{ color: "#8d8d8d", fontSize: "0.75rem" }}>Shares</p>
-                      <p style={{ color: "#f4f4f4", fontWeight: 600, fontSize: "0.875rem" }}>
+                  <div className="flex items-center gap-12">
+                    <div className="text-right">
+                      <p className="text-xs text-zinc-500">Shares</p>
+                      <p className="text-sm font-semibold text-zinc-900">
                         {formatBigIntAsset(vault.userShares, vault.decimals, vault.symbol)}
                       </p>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <p style={{ color: "#8d8d8d", fontSize: "0.75rem" }}>Asset Value</p>
-                      <p style={{ color: "#4589ff", fontWeight: 600, fontSize: "0.875rem" }}>
+                    <div className="text-right">
+                      <p className="text-xs text-zinc-500">Asset Value</p>
+                      <p className="text-sm font-semibold text-blue-700">
                         {formatBigIntAsset(vault.userAssetsRaw, assetDec, vault.assetSymbol)}
                       </p>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", alignItems: "flex-end" }}>
-                      <Tag type={vault.isPaused ? "red" : "green"} size="sm">
+                    <div className="flex items-end gap-2">
+                      <span
+                        className={
+                          "rounded-md border px-2 py-0.5 text-[11px] font-semibold " +
+                          (vault.isPaused
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700")
+                        }
+                      >
                         {vault.isPaused ? "Paused" : "Active"}
-                      </Tag>
-                      <Tag
-                        type={vault.kind === "morpho" ? "blue" : vault.kind === "midas" ? "purple" : "teal"}
-                        size="sm"
+                      </span>
+                      <span
+                        className="rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700"
                       >
                         {vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Midas" : "UltraYield"}
-                      </Tag>
+                      </span>
                     </div>
                   </div>
-                </Tile>
+                </div>
               );
             })}
           </div>
         </div>
       ) : (
-        <p style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>
-          No vault positions found for this wallet.
-        </p>
+        <p className="text-sm text-zinc-500">No vault positions found for this wallet.</p>
       )}
     </div>
   );

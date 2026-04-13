@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
-import "@carbon/styles/css/styles.css";
+import { Inter } from "next/font/google";
+import "./globals.tailwind.css";
 import "./globals.scss";
 import { ContextProvider } from "@/context";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Open Yield — Ethereum DeFi Vaults",
@@ -15,9 +22,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       {/* cds--g100 applies Carbon's dark theme token set globally */}
-      <body className="cds--g100">
+      <body className="font-sans antialiased">
         <ContextProvider>{children}</ContextProvider>
       </body>
     </html>

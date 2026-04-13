@@ -11,20 +11,6 @@
  */
 
 import React, { useState, useMemo, useEffect } from "react";
-import {
-  Modal,
-  Tabs,
-  Tab,
-  TabList,
-  TabPanels,
-  TabPanel,
-  TextInput,
-  Button,
-  InlineNotification,
-  InlineLoading,
-  Tile,
-  Tag,
-} from "@carbon/react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
 import { ERC20_ABI } from "@/lib/vaultAbi";
@@ -71,6 +57,9 @@ function fmt(raw: bigint, dec: number, sym: string): string {
   return `${n.toFixed(4)} ${sym}`;
 }
 
+const ACTION_BTN_CLASS =
+  "w-full max-w-none !justify-center !rounded-xl !border-0 !bg-[#1C1C1F] !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-[#141417] disabled:!bg-zinc-700/70 disabled:!text-zinc-300 [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white";
+
 export function MorphoVaultActionModal({ vault, open, onClose, onTxCompleted }: Props) {
   const { address: userAddress, isConnected } = useAccount();
   const queryClient = useQueryClient();
@@ -79,6 +68,7 @@ export function MorphoVaultActionModal({ vault, open, onClose, onTxCompleted }: 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmMessage, setConfirmMessage] = useState("");
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [actionTab, setActionTab] = useState<"deposit" | "withdraw">("deposit");
 
   const { writeContract, data: txHash, isPending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
@@ -110,6 +100,10 @@ export function MorphoVaultActionModal({ vault, open, onClose, onTxCompleted }: 
     void queryClient.invalidateQueries();
     onTxCompleted?.();
   }, [isConfirmed, refetch, queryClient, onTxCompleted]);
+
+  useEffect(() => {
+    if (open) setActionTab("deposit");
+  }, [open]);
 
   const assetBalance   = reads?.[0]?.status === "success" ? (reads[0].result as bigint) : undefined;
   const assetAllowance = reads?.[1]?.status === "success" ? (reads[1].result as bigint) : undefined;
@@ -166,179 +160,215 @@ export function MorphoVaultActionModal({ vault, open, onClose, onTxCompleted }: 
   }
 
   if (!vault) return null;
+  const txSubtitle = txHash ? `Hash: ${txHash.slice(0, 10)}…` : "Transaction confirmed";
+  const loadingText = isPending ? "Submitting transaction..." : "Confirming transaction...";
 
   return (
     <>
-      <Modal
-        open={open}
-        onRequestClose={handleClose}
-        modalHeading={`${vault.name} — ${vault.platformLabel}`}
-        passiveModal
-        size="sm"
-      >
-        <div style={{ padding: "0 0 1rem 0" }}>
+      {open && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/35" onClick={handleClose} />
+          <div className="relative z-10 mx-auto mt-10 w-[min(860px,94vw)]">
+            <div className="max-h-[88vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <h2 className="text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl">{`${vault.name} — ${vault.platformLabel}`}</h2>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-base leading-none text-zinc-500 hover:bg-zinc-100"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1.25rem" }}>
+        <div className="mb-4 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {[
-            { label: "TVL",    value: vault.tvlFormatted ?? "—",                                       color: "#4589ff" },
-            { label: "Status", value: vault.status === "paused" ? "Paused" : "Active",                 color: vault.status === "paused" ? "#ff832b" : "#42be65" },
-            { label: "Asset",  value: assetSym,                                                        color: "#c6c6c6" },
+            { label: "TVL", value: vault.tvlFormatted ?? "—", color: "text-zinc-900" },
+            { label: "Status", value: vault.status === "paused" ? "Paused" : "Active", color: vault.status === "paused" ? "text-amber-600" : "text-emerald-600" },
+            { label: "Asset", value: assetSym, color: "text-zinc-900" },
           ].map((item) => (
-            <Tile key={item.label} style={{ background: "#1c1c1c", border: "1px solid #393939", borderRadius: "4px", padding: "0.75rem 1rem" }}>
-              <p style={{ fontSize: "0.7rem", color: "#8d8d8d", marginBottom: "0.25rem" }}>{item.label}</p>
-              <p style={{ fontSize: "1rem", fontWeight: 700, color: item.color }}>{item.value}</p>
-            </Tile>
+            <div key={item.label} className="min-h-[92px] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{item.label}</p>
+              <p className={`text-[1.25rem] font-bold leading-tight ${item.color}`}>{item.value}</p>
+            </div>
           ))}
         </div>
 
-        <div style={{ marginBottom: "1.25rem" }}>
-          <Tag type="blue" size="sm">ERC-4626 (Morpho)</Tag>
-          <Tag type="green" size="sm" style={{ marginLeft: "0.5rem" }}>Sync Redemption</Tag>
+        <div className="mb-4 flex flex-wrap gap-2">
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700">ERC-4626 (Morpho)</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700">Sync Redemption</span>
         </div>
 
         {isConfirmed && (
-          <>
-            <InlineNotification
-              kind="success"
-              title="Transaction confirmed"
-              subtitle={txHash ? `Hash: ${txHash.slice(0, 10)}…` : "Transaction confirmed"}
-              style={{ marginBottom: "0.5rem" }}
-              onCloseButtonClick={() => { resetWrite(); refetch(); }}
-            />
+          <div className="mb-3 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2">
+            <p className="text-sm font-semibold text-emerald-700">Transaction confirmed</p>
+            <p className="text-xs text-emerald-700/80">{txSubtitle}</p>
             {txHash && (
               <a
                 href={getTxExplorerLink(txHash, vault.chainId ?? 1)}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: "#4589ff", textDecoration: "underline", fontSize: "0.8rem", display: "inline-block", marginBottom: "1rem" }}
+                className="mt-1 inline-block text-xs font-medium text-emerald-800 underline"
               >
                 View transaction
               </a>
             )}
-          </>
+          </div>
         )}
         {writeError && (
-          <InlineNotification kind="error" title="Transaction failed"
-            subtitle={writeError.message.slice(0, 120)}
-            style={{ marginBottom: "1rem" }} onCloseButtonClick={resetWrite} />
+          <div className="mb-3 rounded-xl border border-red-300 bg-red-50 px-3 py-2">
+            <p className="text-sm font-semibold text-red-700">Transaction failed</p>
+            <p className="text-xs text-red-700/80">{writeError.message.slice(0, 120)}</p>
+          </div>
         )}
+        {isBusy && <p className="mb-3 text-xs text-zinc-500">{loadingText}</p>}
 
         {!isConnected ? (
-          <p style={{ color: "#8d8d8d", fontSize: "0.875rem", textAlign: "center", padding: "2rem 0" }}>
+          <p className="py-8 text-center text-sm text-zinc-500">
             Connect your wallet to deposit or withdraw
           </p>
         ) : !vault.assetAddress ? (
-          <p style={{ color: "#8d8d8d", fontSize: "0.875rem", textAlign: "center", padding: "2rem 0" }}>
+          <p className="py-8 text-center text-sm text-zinc-500">
             Asset address unavailable — vault data still loading
           </p>
         ) : (
-          <Tabs>
-            <TabList aria-label="Vault actions">
-              <Tab>Deposit</Tab>
-              <Tab>Withdraw</Tab>
-            </TabList>
-            <TabPanels>
+          <>
+            <div className="mb-4 inline-flex gap-1 rounded-xl bg-[#F1F2F0] p-1">
+              <button
+                type="button"
+                onClick={() => setActionTab("deposit")}
+                className={
+                  "rounded-lg px-4 py-2 text-sm transition " +
+                  (actionTab === "deposit"
+                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200"
+                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700")
+                }
+              >
+                Deposit
+              </button>
+              <button
+                type="button"
+                onClick={() => setActionTab("withdraw")}
+                className={
+                  "rounded-lg px-4 py-2 text-sm transition " +
+                  (actionTab === "withdraw"
+                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200"
+                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700")
+                }
+              >
+                Withdraw
+              </button>
+            </div>
 
               {/* ── Deposit ─────────────────────────────────────────── */}
-              <TabPanel>
-                <div style={{ paddingTop: "1rem" }}>
-                  <p style={{ fontSize: "0.8rem", color: "#8d8d8d", marginBottom: "1rem" }}>
+              {actionTab === "deposit" && (
+                <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4">
+                  <p className="mb-4 text-sm text-zinc-500">
                     Wallet balance:{" "}
-                    <span style={{ color: "#4589ff", fontWeight: 600 }}>
+                    <span className="font-semibold text-zinc-900">
                       {assetBalance !== undefined ? fmt(assetBalance, assetDec, assetSym) : "—"}
                     </span>
                   </p>
-                  <TextInput
+                  <label htmlFor="morpho-deposit-amount" className="mb-2 block text-sm font-medium text-zinc-600">
+                    {`Amount (${assetSym})`}
+                  </label>
+                  <input
                     id="morpho-deposit-amount"
-                    labelText={`Amount (${assetSym})`}
                     placeholder="0.00"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
                     type="number"
                     min="0"
-                    style={{ marginBottom: "1rem" }}
                     disabled={isBusy || vault.status === "paused"}
+                    className="mb-4 w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-zinc-500 focus:outline-none"
                   />
 
                   {vault.status === "paused" ? (
-                    <p style={{ color: "#ff832b", fontSize: "0.8rem" }}>Deposits are disabled while vault is paused.</p>
+                    <p className="text-sm text-amber-400">Deposits are disabled while vault is paused.</p>
                   ) : needsApprove ? (
                     <div>
-                      <p style={{ fontSize: "0.75rem", color: "#6f6f6f", marginBottom: "0.75rem" }}>
+                      <p className="mb-3 text-xs text-zinc-500">
                         Step 1: Approve the vault to spend your {assetSym}
                       </p>
-                      <Button kind="tertiary" size="md" onClick={handleApprove} disabled={isBusy} style={{ width: "100%" }}>
-                        {isBusy ? <InlineLoading description="Approving…" /> : `Approve ${assetSym}`}
-                      </Button>
+                      <button type="button" onClick={handleApprove} disabled={isBusy} className={ACTION_BTN_CLASS}>
+                        {isBusy ? "Approving..." : `Approve ${assetSym}`}
+                      </button>
                     </div>
                   ) : (
-                    <Button
-                      kind="primary" size="md"
-                      onClick={handleDeposit}
-                      disabled={isBusy || depositParsed <= BigInt(0)}
-                      style={{ width: "100%" }}
-                    >
-                      {isBusy ? <InlineLoading description="Depositing…" /> : `Deposit ${assetSym}`}
-                    </Button>
+                    <button type="button" onClick={handleDeposit} disabled={isBusy || depositParsed <= BigInt(0)} className={ACTION_BTN_CLASS}>
+                      {isBusy ? "Depositing..." : `Deposit ${assetSym}`}
+                    </button>
                   )}
                 </div>
-              </TabPanel>
+              )}
 
               {/* ── Withdraw (sync ERC-4626 redeem) ─────────────────── */}
-              <TabPanel>
-                <div style={{ paddingTop: "1rem" }}>
-                  <p style={{ fontSize: "0.8rem", color: "#8d8d8d", marginBottom: "1rem" }}>
+              {actionTab === "withdraw" && (
+                <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4">
+                  <p className="mb-4 text-sm text-zinc-500">
                     Share balance:{" "}
-                    <span style={{ color: "#be95ff", fontWeight: 600 }}>
+                    <span className="font-semibold text-zinc-900">
                       {shareBalance !== undefined ? fmt(shareBalance, shareDec, shareSym) : "—"}
                     </span>
                   </p>
-                  <TextInput
+                  <label htmlFor="morpho-redeem-shares" className="mb-2 block text-sm font-medium text-zinc-600">
+                    {`Shares to redeem (${shareSym})`}
+                  </label>
+                  <input
                     id="morpho-redeem-shares"
-                    labelText={`Shares to redeem (${shareSym})`}
                     placeholder="0.00"
                     value={redeemShares}
                     onChange={(e) => setRedeemShares(e.target.value)}
                     type="number"
                     min="0"
-                    style={{ marginBottom: "0.5rem" }}
                     disabled={isBusy}
+                    className="mb-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-zinc-500 focus:outline-none"
                   />
-                  <p style={{ fontSize: "0.7rem", color: "#6f6f6f", marginBottom: "1rem" }}>
+                  <p className="mb-4 text-xs text-zinc-500">
                     Synchronous ERC-4626 redemption — assets returned immediately.
                   </p>
-                  <Button
-                    kind="secondary" size="md"
-                    onClick={handleRedeem}
-                    disabled={isBusy || redeemParsed <= BigInt(0)}
-                    style={{ width: "100%" }}
-                  >
-                    {isBusy ? <InlineLoading description="Redeeming…" /> : "Redeem Shares"}
-                  </Button>
+                  <button type="button" onClick={handleRedeem} disabled={isBusy || redeemParsed <= BigInt(0)} className={ACTION_BTN_CLASS}>
+                    {isBusy ? "Redeeming..." : "Redeem Shares"}
+                  </button>
                 </div>
-              </TabPanel>
-
-            </TabPanels>
-          </Tabs>
+              )}
+          </>
         )}
+            </div>
+          </div>
         </div>
-      </Modal>
+      )}
 
-      <Modal
-        open={confirmOpen}
-        modalHeading="Confirm Redemption"
-        primaryButtonText="Confirm"
-        secondaryButtonText="Cancel"
-        onRequestClose={() => setConfirmOpen(false)}
-        onRequestSubmit={() => {
-          confirmAction?.();
-          setConfirmOpen(false);
-          setConfirmAction(null);
-        }}
-        size="sm"
-      >
-        <p>{confirmMessage}</p>
-      </Modal>
+      {confirmOpen && (
+        <div className="fixed inset-0 z-[60]">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmOpen(false)} />
+          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold text-zinc-900">Confirm Redemption</h3>
+            <p className="mt-2 text-sm text-zinc-600">{confirmMessage}</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  confirmAction?.();
+                  setConfirmOpen(false);
+                  setConfirmAction(null);
+                }}
+                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-white"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

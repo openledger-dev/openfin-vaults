@@ -1,7 +1,12 @@
 "use client";
 
 import React from "react";
-import { Tile, SkeletonText } from "@carbon/react";
+import {
+  HiOutlineShieldCheck,
+  HiOutlineCollection,
+  HiOutlinePause,
+  HiOutlineGlobeAlt,
+} from "react-icons/hi";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 
 interface StatsBarProps {
@@ -16,78 +21,58 @@ export function StatsBar({ vaults, isLoading }: StatsBarProps) {
 
   const stats = [
     {
-      label: "Total Vaults",
+      label: "Total vaults",
       value: isLoading ? null : String(totalVaults),
       subtext: "Configured on-chain",
+      icon: HiOutlineCollection,
     },
     {
-      label: "Active Vaults",
+      label: "Active vaults",
       value: isLoading ? null : String(activeVaults),
       subtext: "Accepting deposits",
+      icon: HiOutlineShieldCheck,
     },
     {
-      label: "Paused Vaults",
+      label: "Paused vaults",
       value: isLoading ? null : String(pausedVaults),
       subtext: "Deposits suspended",
+      icon: HiOutlinePause,
     },
     {
-      label: "Supported Networks",
+      label: "Supported networks",
       value: "4",
       subtext: "ETH · ARB · Base · OP",
+      icon: HiOutlineGlobeAlt,
     },
   ];
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: "1px",
-        background: "#393939",
-        borderBottom: "1px solid #393939",
-      }}
-    >
-      {stats.map((stat) => (
-        <Tile
-          key={stat.label}
-          style={{
-            borderRadius: 0,
-            background: "#161616",
-            padding: "1.5rem 2rem",
-            borderRight: "1px solid #393939",
-          }}
-        >
-          <p
-            style={{
-              fontSize: "0.75rem",
-              color: "#8d8d8d",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: "0.5rem",
-            }}
-          >
-            {stat.label}
-          </p>
-          {stat.value === null ? (
-            <div style={{ width: "3rem", marginBottom: "0.4rem" }}>
-              <SkeletonText />
-            </div>
-          ) : (
-            <p
-              style={{
-                fontSize: "1.75rem",
-                fontWeight: 700,
-                color: "#f4f4f4",
-                lineHeight: 1.1,
-                marginBottom: "0.25rem",
-              }}
-            >
-              {stat.value}
-            </p>
-          )}
-          <p style={{ fontSize: "0.75rem", color: "#6f6f6f" }}>{stat.subtext}</p>
-        </Tile>
-      ))}
-    </div>
+    
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-5 shadow-sm shadow-zinc-900/5"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  {stat.label}
+                </p>
+                {stat.value === null ? (
+                  <div className="mb-1 mt-2 h-9 w-16 animate-pulse rounded-md bg-zinc-100" />
+                ) : (
+                  <p className="mt-1 text-3xl font-bold tracking-tight text-zinc-900">
+                    {stat.value}
+                  </p>
+                )}
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
+                  <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+                  {stat.subtext}
+                </p>
+              </div>
+            );
+          })}
+        </div>
   );
 }
