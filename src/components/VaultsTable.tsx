@@ -346,14 +346,14 @@ function PlatformSection({
           <button
             type="button"
             onClick={() => onView(v.address)}
-            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-zinc-600 dark:bg-zinc-500 dark:text-zinc-100 dark:hover:bg-zinc-400"
+            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             View
           </button>
           <button
             type="button"
             onClick={() => onDeposit(vault)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             <svg
               aria-hidden
