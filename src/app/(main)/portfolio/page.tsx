@@ -35,24 +35,11 @@ function fmtApy(apy: number | null): string | null {
 function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: () => void }) {
   const assetDec = vault.assetDecimals ?? 18;
   const kindLabel = vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Midas" : "UltraYield";
-  const kindTagType = vault.kind === "morpho" ? "blue" : vault.kind === "midas" ? "purple" : "teal";
   const apyStr = fmtApy(vault.apyPrefetched);
 
   return (
     <div
-      style={{
-        background: "#f1f2f0",
-        border: "1px solid #e1e5e1",
-        borderLeft: "3px solid #16a34a",
-        borderRadius: "12px",
-        padding: "1.25rem 1.5rem",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "1.5rem",
-        cursor: "pointer",
-        transition: "border-color 0.15s",
-      }}
+      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[3px] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-zinc-700 dark:bg-zinc-800 md:flex-row md:items-center md:justify-between md:gap-6 md:p-5"
       onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#15803d"; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#16a34a"; }}
       onClick={onClick}
@@ -61,37 +48,33 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
       onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
       {/* Vault identity */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", marginBottom: "0.35rem" }}>
-          <p style={{ color: "#18181b", fontWeight: 700, fontSize: "0.9375rem", lineHeight: 1.3 }}>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
+          <p className="text-[0.9375rem] font-bold leading-[1.3] text-zinc-900 dark:text-zinc-100">
             {vault.name}
           </p>
           {apyStr && (
-            <span style={{
-              fontSize: "0.75rem", fontWeight: 700, color: "#15803d",
-              background: "#ecfdf3", border: "1px solid #bbf7d0",
-              padding: "0.1rem 0.45rem", borderRadius: "3px",
-            }}>
+            <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
               {apyStr} APY
             </span>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-          <span style={{ color: "#71717a", fontSize: "0.75rem", fontFamily: "monospace" }}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
             {vault.address.slice(0, 6)}…{vault.address.slice(-4)}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
             {kindLabel}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
             {getChainName(vault.chainId)}
           </span>
           <span
             className={
-              "rounded-md border px-1.5 py-0.5 text-[11px] font-semibold " +
+              "rounded-md border px-1.5 py-0.5 text-[11px] font-semibold dark:border-opacity-70 " +
               (vault.isPaused
-                ? "border-red-200 bg-red-50 text-red-700"
-                : "border-emerald-200 bg-emerald-50 text-emerald-700")
+                ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300")
             }
           >
             {vault.isPaused ? "Paused" : "Active"}
@@ -100,27 +83,27 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
       </div>
 
       {/* Position metrics */}
-      <div style={{ display: "flex", gap: "2.5rem", alignItems: "center", flexShrink: 0 }}>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ color: "#71717a", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.2rem" }}>
+      <div className="flex w-full flex-wrap items-center gap-6 md:w-auto md:justify-end md:gap-10">
+        <div className="text-left md:text-right">
+          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
             Shares held
           </p>
-          <p style={{ color: "#3f3f46", fontWeight: 600, fontSize: "0.875rem" }}>
+          <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
             {fmtAsset(vault.userShares, vault.decimals, vault.symbol)}
           </p>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ color: "#71717a", fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.2rem" }}>
+        <div className="text-left md:text-right">
+          <p className="mb-1 text-[0.65rem] uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
             Current value
           </p>
-          <p style={{ color: "#111827", fontWeight: 700, fontSize: "1.25rem", lineHeight: 1.2 }}>
+          <p className="text-xl font-bold leading-[1.2] text-zinc-900 dark:text-zinc-100">
             {fmtAsset(vault.userAssetsRaw, assetDec, vault.assetSymbol)}
           </p>
         </div>
       </div>
 
       {/* Arrow */}
-      <span style={{ color: "#71717a", fontSize: "1rem", flexShrink: 0 }}>→</span>
+      <span className="self-end text-base text-zinc-500 dark:text-zinc-400 md:self-auto">→</span>
     </div>
   );
 }
@@ -130,16 +113,25 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
 function StatCard({ label, value, color = "#f4f4f4", loading }: {
   label: string; value: string; color?: string; loading: boolean;
 }) {
+  const valueColorClass =
+    color === "#111827"
+      ? "text-gray-900 dark:text-zinc-100"
+      : color === "#a16207"
+        ? "text-amber-700 dark:text-amber-300"
+        : color === "#71717a"
+          ? "text-zinc-500 dark:text-zinc-400"
+          : "text-zinc-900 dark:text-zinc-100";
+
   return (
-    <div style={{ background: "#f1f2f0", border: "1px solid #e1e5e1", borderRadius: "12px", padding: "1.25rem 1.5rem" }}>
-      <p style={{ fontSize: "0.7rem", color: "#71717a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.5rem" }}>
+    <div className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] p-3 dark:border-zinc-700 dark:bg-zinc-800 sm:p-5">
+      <p className="mb-2 text-[0.7rem] uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
       {loading
         ? (
-          <div className="h-8 w-20 animate-pulse rounded-md bg-zinc-200" />
+          <div className="h-8 w-20 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
         )
-        : <p style={{ fontSize: "1.75rem", fontWeight: 700, color }}>{value}</p>
+        : <p className={`text-[1.75rem] font-bold ${valueColorClass}`}>{value}</p>
       }
     </div>
   );
@@ -154,11 +146,7 @@ type PendingItem =
 
 function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void }) {
   const kindLabel    = item.vault.kind === "midas" ? "Midas" : "UltraYield";
-  const kindTagType  = item.vault.kind === "midas" ? "purple" : "teal";
   const isClaimable  = item.type === "ultrayield-claimable";
-  const borderColor  = isClaimable ? "#86efac" : "#fcd34d";
-  const accentColor  = isClaimable ? "#15803d" : "#a16207";
-  const bgColor      = isClaimable ? "#ecfdf3" : "#fffbeb";
 
   let statusLabel: string;
   let amountLabel: string;
@@ -187,44 +175,48 @@ function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void
 
   return (
     <div
-      style={{
-        background: bgColor,
-        border: `1px solid ${borderColor}`,
-        borderLeft: `3px solid ${borderColor}`,
-        borderRadius: "12px",
-        padding: "1rem 1.5rem",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "1.5rem",
-        cursor: "pointer",
-      }}
+      className={
+        "flex cursor-pointer flex-col gap-4 rounded-xl border border-l-[3px] p-4 md:flex-row md:items-center md:justify-between md:gap-6 md:px-6 " +
+        (isClaimable
+          ? "border-emerald-300 bg-emerald-50/90 dark:border-emerald-800 dark:bg-emerald-900/25"
+          : "border-amber-300 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-900/20")
+      }
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.3rem" }}>
-          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: accentColor,
-            background: "transparent", border: `1px solid ${accentColor}`,
-            padding: "0.1rem 0.4rem", borderRadius: "3px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
+          <span
+            className={
+              "rounded border px-1.5 py-0.5 text-[0.7rem] font-bold uppercase tracking-[0.05em] " +
+              (isClaimable
+                ? "border-emerald-700 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300"
+                : "border-amber-700 text-amber-700 dark:border-amber-400 dark:text-amber-300")
+            }
+          >
             {statusLabel}
           </span>
-          <span style={{ color: "#18181b", fontWeight: 600, fontSize: "0.9375rem" }}>{item.vault.name}</span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+          <span className="text-[0.9375rem] font-semibold text-zinc-900 dark:text-zinc-100">{item.vault.name}</span>
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
             {kindLabel}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">
             {getChainName(item.vault.chainId)}
           </span>
         </div>
-        <p style={{ color: accentColor, fontWeight: 700, fontSize: "0.9375rem", marginBottom: "0.2rem" }}>
+        <p
+          className={
+            "mb-1 text-[0.9375rem] font-bold " +
+            (isClaimable ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300")
+          }
+        >
           {amountLabel}
         </p>
-        <p style={{ color: "#52525b", fontSize: "0.75rem" }}>{subLabel}</p>
+        <p className="text-xs text-zinc-600 dark:text-zinc-300">{subLabel}</p>
       </div>
-      <span style={{ color: "#71717a", fontSize: "1rem", flexShrink: 0 }}>→</span>
+      <span className="self-end text-base text-zinc-500 dark:text-zinc-400 md:self-auto">→</span>
     </div>
   );
 }
@@ -301,20 +293,26 @@ export default function PortfolioPage() {
 
   const skeletonCards = (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} style={{ background: "#f1f2f0", border: "1px solid #e1e5e1", borderRadius: "12px", padding: "1.25rem 1.5rem" }}>
-            <div className="mb-3 h-3 w-20 animate-pulse rounded bg-zinc-200" />
-            <div className="h-8 w-24 animate-pulse rounded-md bg-zinc-200" />
+          <div
+            key={i}
+            className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] px-6 py-5 dark:border-zinc-700 dark:bg-zinc-900"
+          >
+            <div className="mb-3 h-3 w-20 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-8 w-24 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
           </div>
         ))}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <div className="flex flex-col gap-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} style={{ background: "#f1f2f0", border: "1px solid #e1e5e1", borderRadius: "12px", padding: "1.5rem 2rem" }}>
+          <div
+            key={i}
+            className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] px-8 py-6 dark:border-zinc-700 dark:bg-zinc-900"
+          >
             <div className="space-y-2">
-              <div className="h-3 w-[85%] animate-pulse rounded bg-zinc-200" />
-              <div className="h-3 w-[70%] animate-pulse rounded bg-zinc-200" />
+              <div className="h-3 w-[85%] animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+              <div className="h-3 w-[70%] animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
             </div>
           </div>
         ))}
@@ -323,15 +321,15 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="min-h-full bg-white">
+    <div className="min-h-full bg-white dark:bg-[#111318]">
         <div className="mx-auto w-full p-4 lg:p-6">
 
           {/* Page header */}
-          <div style={{ marginBottom: "2rem" }}>
-            <h1 style={{ fontSize: "1.75rem", fontWeight: 700, color: "#18181b", margin: 0 }}>
+          <div className="mb-8">
+            <h1 className="m-0 text-[1.75rem] font-bold text-zinc-900 dark:text-zinc-100">
               Portfolio
             </h1>
-            <p style={{ color: "#71717a", fontSize: "0.875rem", marginTop: "0.35rem" }}>
+            <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
               Your on-chain positions across all supported vaults
             </p>
           </div>
@@ -339,20 +337,13 @@ export default function PortfolioPage() {
           {(walletPending || (isConnected && isLoading)) ? skeletonCards
 
           : !isConnected ? (
-            <div style={{
-              background: "#f1f2f0", border: "1px dashed #e1e5e1", borderRadius: "12px",
-              padding: "5rem 2rem", textAlign: "center",
-            }}>
-              <p style={{ color: "#71717a", fontSize: "1rem", marginBottom: "1.5rem" }}>
+            <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-4 py-12 text-center dark:border-zinc-700 dark:bg-zinc-800">
+              <p className="mb-6 text-base text-zinc-500 dark:text-zinc-400">
                 Connect your wallet to view your portfolio
               </p>
               <button
                 type="button" onClick={() => open()}
-                style={{
-                  background: "#111827", border: "none", borderRadius: "10px",
-                  padding: "0.75rem 2rem", color: "#fff", fontSize: "0.875rem",
-                  fontWeight: 600, cursor: "pointer",
-                }}
+                className="rounded-lg bg-zinc-900 px-8 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
               >
                 Connect Wallet
               </button>
@@ -361,7 +352,7 @@ export default function PortfolioPage() {
           ) : (
             <>
               {/* Summary stats */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+              <div className="mb-8 grid grid-cols-2 gap-2 sm:gap-4 xl:grid-cols-4">
                 <StatCard label="Active Positions"    value={String(positions.length)}   color="#111827" loading={false} />
                 <StatCard label="Pending Withdrawals" value={String(pendingItems.length)} color={pendingItems.length > 0 ? "#a16207" : "#71717a"} loading={false} />
                 <StatCard label="Networks"            value={String(networkCount)}        color="#111827" loading={false} />
@@ -369,32 +360,26 @@ export default function PortfolioPage() {
               </div>
 
               {/* ── Active Positions ── */}
-              <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#71717a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
                 Active Positions
               </h2>
               {positions.length === 0 ? (
-                <div style={{
-                  background: "#f1f2f0", border: "1px dashed #e1e5e1", borderRadius: "12px",
-                  padding: "4rem 2rem", textAlign: "center", marginBottom: "2rem",
-                }}>
-                  <p style={{ color: "#52525b", fontSize: "0.9375rem", marginBottom: "0.5rem" }}>
+                <div className="mb-8 rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-8 py-16 text-center dark:border-zinc-700 dark:bg-zinc-800">
+                  <p className="mb-2 text-[0.9375rem] text-zinc-600 dark:text-zinc-300">
                     No vault positions found for this wallet.
                   </p>
-                  <p style={{ color: "#71717a", fontSize: "0.8rem", marginBottom: "1.5rem" }}>
+                  <p className="mb-6 text-[0.8rem] text-zinc-500 dark:text-zinc-400">
                     Deposit into a vault to see your position here.
                   </p>
                   <button
                     type="button" onClick={() => router.push("/")}
-                    style={{
-                      background: "transparent", border: "1px solid #e1e5e1", borderRadius: "10px",
-                      padding: "0.6rem 1.5rem", color: "#111827", fontSize: "0.875rem", cursor: "pointer",
-                    }}
+                    className="rounded-lg border border-[#e1e5e1] bg-transparent px-6 py-2.5 text-sm text-zinc-900 transition hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-700"
                   >
                     Browse Vaults →
                   </button>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "2.5rem" }}>
+                <div className="mb-10 flex flex-col gap-3">
                   {positions.map((vault) => (
                     <PositionCard
                       key={vault.address}
@@ -406,18 +391,15 @@ export default function PortfolioPage() {
               )}
 
               {/* ── Pending Withdrawals ── */}
-              <h2 style={{ fontSize: "0.875rem", fontWeight: 600, color: "#71717a", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "0.75rem" }}>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
                 Pending Withdrawals
               </h2>
               {pendingItems.length === 0 ? (
-                <div style={{
-                  background: "#f1f2f0", border: "1px dashed #e1e5e1", borderRadius: "12px",
-                  padding: "2rem", textAlign: "center",
-                }}>
-                  <p style={{ color: "#71717a", fontSize: "0.875rem" }}>No pending withdrawal requests.</p>
+                <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] p-8 text-center dark:border-zinc-700 dark:bg-zinc-800">
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">No pending withdrawal requests.</p>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div className="flex flex-col gap-3">
                   {pendingItems.map((item, idx) => (
                     <PendingCard
                       key={idx}

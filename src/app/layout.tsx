@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.tailwind.css";
 import "./globals.scss";
 import { ContextProvider } from "@/context";
+import { ThemeProvider } from "@/context/ThemeProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,10 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      {/* cds--g100 applies Carbon's dark theme token set globally */}
-      <body className="font-sans antialiased">
-        <ContextProvider>{children}</ContextProvider>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <body className="bg-white font-sans text-zinc-900 antialiased dark:bg-[#0F1116] dark:text-zinc-100">
+        <ThemeProvider>
+          <ContextProvider>{children}</ContextProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -130,7 +130,7 @@ function VaultAvatar({ chainId }: { chainId: number }) {
       <img
         src={chainIconSrc}
         alt={chain}
-        className="h-11 w-11 rounded-full border border-zinc-200 object-cover"
+        className="h-11 w-11 rounded-full border border-zinc-200 object-cover dark:border-zinc-700"
         loading="lazy"
       />
     </div>
@@ -142,8 +142,8 @@ function VaultAvatar({ chainId }: { chainId: number }) {
 function UltraYieldApyCell({ v }: { v: VaultOnChainData }) {
   const { apy, label, isLoading } = use7dApy(v.oracleAddress, v.address, v.assetAddress);
 
-  if (isLoading) return <div className="h-4 w-14 animate-pulse rounded bg-zinc-100" />;
-  if (apy === null) return <span className="text-sm text-zinc-400">—</span>;
+  if (isLoading) return <div className="h-4 w-14 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />;
+  if (apy === null) return <span className="text-sm text-zinc-400 dark:text-zinc-500">—</span>;
 
   const color = apy >= 0 ? "text-emerald-600" : "text-amber-600";
   return (
@@ -155,7 +155,7 @@ function UltraYieldApyCell({ v }: { v: VaultOnChainData }) {
 }
 
 function PrefetchedApyCell({ apy }: { apy: number | null }) {
-  if (apy === null) return <span className="text-sm text-zinc-400">—</span>;
+  if (apy === null) return <span className="text-sm text-zinc-400 dark:text-zinc-500">—</span>;
   const pct = apy * 100;
   const color = pct >= 0 ? "text-emerald-600" : "text-amber-600";
   return (
@@ -176,11 +176,11 @@ function ApyCell({ v }: { v: VaultOnChainData }) {
 function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
   const { assets, isLoading } = useSupportedAssets(v.address);
 
-  if (isLoading) return <div className="h-5 w-16 animate-pulse rounded bg-zinc-100" />;
+  if (isLoading) return <div className="h-5 w-16 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />;
 
   if (assets.length === 0) {
     return (
-      <span className="text-sm font-medium text-zinc-600">{v.assetSymbol ?? "—"}</span>
+      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{v.assetSymbol ?? "—"}</span>
     );
   }
 
@@ -194,7 +194,10 @@ function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
             "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold " +
             (a.isPegged
               ? "border-zinc-200 bg-zinc-50 text-zinc-600"
-              : "border-blue-100 bg-blue-50 text-blue-800")
+              : "border-blue-100 bg-blue-50 text-blue-800") +
+            (a.isPegged
+              ? " dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200"
+              : " dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200")
           }
         >
           {a.symbol}
@@ -221,11 +224,11 @@ function SkeletonSection({
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={`sk-${i}`}
-            className="grid items-center gap-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4"
+            className="grid items-center gap-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-zinc-700 dark:bg-zinc-900"
             style={{ gridTemplateColumns: gridTpl }}
           >
             {Array.from({ length: colCount }).map((__, j) => (
-              <div key={j} className="h-5 animate-pulse rounded bg-zinc-100" />
+              <div key={j} className="h-5 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
             ))}
           </div>
         ))}
@@ -239,13 +242,13 @@ function SkeletonSection({
 function StatusPill({ paused }: { paused: boolean }) {
   if (paused) {
     return (
-      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-inset ring-red-200">
+      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800">
         Paused
       </span>
     );
   }
   return (
-    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-inset ring-emerald-200">
+    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800">
       Active
     </span>
   );
@@ -303,23 +306,23 @@ function PlatformSection({
         <button
           type="button"
           onClick={() => onView(v.address)}
-          className="min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2"
+          className="min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-900"
         >
-          <p className="text-sm font-semibold text-zinc-900 underline-offset-2 hover:underline">
+          <p className="text-sm font-semibold text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-100">
             {v.name}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <p className="font-mono text-xs text-zinc-500">
+            <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
               {v.address.slice(0, 6)}…{v.address.slice(-4)}
             </p>
-            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
+            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
               {getChainShortName(v.chainId)}
             </span>
           </div>
           {v.userShares !== undefined && v.userShares > BigInt(0) && (
             <div className="mt-2 flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-700">
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                 {formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol)} invested
               </span>
             </div>
@@ -332,7 +335,7 @@ function PlatformSection({
       vault: vaultCell,
       asset: <SupportedAssetsCell v={v} />,
       tvl: (
-        <span className="text-sm font-semibold text-zinc-900">
+        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol)}
         </span>
       ),
@@ -343,15 +346,28 @@ function PlatformSection({
           <button
             type="button"
             onClick={() => onView(v.address)}
-            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF]"
+            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-zinc-600 dark:bg-zinc-500 dark:text-zinc-100 dark:hover:bg-zinc-400"
           >
             View
           </button>
           <button
             type="button"
             onClick={() => onDeposit(vault)}
-            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
           >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14" />
+              <path d="m5 12 7 7 7-7" />
+            </svg>
             Deposit
           </button>
         </div>
@@ -362,7 +378,7 @@ function PlatformSection({
       return {
         ...base,
         liquidity: (
-          <span className="text-sm font-semibold text-zinc-900">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
           </span>
         ),
@@ -374,10 +390,10 @@ function PlatformSection({
     return {
       ...base,
       perfFee: (
-        <span className="text-sm font-medium text-zinc-700">{feePercent(v.performanceFee)}</span>
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{feePercent(v.performanceFee)}</span>
       ),
       mgmtFee: (
-        <span className="text-sm font-medium text-zinc-700">{feePercent(v.managementFee)}</span>
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{feePercent(v.managementFee)}</span>
       ),
     };
   }
@@ -385,26 +401,26 @@ function PlatformSection({
   return (
     <section className="mb-12">
       <div className="mb-4 flex items-start gap-3">
-        <span className="mt-1 h-7 w-1 shrink-0 rounded-full bg-zinc-900" aria-hidden />
+        <span className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden />
         <div>
-          <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900">{label}</h2>
-          <p className="mt-1 text-sm text-zinc-500">{description}</p>
+          <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{label}</h2>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
         </div>
       </div>
 
       {isLoading ? (
         <SkeletonSection colCount={headers.length} rows={vaults.length || 3} gridTpl={gridTpl} />
       ) : filtered.length === 0 ? (
-        <p className="py-8 text-sm text-zinc-500">No vaults match your search.</p>
+        <p className="py-8 text-sm text-zinc-500 dark:text-zinc-400">No vaults match your search.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-[980px] w-full border-separate border-spacing-y-2">
+          <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
             <thead>
               <tr>
                 {headers.map((h) => (
                   <th
                     key={h.key}
-                    className="px-3 py-1 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-500"
+                    className="px-3 py-1 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-300"
                   >
                     {h.header}
                   </th>
@@ -416,8 +432,8 @@ function PlatformSection({
                 const row = buildRow(v);
                 const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
                 const cellTone = hasPosition
-                  ? "bg-emerald-50/25 border-emerald-200/80"
-                  : "bg-[#F1F2F0] border-[#E1E5E1]";
+                  ? "bg-emerald-50/25 border-emerald-200/80 dark:bg-emerald-900/20 dark:border-emerald-800/70"
+                  : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-zinc-900 dark:border-zinc-700";
                 return (
                   <tr key={v.address} className="transition hover:opacity-95">
                     {headers.map((h, idx) => (
@@ -465,9 +481,9 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
 
   if (activePlatforms.length === 0) {
     return (
-      <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm">
-        <p className="text-sm font-semibold text-zinc-900">No vaults configured</p>
-        <p className="mt-1 text-sm text-zinc-600">
+      <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No vaults configured</p>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           Add vault addresses to `NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR` in your `.env.local` to get started.
         </p>
       </div>
@@ -477,16 +493,16 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
   return (
     <>
       {txCompletedNotice && (
-        <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm">
+        <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
           <div className="flex items-start justify-between gap-3 px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-emerald-700">Transaction completed</p>
-              <p className="text-xs text-zinc-600">Vault data has been refreshed.</p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">Vault data has been refreshed.</p>
             </div>
             <button
               type="button"
               onClick={() => setTxCompletedNotice(false)}
-              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 hover:bg-zinc-200/60"
+              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
               Close
             </button>
@@ -508,7 +524,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
           placeholder="Search by vault name, symbol…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] py-3 pl-11 pr-4 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+          className="w-full rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] py-3 pl-11 pr-4 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500 dark:focus:ring-zinc-100/10"
         />
       </div>
 

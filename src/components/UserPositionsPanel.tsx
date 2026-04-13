@@ -70,7 +70,7 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
           >
             <p className="mb-2 text-xs uppercase tracking-[0.06em] text-zinc-500">{item.label}</p>
             {item.value === null ? (
-              <div className="h-6 w-10 animate-pulse rounded bg-zinc-200" />
+              <div className="h-6 w-10 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
             ) : (
               <p className="text-2xl font-bold" style={{ color: item.color }}>
                 {item.value}
@@ -91,7 +91,7 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
               return (
                 <div
                   key={vault.address}
-                  className="flex items-center justify-between rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] px-6 py-4"
+                  className="flex flex-col gap-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6"
                 >
                   <div>
                     <p className="text-sm font-semibold text-zinc-900">{vault.name}</p>
@@ -100,14 +100,14 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-12">
-                    <div className="text-right">
+                  <div className="flex w-full flex-wrap items-center gap-6 md:w-auto md:justify-end md:gap-12">
+                    <div className="text-left md:text-right">
                       <p className="text-xs text-zinc-500">Shares</p>
                       <p className="text-sm font-semibold text-zinc-900">
                         {formatBigIntAsset(vault.userShares, vault.decimals, vault.symbol)}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left md:text-right">
                       <p className="text-xs text-zinc-500">Asset Value</p>
                       <p className="text-sm font-semibold text-blue-700">
                         {formatBigIntAsset(vault.userAssetsRaw, assetDec, vault.assetSymbol)}
