@@ -54,7 +54,7 @@ export function StatsBar({ vaults, isLoading }: StatsBarProps) {
             return (
               <div
                 key={stat.label}
-                className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-5 shadow-sm shadow-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900"
+                className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-5 shadow-sm shadow-zinc-900/5 dark:border-[#1A1F2B] dark:bg-[#121722]"
               >
                 <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   {stat.label}

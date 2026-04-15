@@ -94,7 +94,9 @@ function fmt(raw: bigint, dec: number, sym: string): string {
 }
 
 const ACTION_BTN_CLASS =
-  "w-full max-w-none !justify-center !rounded-xl !border-0 !bg-[#1C1C1F] !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-[#141417] disabled:!bg-zinc-700/70 disabled:!text-zinc-300 [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white";
+  "w-full max-w-none !justify-center !rounded-xl !border !border-transparent !bg-zinc-900 !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-zinc-800 disabled:!bg-zinc-400/70 disabled:!text-zinc-200 dark:!border-zinc-300 dark:!bg-zinc-100 dark:!text-zinc-900 dark:hover:!bg-zinc-200 dark:disabled:!border-zinc-500 dark:disabled:!bg-zinc-400 dark:disabled:!text-zinc-700 [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white dark:[&_.cds--btn__text]:!text-zinc-900";
+const DEPOSIT_BTN_CLASS =
+  "w-full max-w-none !justify-center !rounded-xl !border !border-transparent !bg-zinc-900 !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-zinc-800 disabled:!bg-zinc-400/70 disabled:!text-zinc-200 dark:!border-zinc-300 dark:!bg-zinc-100 dark:!text-zinc-900 dark:hover:!bg-zinc-200 dark:disabled:!border-zinc-500 dark:disabled:!bg-zinc-400 dark:disabled:!text-zinc-700 [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white dark:[&_.cds--btn__text]:!text-zinc-900";
 
 export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: Props) {
   const { address: userAddress, isConnected } = useAccount();
@@ -271,15 +273,15 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
     <>
       {open && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/35" onClick={handleClose} />
+          <div className="absolute inset-0 bg-[#090B11]/60 backdrop-blur-sm" onClick={handleClose} />
           <div className="relative z-10 mx-auto mt-10 w-[min(860px,94vw)]">
-            <div className="max-h-[88vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="max-h-[88vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-[#1A1F2B] dark:bg-[#121722]">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-2xl">{`${vault.name} — ${vault.platformLabel}`}</h2>
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-base leading-none text-zinc-500 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-base leading-none text-zinc-500 hover:bg-zinc-100 dark:border-[#232938] dark:text-zinc-300 dark:hover:bg-[#161B26]"
                   aria-label="Close"
                 >
                   ×
@@ -292,7 +294,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
             { label: "Status", value: "Active", color: "text-emerald-600" },
             { label: "Token", value: shareSym, color: "text-zinc-900 dark:text-zinc-100" },
           ].map((item) => (
-            <div key={item.label} className="min-h-[92px] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4 dark:border-zinc-700 dark:bg-zinc-800">
+            <div key={item.label} className="min-h-[92px] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">{item.label}</p>
               <p className={`text-[1.25rem] font-bold leading-tight ${item.color}`}>{item.value}</p>
             </div>
@@ -300,8 +302,8 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">Midas RWA</span>
-          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">Instant + Async Redemption</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-300">Midas RWA</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-300">Instant + Async Redemption</span>
         </div>
 
         {isConfirmed && (
@@ -349,7 +351,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                 id="midas-payment-token"
                 value={activePaymentToken}
                 onChange={(e) => setSelectedPaymentToken(e.target.value)}
-                className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-500"
+                className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-900 focus:border-zinc-500 focus:outline-none dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-100 dark:focus:border-[#2E3546]"
               >
                 {paymentAssets.map((a) => (
                   <option key={a.address} value={a.address}>
@@ -360,15 +362,15 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
               </div>
             )}
 
-            <div className="mb-4 inline-flex gap-1 rounded-xl bg-[#F1F2F0] p-1 dark:bg-zinc-800">
+            <div className="mb-4 inline-flex gap-1 rounded-xl bg-[#F1F2F0] p-1 dark:bg-[#121722]">
               <button
                 type="button"
                 onClick={() => setActionTab("deposit")}
                 className={
                   "rounded-lg px-4 py-2 text-sm transition " +
                   (actionTab === "deposit"
-                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600"
-                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100")
+                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-[#161B26] dark:text-zinc-100 dark:ring-[#232938]"
+                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-[#161B26] dark:hover:text-zinc-100")
                 }
               >
                 Deposit
@@ -379,8 +381,8 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                 className={
                   "rounded-lg px-4 py-2 text-sm transition " +
                   (actionTab === "redeem"
-                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600"
-                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100")
+                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-[#161B26] dark:text-zinc-100 dark:ring-[#232938]"
+                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-[#161B26] dark:hover:text-zinc-100")
                 }
               >
                 Redeem
@@ -389,7 +391,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
 
                 {/* ── Deposit ──────────────────────────────────────── */}
                 {actionTab === "deposit" && (
-                  <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
                     <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
                       Wallet balance:{" "}
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -399,16 +401,21 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                     <label htmlFor="midas-deposit-amount" className="mb-2 block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                       {`Amount (${paymentSym})`}
                     </label>
-                    <input
-                      id="midas-deposit-amount"
-                      placeholder="0.00"
-                      value={depositAmount}
-                      onChange={(e) => setDepositAmount(e.target.value)}
-                      type="number"
-                      min="0"
-                      disabled={isBusy}
-                      className="mb-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-zinc-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500"
-                    />
+                    <div className="mb-2 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+                      <input
+                        id="midas-deposit-amount"
+                        placeholder="0.00"
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        type="number"
+                        min="0"
+                        disabled={isBusy}
+                        className="min-w-0 flex-1 border-0 bg-transparent px-1 py-2.5 text-base font-medium text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                      />
+                      <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-300">
+                        {paymentSym}
+                      </span>
+                    </div>
                     <p className="mb-4 text-xs text-zinc-500 dark:text-zinc-400">
                       Instant mint — {shareSym} delivered to your wallet immediately.
                     </p>
@@ -423,7 +430,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                         </button>
                       </div>
                     ) : (
-                      <button type="button" onClick={handleDeposit} disabled={isBusy || depositParsed18 <= BigInt(0)} className={ACTION_BTN_CLASS}>
+                      <button type="button" onClick={handleDeposit} disabled={isBusy || depositParsed18 <= BigInt(0)} className={DEPOSIT_BTN_CLASS}>
                         {isBusy ? "Depositing..." : `Deposit ${paymentSym}`}
                       </button>
                     )}
@@ -432,7 +439,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
 
                 {/* ── Redeem ───────────────────────────────────────── */}
                 {actionTab === "redeem" && (
-                  <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
                     <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
                       {shareSym} balance:{" "}
                       <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -442,19 +449,24 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                     <label htmlFor="midas-redeem-amount" className="mb-2 block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                       {`${shareSym} to redeem`}
                     </label>
-                    <input
-                      id="midas-redeem-amount"
-                      placeholder="0.00"
-                      value={redeemAmount}
-                      onChange={(e) => setRedeemAmount(e.target.value)}
-                      type="number"
-                      min="0"
-                      disabled={isBusy}
-                      className="mb-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:border-zinc-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-500"
-                    />
+                    <div className="mb-2 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+                      <input
+                        id="midas-redeem-amount"
+                        placeholder="0.00"
+                        value={redeemAmount}
+                        onChange={(e) => setRedeemAmount(e.target.value)}
+                        type="number"
+                        min="0"
+                        disabled={isBusy}
+                        className="min-w-0 flex-1 border-0 bg-transparent px-1 py-2.5 text-base font-medium text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                      />
+                      <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-300">
+                        {shareSym}
+                      </span>
+                    </div>
                     {/* Fee + mode comparison */}
                     <div className="mb-4 grid grid-cols-2 gap-2">
-                      <div className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-zinc-700 dark:bg-zinc-800">
+                      <div className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                           Instant Fee
                         </p>
@@ -463,7 +475,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                         </p>
                         <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Atomic, funds returned immediately</p>
                       </div>
-                      <div className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-zinc-700 dark:bg-zinc-800">
+                      <div className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                           Standard Fee
                         </p>
@@ -491,15 +503,15 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
 
       {confirmOpen && (
         <div className="fixed inset-0 z-[60]">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmOpen(false)} />
-          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="absolute inset-0 bg-[#090B11]/65 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
+          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1A1F2B] dark:bg-[#121722]">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Confirm Redemption</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{confirmMessage}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-[#232938] dark:text-zinc-300 dark:hover:bg-[#161B26]"
               >
                 Cancel
               </button>
@@ -510,7 +522,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                   setConfirmOpen(false);
                   setConfirmAction(null);
                 }}
-                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-white dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600"
+                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-white dark:bg-[#161B26] dark:text-zinc-100 dark:hover:bg-[#1D2330]"
               >
                 Confirm
               </button>

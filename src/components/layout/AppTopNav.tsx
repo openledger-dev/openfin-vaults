@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
-import { HiOutlineMenu } from "react-icons/hi";
-import { FaMoon, FaSun } from "react-icons/fa";
+import { HiOutlineMenu, HiOutlineMoon, HiOutlineSun } from "react-icons/hi";
 import { useTheme } from "next-themes";
 
 function shortenAddress(address: string): string {
@@ -21,18 +20,23 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   const { address, isConnected } = useAppKitAccount();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const walletBtnClass =
+    "shrink-0 rounded-md border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm " +
+    (isConnected
+      ? "border-[#D9DDD8] bg-[#EEF1ED] text-zinc-900 hover:bg-[#E4E8E2] dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-100 dark:hover:bg-[#1D2330]"
+      : "border-[#D9DDD8] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E6E9E4] dark:border-[#232938] dark:bg-[#121722] dark:text-zinc-100 dark:hover:bg-[#161B26]");
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#F2F2F2] bg-white px-4 dark:border-zinc-800 dark:bg-[#0F1116] sm:px-6 lg:px-8">
+    <header className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#F2F2F2] bg-white px-4 dark:border-[#1B1F28] dark:bg-[#0F1116] sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
           onClick={onMenuClick}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#F2F2F2] text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800 lg:hidden"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#F2F2F2] text-zinc-700 transition hover:bg-zinc-100 dark:border-[#1A1F2B] dark:text-zinc-200 dark:hover:bg-[#121722] lg:hidden"
           aria-label="Open menu"
         >
           <HiOutlineMenu className="h-5 w-5" />
@@ -64,25 +68,25 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
             onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
             aria-label="Toggle theme"
             title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#E1E5E1] bg-[#F1F2F0] text-zinc-700 transition hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#F1F2F0] bg-[#F1F2F0] text-zinc-700 transition hover:bg-zinc-200 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-200 dark:hover:bg-[#161B26]"
           >
             {resolvedTheme === "dark" ? (
-              <FaSun className="h-4 w-4" />
+              <HiOutlineSun className="h-5 w-5" />
             ) : (
-              <FaMoon className="h-4 w-4" />
+              <HiOutlineMoon className="h-5 w-5" />
             )}
           </button>
         ) : (
-          <div className="h-9 w-9 rounded-md border border-[#E1E5E1] bg-[#F1F2F0] dark:border-zinc-700 dark:bg-zinc-900" />
+          <div className="h-9 w-9 rounded-md border border-[#E1E5E1] bg-[#F1F2F0] dark:border-[#1A1F2B] dark:bg-[#121722]" />
         )}
         <span
           aria-hidden
-          className="h-8 w-px bg-[#E5E7EB] dark:bg-zinc-700"
+          className="h-8 w-px bg-[#E5E7EB] dark:bg-[#1B1F28]"
         />
         <button
           type="button"
           onClick={() => open()}
-          className="shrink-0 rounded-md bg-zinc-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-zinc-800 sm:px-4 sm:text-sm"
+          className={walletBtnClass}
         >
           {isConnected && address ? shortenAddress(address) : "Connect Wallet"}
         </button>
