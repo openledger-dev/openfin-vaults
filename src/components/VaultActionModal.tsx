@@ -24,9 +24,9 @@ function formatAsset(raw: bigint, decimals: number, symbol: string): string {
 }
 
 const ACTION_BTN_CLASS =
-  "w-full max-w-none !justify-center !rounded-xl !border !border-transparent !bg-zinc-900 !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-zinc-800 disabled:!bg-zinc-400/70 disabled:!text-zinc-200 dark:!border-zinc-300 dark:!bg-zinc-100 dark:!text-zinc-900 dark:hover:!bg-zinc-200 dark:disabled:!border-zinc-500 dark:disabled:!bg-zinc-400 dark:disabled:!text-zinc-700 [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white dark:[&_.cds--btn__text]:!text-zinc-900";
+  "w-full max-w-none !justify-center !rounded-xl !border !border-transparent !bg-zinc-900 !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-zinc-800 disabled:!bg-zinc-400/70 disabled:!text-zinc-200 dark:!border-[#1b1b1f] dark:!bg-[#ffffff] dark:!text-[#141417] dark:hover:!bg-[#afafb2] dark:disabled:!border-[#1b1b1f] dark:disabled:!bg-[#27272b] dark:disabled:!text-[#afafb2] [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white dark:[&_.cds--btn__text]:!text-[#141417]";
 const DEPOSIT_BTN_CLASS =
-  "w-full max-w-none !justify-center !rounded-xl !border !border-transparent !bg-zinc-900 !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-zinc-800 disabled:!bg-zinc-400/70 disabled:!text-zinc-200 dark:!border-zinc-300 dark:!bg-zinc-100 dark:!text-zinc-900 dark:hover:!bg-zinc-200 dark:disabled:!border-zinc-500 dark:disabled:!bg-zinc-400 dark:disabled:!text-zinc-700 [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white dark:[&_.cds--btn__text]:!text-zinc-900";
+  "w-full max-w-none !justify-center !rounded-xl !border !border-transparent !bg-zinc-900 !px-5 !py-3.5 !text-base !font-semibold !text-white hover:!bg-zinc-800 disabled:!bg-zinc-400/70 disabled:!text-zinc-200 dark:!border-[#1b1b1f] dark:!bg-[#ffffff] dark:!text-[#141417] dark:hover:!bg-[#afafb2] dark:disabled:!border-[#1b1b1f] dark:disabled:!bg-[#27272b] dark:disabled:!text-[#afafb2] [&_.cds--btn__text]:!w-full [&_.cds--btn__text]:!text-center [&_.cds--btn__text]:!text-white dark:[&_.cds--btn__text]:!text-[#141417]";
 
 export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultActionModalProps) {
   const { address: userAddress, isConnected } = useAccount();
@@ -180,13 +180,13 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
         <div className="fixed inset-0 z-50">
           <div className="absolute inset-0 bg-[#090B11]/60 backdrop-blur-sm" onClick={handleClose} />
           <div className="relative z-10 mx-auto mt-10 w-[min(860px,94vw)]">
-            <div className="max-h-[88vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-[#1A1F2B] dark:bg-[#121722]">
+            <div className="max-h-[88vh] overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-2xl">{`${vault.name} — ${vault.platformLabel}`}</h2>
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-base leading-none text-zinc-500 hover:bg-zinc-100 dark:border-[#232938] dark:text-zinc-300 dark:hover:bg-[#161B26]"
+                  className="rounded-lg border border-zinc-300 px-2.5 py-1.5 text-base leading-none text-zinc-500 hover:bg-zinc-100 dark:border-[#1b1b1f] dark:text-[#afafb2] dark:hover:bg-[#27272b]"
                   aria-label="Close"
                 >
                   ×
@@ -200,8 +200,8 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
             { label: "Status", value: vault.status === "paused" ? "Paused" : "Active", color: vault.status === "paused" ? "text-amber-600" : "text-emerald-600" },
             { label: "Asset", value: assetSymbol, color: "text-zinc-900 dark:text-zinc-100" },
           ].map((item) => (
-            <div key={item.label} className="min-h-[92px] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">{item.label}</p>
+            <div key={item.label} className="min-h-[92px] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4 dark:border-[#1b1b1f] dark:bg-[#141417]">
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-[#afafb2]">{item.label}</p>
               <p className={`text-[1.25rem] font-bold leading-tight ${item.color}`}>{item.value}</p>
             </div>
           ))}
@@ -210,13 +210,13 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
         {/* Fee tags (all 3 from the Fees struct) */}
         <div className="mb-4 flex flex-wrap gap-2">
           {vault.performanceFeePercent != null && (
-            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-300">Perf. Fee: {vault.performanceFeePercent.toFixed(2)}%</span>
+            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Perf. Fee: {vault.performanceFeePercent.toFixed(2)}%</span>
           )}
           {vault.managementFeePercent != null && (
-            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-300">Mgmt. Fee: {vault.managementFeePercent.toFixed(2)}%</span>
+            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Mgmt. Fee: {vault.managementFeePercent.toFixed(2)}%</span>
           )}
           {vault.withdrawalFeePercent != null && (
-            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-300">Withdrawal Fee: {vault.withdrawalFeePercent.toFixed(2)}%</span>
+            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Withdrawal Fee: {vault.withdrawalFeePercent.toFixed(2)}%</span>
           )}
         </div>
 
@@ -255,15 +255,15 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
           </p>
         ) : (
           <>
-            <div className="mb-4 inline-flex gap-1 rounded-xl bg-[#F1F2F0] p-1 dark:bg-[#121722]">
+            <div className="mb-5 inline-flex w-full gap-1 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-1 dark:border-[#1b1b1f] dark:bg-[#101014]">
               <button
                 type="button"
                 onClick={() => setActionTab("deposit")}
                 className={
                   "rounded-lg px-4 py-2 text-sm transition " +
                   (actionTab === "deposit"
-                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-[#161B26] dark:text-zinc-100 dark:ring-[#232938]"
-                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-[#161B26] dark:hover:text-zinc-100")
+                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-[#25262d] dark:text-[#ffffff] dark:ring-[#1b1b1f]"
+                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-[#afafb2] dark:hover:bg-[#1a1a21] dark:hover:text-[#ffffff]")
                 }
               >
                 Deposit
@@ -274,8 +274,8 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                 className={
                   "rounded-lg px-4 py-2 text-sm transition " +
                   (actionTab === "withdraw"
-                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-[#161B26] dark:text-zinc-100 dark:ring-[#232938]"
-                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-zinc-300 dark:hover:bg-[#161B26] dark:hover:text-zinc-100")
+                    ? "bg-white font-semibold text-zinc-900 shadow-sm ring-1 ring-zinc-200 dark:bg-[#25262d] dark:text-[#ffffff] dark:ring-[#1b1b1f]"
+                    : "text-zinc-500 hover:bg-zinc-200/70 hover:text-zinc-700 dark:text-[#afafb2] dark:hover:bg-[#1a1a21] dark:hover:text-[#ffffff]")
                 }
               >
                 Withdraw
@@ -284,7 +284,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
 
               {/* ── Deposit ─────────────────────────────────────────────── */}
               {actionTab === "deposit" && (
-                <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 sm:p-5 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
                   <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
                     Wallet balance:{" "}
                     <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -294,7 +294,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                   <label htmlFor="deposit-amount" className="mb-2 block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                     {`Amount (${assetSymbol})`}
                   </label>
-                  <div className="mb-4 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+                  <div className="mb-4 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1b1b1f] dark:bg-[#0b0c10]">
                     <input
                       id="deposit-amount"
                       placeholder="0.00"
@@ -305,7 +305,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                       disabled={isBusy || vault.status === "paused"}
                       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-2.5 text-base font-medium text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                     />
-                    <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-300">
+                    <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#2a2a32] dark:bg-[#1f2027] dark:text-[#ffffff]">
                       {assetSymbol}
                     </span>
                   </div>
@@ -331,7 +331,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
 
               {/* ── Withdraw (async ERC-7540) ────────────────────────────── */}
               {actionTab === "withdraw" && (
-                <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 sm:p-5 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
 
                   {/* Claimable section */}
                   {claimableRedeem && claimableRedeem.shares > BigInt(0) && (
@@ -373,7 +373,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                   <label htmlFor="redeem-shares" className="mb-2 block text-sm font-medium text-zinc-600 dark:text-zinc-300">
                     {`Shares to redeem (${vault.symbol})`}
                   </label>
-                  <div className="mb-2 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+                  <div className="mb-2 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1b1b1f] dark:bg-[#0b0c10]">
                     <input
                       id="redeem-shares"
                       placeholder="0.00"
@@ -384,7 +384,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                       disabled={isBusy}
                       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-2.5 text-base font-medium text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                     />
-                    <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-300">
+                    <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#2a2a32] dark:bg-[#1f2027] dark:text-[#ffffff]">
                       {vault.symbol}
                     </span>
                   </div>
@@ -419,14 +419,14 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
       {confirmOpen && (
         <div className="fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-[#090B11]/65 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
-          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1A1F2B] dark:bg-[#121722]">
+          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Confirm Redemption</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{confirmMessage}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-[#232938] dark:text-zinc-300 dark:hover:bg-[#161B26]"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-[#1b1b1f] dark:text-[#afafb2] dark:hover:bg-[#27272b]"
               >
                 Cancel
               </button>
@@ -437,7 +437,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                   setConfirmOpen(false);
                   setConfirmAction(null);
                 }}
-                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-white dark:bg-[#161B26] dark:text-zinc-100 dark:hover:bg-[#1D2330]"
+                className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-white dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2]"
               >
                 Confirm
               </button>

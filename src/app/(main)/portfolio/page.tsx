@@ -39,7 +39,7 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
 
   return (
     <div
-      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[3px] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-[#1A1F2B] dark:bg-[#121722] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5"
+      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[3px] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-[#1b1b1f] dark:bg-[#141417] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5"
       onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#15803d"; }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#16a34a"; }}
       onClick={onClick}
@@ -63,10 +63,10 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
           <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
             {vault.address.slice(0, 6)}…{vault.address.slice(-4)}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-200">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {kindLabel}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-200">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {getChainName(vault.chainId)}
           </span>
           <span
@@ -123,7 +123,7 @@ function StatCard({ label, value, color = "#f4f4f4", loading }: {
           : "text-zinc-900 dark:text-zinc-100";
 
   return (
-    <div className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] p-3 dark:border-[#1A1F2B] dark:bg-[#121722] sm:p-5">
+    <div className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] p-3 dark:border-[#1b1b1f] dark:bg-[#141417] sm:p-5">
       <p className="mb-2 text-[0.7rem] uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
@@ -199,10 +199,10 @@ function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void
             {statusLabel}
           </span>
           <span className="text-[0.9375rem] font-semibold text-zinc-900 dark:text-zinc-100">{item.vault.name}</span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-200">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {kindLabel}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-200">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {getChainName(item.vault.chainId)}
           </span>
         </div>
@@ -297,7 +297,7 @@ export default function PortfolioPage() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] px-6 py-5 dark:border-[#1A1F2B] dark:bg-[#121722]"
+            className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] px-6 py-5 dark:border-[#1b1b1f] dark:bg-[#141417]"
           >
             <div className="mb-3 h-3 w-20 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
             <div className="h-8 w-24 animate-pulse rounded-md bg-zinc-200 dark:bg-zinc-700" />
@@ -308,7 +308,7 @@ export default function PortfolioPage() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] px-8 py-6 dark:border-[#1A1F2B] dark:bg-[#121722]"
+            className="rounded-xl border border-[#e1e5e1] bg-[#f1f2f0] px-8 py-6 dark:border-[#1b1b1f] dark:bg-[#141417]"
           >
             <div className="space-y-2">
               <div className="h-3 w-[85%] animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
@@ -321,7 +321,7 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="min-h-full bg-white dark:bg-[#0F1116]">
+    <div className="min-h-full bg-white dark:bg-[#000000]">
         <div className="mx-auto w-full p-4 lg:p-6">
 
           {/* Page header */}
@@ -337,7 +337,7 @@ export default function PortfolioPage() {
           {(walletPending || (isConnected && isLoading)) ? skeletonCards
 
           : !isConnected ? (
-            <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-4 py-12 text-center dark:border-[#1A1F2B] dark:bg-[#121722]">
+            <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-4 py-12 text-center dark:border-[#1b1b1f] dark:bg-[#141417]">
               <p className="mb-6 text-base text-zinc-500 dark:text-zinc-400">
                 Connect your wallet to view your portfolio
               </p>
@@ -364,7 +364,7 @@ export default function PortfolioPage() {
                 Active Positions
               </h2>
               {positions.length === 0 ? (
-                <div className="mb-8 rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-8 py-16 text-center dark:border-[#1A1F2B] dark:bg-[#121722]">
+                <div className="mb-8 rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-8 py-16 text-center dark:border-[#1b1b1f] dark:bg-[#141417]">
                   <p className="mb-2 text-[0.9375rem] text-zinc-600 dark:text-zinc-300">
                     No vault positions found for this wallet.
                   </p>
@@ -373,7 +373,7 @@ export default function PortfolioPage() {
                   </p>
                   <button
                     type="button" onClick={() => router.push("/")}
-                    className="rounded-lg border border-[#e1e5e1] bg-transparent px-6 py-2.5 text-sm text-zinc-900 transition hover:bg-zinc-100 dark:border-[#232938] dark:text-zinc-100 dark:hover:bg-[#161B26]"
+                    className="rounded-lg border border-[#e1e5e1] bg-transparent px-6 py-2.5 text-sm text-zinc-900 transition hover:bg-zinc-100 dark:border-[#1b1b1f] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
                   >
                     Browse Vaults →
                   </button>
@@ -395,7 +395,7 @@ export default function PortfolioPage() {
                 Pending Withdrawals
               </h2>
               {pendingItems.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] p-8 text-center dark:border-[#1A1F2B] dark:bg-[#121722]">
+                <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] p-8 text-center dark:border-[#1b1b1f] dark:bg-[#141417]">
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">No pending withdrawal requests.</p>
                 </div>
               ) : (

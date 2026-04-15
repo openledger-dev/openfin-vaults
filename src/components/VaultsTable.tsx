@@ -130,7 +130,7 @@ function VaultAvatar({ chainId }: { chainId: number }) {
       <img
         src={chainIconSrc}
         alt={chain}
-        className="h-11 w-11 rounded-full border border-zinc-200 object-cover dark:border-[#232938]"
+        className="h-11 w-11 rounded-full border border-zinc-200 object-cover dark:border-[#1b1b1f]"
         loading="lazy"
       />
     </div>
@@ -196,7 +196,7 @@ function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
               ? "border-zinc-200 bg-zinc-50 text-zinc-600"
               : "border-blue-100 bg-blue-50 text-blue-800") +
             (a.isPegged
-              ? " dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-200"
+              ? " dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]"
               : " dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200")
           }
         >
@@ -224,7 +224,7 @@ function SkeletonSection({
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={`sk-${i}`}
-            className="grid items-center gap-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1A1F2B] dark:bg-[#121722]"
+            className="grid items-center gap-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#141417]"
             style={{ gridTemplateColumns: gridTpl }}
           >
             {Array.from({ length: colCount }).map((__, j) => (
@@ -315,7 +315,7 @@ function PlatformSection({
             <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
               {v.address.slice(0, 6)}…{v.address.slice(-4)}
             </p>
-            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#232938] dark:bg-[#161B26] dark:text-zinc-300">
+            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
               {getChainShortName(v.chainId)}
             </span>
           </div>
@@ -349,14 +349,14 @@ function PlatformSection({
           <button
             type="button"
             onClick={() => onView(v.address)}
-            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-100 dark:hover:bg-[#161B26]"
+            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
           >
             View
           </button>
           <button
             type="button"
             onClick={() => onDeposit(vault)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             <svg
               aria-hidden
@@ -436,7 +436,7 @@ function PlatformSection({
                 const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
                 const cellTone = hasPosition
                   ? "bg-emerald-50/25 border-emerald-200/80 dark:bg-emerald-900/20 dark:border-emerald-800/70"
-                  : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-[#121722] dark:border-[#1A1F2B]";
+                  : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-[#141417] dark:border-[#1b1b1f]";
                 return (
                   <tr key={v.address} className="transition hover:opacity-95">
                     {headers.map((h, idx) => (
@@ -484,7 +484,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
 
   if (activePlatforms.length === 0) {
     return (
-      <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+      <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
         <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No vaults configured</p>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
           Add vault addresses to `NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR` in your `.env.local` to get started.
@@ -496,7 +496,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
   return (
     <>
       {txCompletedNotice && (
-        <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+        <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
           <div className="flex items-start justify-between gap-3 px-4 py-3">
             <div>
               <p className="text-sm font-semibold text-emerald-700">Transaction completed</p>
@@ -527,7 +527,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
           placeholder="Search by vault name, symbol…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] py-3 pl-11 pr-4 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-[#1A1F2B] dark:bg-[#121722] dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-[#2E3546] dark:focus:ring-zinc-100/10"
+          className="w-full rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] py-3 pl-11 pr-4 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:placeholder:text-[#afafb2] dark:focus:border-[#afafb2] dark:focus:ring-zinc-100/10"
         />
       </div>
 

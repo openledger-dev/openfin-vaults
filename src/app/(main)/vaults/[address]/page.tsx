@@ -110,7 +110,7 @@ function StatCard({
   label: string; value: string; sub?: string; color?: string; loading?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-5 shadow-sm shadow-zinc-900/5 dark:border-[#1A1F2B] dark:bg-[#121722]">
+    <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-5 shadow-sm shadow-zinc-900/5 dark:border-[#1b1b1f] dark:bg-[#141417]">
       <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
@@ -131,7 +131,7 @@ function StatCard({
 function AddressRow({ label, value, chainId = 1 }: { label: string; value: string | undefined; chainId?: number }) {
   if (!value) return null;
   return (
-    <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1A1F2B]">
+    <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
       <span className="text-sm text-zinc-500 dark:text-zinc-400">{label}</span>
       <a
         href={explorerLink(value, chainId)}
@@ -148,7 +148,7 @@ function AddressRow({ label, value, chainId = 1 }: { label: string; value: strin
 
 function FeeRow({ label, pct, tooltip }: { label: string; pct: number | undefined; tooltip: string }) {
   return (
-    <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1A1F2B]">
+    <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
       <span className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
         {label}
         <button
@@ -180,9 +180,9 @@ function protocolPillLabel(kind: PlatformKind): string {
 }
 
 const HEADER_TAG_CLASS =
-  "inline-flex items-center rounded-full bg-[#F2F2F2] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-800 dark:bg-[#121722] dark:text-zinc-200";
+  "inline-flex items-center rounded-full bg-[#F2F2F2] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-800 dark:bg-[#141417] dark:text-[#ffffff]";
 const DARK_ACTION_BTN_CLASS =
-  "w-full rounded-xl border border-transparent bg-zinc-900 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:bg-zinc-400/70 disabled:text-zinc-200 dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:disabled:border-zinc-500 dark:disabled:bg-zinc-400 dark:disabled:text-zinc-700";
+  "w-full rounded-xl border border-transparent bg-zinc-900 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:bg-zinc-400/70 disabled:text-zinc-200 dark:border-[#1b1b1f] dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2] dark:disabled:border-[#1b1b1f] dark:disabled:bg-[#27272b] dark:disabled:text-[#afafb2]";
 
 function TxSummaryRow({
   label,
@@ -199,8 +199,8 @@ function TxSummaryRow({
       ? "text-sm font-semibold tabular-nums text-slate-600 dark:text-zinc-400"
       : "text-sm font-semibold tabular-nums text-black dark:text-zinc-100";
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-200 py-2.5 last:border-b-0 dark:border-[#1A1F2B]">
-      <span className="shrink-0 text-sm text-gray-500 dark:text-zinc-400">{label}</span>
+    <div className="flex items-center justify-between gap-3 border-b border-gray-200 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
+      <span className="shrink-0 text-sm text-gray-500 dark:text-[#afafb2]">{label}</span>
       <span className={`min-w-0 text-right ${valueClass}`}>{value}</span>
     </div>
   );
@@ -210,7 +210,7 @@ function LightSectionSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <div className="space-y-3">
       {Array.from({ length: rows }).map((_, idx) => (
-        <div key={idx} className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
+        <div key={idx} className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
           <div className="mb-2 h-3 w-28 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
           <div className="h-4 w-48 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
         </div>
@@ -622,9 +622,9 @@ export default function VaultDetailPage() {
   // ── Guard ─────────────────────────────────────────────────────────────────
   if (!vaultAddress) {
     return (
-      <div className="min-h-full bg-white dark:bg-[#0F1116]">
+      <div className="min-h-full bg-white dark:bg-[#000000]">
         <div className="mx-auto max-w-[900px] px-6 py-16 lg:px-8">
-          <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+          <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
             <p className="text-sm font-semibold text-red-700">Invalid vault address</p>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
               The address in the URL is not a valid Ethereum address.
@@ -668,7 +668,7 @@ export default function VaultDetailPage() {
   const chainPill = getChainShortName(vaultChainId).toUpperCase();
 
   return (
-    <div className="min-h-full bg-white dark:bg-[#0F1116]">
+    <div className="min-h-full bg-white dark:bg-[#000000]">
         <div className="mx-auto w-full p-4 lg:p-6">
           {/* lg+: name + stats + details on the left; Deposit/Withdraw card top-aligned on the right (~1/3 width) */}
           <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-x-10">
@@ -701,7 +701,7 @@ export default function VaultDetailPage() {
             )}
 
             <div className="mt-4 flex max-w-full flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 rounded-lg border border-zinc-200/90 bg-[#F2F2F2] px-3 py-2 dark:border-[#1A1F2B] dark:bg-[#121722]">
+              <div className="inline-flex items-center gap-2 rounded-lg border border-zinc-200/90 bg-[#F2F2F2] px-3 py-2 dark:border-[#1b1b1f] dark:bg-[#141417]">
                 <span className="font-mono text-sm font-medium text-zinc-800 dark:text-zinc-200">
                   {shortAddr(vaultAddress)}
                 </span>
@@ -784,7 +784,7 @@ export default function VaultDetailPage() {
 
           {/* Tx feedback */}
           {isConfirmed && (
-            <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+            <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
               <div className="px-4 py-3">
                 <p className="text-sm font-semibold text-emerald-700">Transaction confirmed</p>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300">
@@ -804,7 +804,7 @@ export default function VaultDetailPage() {
             </div>
           )}
           {writeError && (
-            <div className="mb-6 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+            <div className="mb-6 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
               <div className="px-4 py-3">
                 <p className="text-sm font-semibold text-red-700">Transaction failed</p>
                 <p className="text-xs text-zinc-600 dark:text-zinc-300">{writeError.message.slice(0, 140)}</p>
@@ -857,7 +857,7 @@ export default function VaultDetailPage() {
 
               {/* Your Position */}
               {(isConnected || walletPending) && (
-                <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+                <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
                   <div className="mb-4 flex items-start gap-3">
                     <span className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden />
                     <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Your position</h2>
@@ -877,7 +877,7 @@ export default function VaultDetailPage() {
                         color: "text-zinc-800 dark:text-zinc-100",
                         isLoading: vault.isLoading },
                     ].map((s) => (
-                      <div key={s.label} className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                      <div key={s.label} className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#141417]">
                         <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{s.label}</p>
                         {s.isLoading ? (
                           <div className="h-6 w-28 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
@@ -990,7 +990,7 @@ export default function VaultDetailPage() {
               )}
 
               {/* Fee Structure */}
-              <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+              <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
                 <div className="mb-4 flex items-start gap-3">
                   <span className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden />
                   <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Fee structure</h2>
@@ -1022,7 +1022,7 @@ export default function VaultDetailPage() {
                         <FeeRow label="Withdrawal Fee" pct={vault.withdrawalFeePercent}
                           tooltip="One-time fee deducted at redemption fulfillment. Max 1%." />
                         {vault.highwaterMark !== undefined && (
-                          <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1A1F2B]">
+                          <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
                             <span className="text-sm text-zinc-500 dark:text-zinc-400">High-Water Mark</span>
                             <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                               {vault.highwaterMark.toString()}
@@ -1036,7 +1036,7 @@ export default function VaultDetailPage() {
               </section>
 
               {/* Vault Mechanics — platform-specific */}
-              <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+              <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
                 <div className="mb-4 flex items-start gap-3">
                   <span className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden />
                   <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Vault mechanics</h2>
@@ -1086,7 +1086,7 @@ export default function VaultDetailPage() {
               </section>
 
               {/* Contract Addresses */}
-              <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1A1F2B] dark:bg-[#121722]">
+              <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
                 <div className="mb-4 flex items-start gap-3">
                   <span className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden />
                   <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Smart contracts</h2>
@@ -1121,7 +1121,7 @@ export default function VaultDetailPage() {
 
             {/* ── RIGHT COLUMN — deposit / withdraw (reference layout) ─ */}
             <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-[420px] lg:max-w-[420px] lg:self-start">
-              <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm shadow-gray-900/5 dark:border-[#1A1F2B] dark:bg-[#121722]">
+              <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm shadow-gray-900/5 dark:border-[#1b1b1f] dark:bg-[#141417]">
                 {walletPending || (isConnected && vault.isLoading && !hasAssetAddr) ? (
                   <p className="py-12 text-center text-sm text-gray-500 dark:text-zinc-400">Loading vault data…</p>
                 ) : isConnected && !hasAssetAddr ? (
@@ -1131,7 +1131,7 @@ export default function VaultDetailPage() {
                 ) : (
                   <>
                     <div
-                      className="mb-6 flex gap-6 border-b border-gray-200 dark:border-[#1A1F2B]"
+                      className="mb-6 flex gap-6 border-b border-gray-200 dark:border-[#1b1b1f]"
                       role="tablist"
                       aria-label="Vault actions"
                     >
@@ -1142,7 +1142,7 @@ export default function VaultDetailPage() {
                         className={
                           "-mb-px flex-1 border-b-[3px] pb-3 text-center text-sm transition " +
                           (actionTabIdx === 0
-                            ? "border-black font-bold text-black dark:border-zinc-100 dark:text-zinc-100"
+                            ? "border-black font-bold text-black dark:border-[#2a2a2e] dark:text-zinc-100"
                             : "border-transparent font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200")
                         }
                         onClick={() => setActionTabIdx(0)}
@@ -1156,7 +1156,7 @@ export default function VaultDetailPage() {
                         className={
                           "-mb-px flex-1 border-b-[3px] pb-3 text-center text-sm transition " +
                           (actionTabIdx === 1
-                            ? "border-black font-bold text-black dark:border-zinc-100 dark:text-zinc-100"
+                            ? "border-black font-bold text-black dark:border-[#2a2a2e] dark:text-zinc-100"
                             : "border-transparent font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200")
                         }
                         onClick={() => setActionTabIdx(1)}
@@ -1185,8 +1185,8 @@ export default function VaultDetailPage() {
                                   className={
                                     "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
                                     (depositAsset?.address === a.address
-                                      ? "border-black bg-black text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#232938] dark:bg-[#121722] dark:text-zinc-200 dark:hover:border-[#2E3546]")
+                                      ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
+                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
                                   }
                                 >
                                   {a.symbol}
@@ -1205,7 +1205,7 @@ export default function VaultDetailPage() {
                           </span>
                         </div>
 
-                        <div className="mb-4 flex rounded-xl border border-gray-200 bg-[#EEEEEE] px-3 py-1 pl-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                        <div className="mb-4 flex rounded-xl border border-gray-200 bg-[#EEEEEE] px-3 py-1 pl-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
                           <input
                             id="detail-deposit"
                             placeholder="0.00"
@@ -1222,14 +1222,14 @@ export default function VaultDetailPage() {
                               type="button"
                               disabled={!isConnected || isBusy || vault.isPaused || depositAssetBalance === undefined}
                               onClick={handleMaxDeposit}
-                              className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#3A4254] dark:bg-[#2C3342] dark:text-zinc-100 dark:hover:bg-[#384156]"
+                              className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                             >
                               Max
                             </button>
                           </div>
                         </div>
 
-                        <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#121722]/70">
+                        <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
                           <TxSummaryRow
                             label="You will receive"
                             value={`${depositAmount || "0.00"} ${(vault.symbol || "shares").toUpperCase()}`}
@@ -1304,8 +1304,8 @@ export default function VaultDetailPage() {
                                   className={
                                     "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
                                     (depositAsset?.address === a.address
-                                      ? "border-black bg-black text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#232938] dark:bg-[#121722] dark:text-zinc-200 dark:hover:border-[#2E3546]")
+                                      ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
+                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
                                   }
                                 >
                                   {a.symbol}
@@ -1327,7 +1327,7 @@ export default function VaultDetailPage() {
                           </span>
                         </div>
 
-                        <div className="mb-4 flex rounded-xl border border-gray-200 bg-[#EEEEEE] px-3 py-1 pl-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                        <div className="mb-4 flex rounded-xl border border-gray-200 bg-[#EEEEEE] px-3 py-1 pl-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
                           <input
                             id="detail-redeem"
                             placeholder="0.00"
@@ -1346,14 +1346,14 @@ export default function VaultDetailPage() {
                               type="button"
                               disabled={!isConnected || isBusy}
                               onClick={handleMaxRedeem}
-                              className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#3A4254] dark:bg-[#2C3342] dark:text-zinc-100 dark:hover:bg-[#384156]"
+                              className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                             >
                               Max
                             </button>
                           </div>
                         </div>
 
-                        <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#121722]/70">
+                        <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
                           <TxSummaryRow
                             label="You will receive"
                             value={`${redeemAmount || "0.00"} ${assetSymForDisplay}`}
@@ -1365,7 +1365,7 @@ export default function VaultDetailPage() {
                         {vaultKind === "midas" ? (
                           <>
                             <div className="mb-4 grid grid-cols-2 gap-2">
-                              <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                              <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Instant fee</p>
                                 <p
                                   className={
@@ -1376,7 +1376,7 @@ export default function VaultDetailPage() {
                                   {midasInstantFeePct !== undefined ? `${midasInstantFeePct.toFixed(2)}%` : "—"}
                                 </p>
                               </div>
-                              <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1A1F2B] dark:bg-[#121722]">
+                              <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Standard fee</p>
                                 <p className="mt-0.5 text-base font-bold text-slate-600 dark:text-zinc-300">0%</p>
                               </div>
@@ -1397,7 +1397,7 @@ export default function VaultDetailPage() {
                                   type="button"
                                   onClick={handleMidasRedeemRequest}
                                   disabled={isBusy || redeemAmountParsed <= BigInt(0)}
-                                  className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#232938] dark:bg-[#121722] dark:text-zinc-100 dark:hover:bg-[#161B26]"
+                                  className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
                                 >
                                   {isBusy ? "Requesting..." : "Async (free)"}
                                 </button>
@@ -1456,7 +1456,7 @@ export default function VaultDetailPage() {
 
                     {!isConnected && (
                       <>
-                        <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50/80 px-4 py-4 text-center dark:border-[#1A1F2B] dark:bg-[#121722]/70">
+                        <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50/80 px-4 py-4 text-center dark:border-[#1b1b1f] dark:bg-[#141417]/70">
                           <p className="text-sm leading-relaxed text-gray-500 dark:text-zinc-400">
                             Connect your institutional wallet to execute on-chain transactions.
                           </p>
@@ -1464,7 +1464,7 @@ export default function VaultDetailPage() {
                         <button
                           type="button"
                           onClick={() => openWalletConnect()}
-                          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-black py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-900 dark:border-[#232938] dark:bg-[#1D2330] dark:text-zinc-100 dark:hover:bg-[#252D3E]"
+                          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-black py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-900 dark:border-[#1b1b1f] dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2]"
                         >
                           Connect Wallet
                         </button>
@@ -1480,14 +1480,14 @@ export default function VaultDetailPage() {
       {confirmOpen && (
         <div className="fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-[#090B11]/65 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
-          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1A1F2B] dark:bg-[#121722]">
+          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Confirm Redemption</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{confirmMessage}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-[#232938] dark:text-zinc-300 dark:hover:bg-[#161B26]"
+                className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-[#1b1b1f] dark:text-[#afafb2] dark:hover:bg-[#27272b]"
               >
                 Cancel
               </button>
@@ -1498,7 +1498,7 @@ export default function VaultDetailPage() {
                   setConfirmOpen(false);
                   setConfirmAction(null);
                 }}
-                className="rounded-lg border border-transparent bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:border-[#232938] dark:bg-[#1D2330] dark:text-zinc-100 dark:hover:bg-[#252D3E]"
+                className="rounded-lg border border-transparent bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 dark:border-[#1b1b1f] dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2]"
               >
                 Confirm
               </button>

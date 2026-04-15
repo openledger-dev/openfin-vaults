@@ -12,7 +12,7 @@ export default function HomePage() {
   const { vaults, isLoading } = useVaultData(VAULT_PLATFORMS, userAddress);
 
   return (
-    <div className="min-h-full bg-white dark:bg-[#0F1116]">
+    <div className="min-h-full bg-white dark:bg-[#000000]">
       <div className="mx-auto w-full p-4 lg:p-6">
         <StatsBar vaults={vaults} isLoading={isLoading} />
         <div className="mt-8">
