@@ -147,7 +147,7 @@ export function useSwap() {
 
   // ── Poll swap status ─────────────────────────────────────────────────────────
   // Using a ref to hold the latest poll function avoids stale-closure issues.
-  const pollRef2 = useRef<(depositAddress: string, attempt?: number) => void>();
+  const pollRef2 = useRef<((depositAddress: string, attempt?: number) => void) | undefined>(undefined);
 
   const pollStatus = useCallback(
     (depositAddress: string, attempt = 0) => {

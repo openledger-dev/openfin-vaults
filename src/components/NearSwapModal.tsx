@@ -17,7 +17,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { formatUnits } from "viem";
 import type { Address } from "viem";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
 import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClipboard, HiOutlineClock } from "react-icons/hi";
 import { useSwap, EVM_CHAINS, parseEvmAsset } from "@/hooks/useSwap";
@@ -523,12 +523,33 @@ export function SwapContent() {
     : { evmChainId: null, contractAddress: null, isNative: false };
 
   // ── Wallet balance for selected fromToken ──────────────────────────────────
-  const { data: walletBalance } = useBalance({
+  // Native token balance (ETH, BNB, etc.)
+  const { data: nativeBalance } = useBalance({
     address: userAddress as Address | undefined,
-    token: (!fromTokenIsNative && fromTokenContract) ? fromTokenContract as Address : undefined,
     chainId: originChainId ?? undefined,
-    query: { enabled: !!userAddress && !!fromToken },
+    query: { enabled: !!userAddress && !!fromToken && fromTokenIsNative },
   });
+
+  // ERC-20 token balance via balanceOf
+  const { data: erc20BalanceRaw } = useReadContract({
+    address: fromTokenContract as Address | undefined,
+    abi: [{ name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] }] as const,
+    functionName: "balanceOf",
+    args: userAddress ? [userAddress as Address] : undefined,
+    chainId: originChainId ?? undefined,
+    query: { enabled: !!userAddress && !!fromToken && !fromTokenIsNative && !!fromTokenContract },
+  });
+
+  const walletBalance = useMemo(() => {
+    if (!fromToken) return null;
+    if (fromTokenIsNative && nativeBalance) {
+      return { value: nativeBalance.value, decimals: nativeBalance.decimals };
+    }
+    if (!fromTokenIsNative && erc20BalanceRaw !== undefined) {
+      return { value: erc20BalanceRaw as bigint, decimals: fromToken.decimals };
+    }
+    return null;
+  }, [fromToken, fromTokenIsNative, nativeBalance, erc20BalanceRaw]);
 
   const formattedBalance = useMemo(() => {
     if (!walletBalance) return null;
@@ -703,7 +724,7 @@ export function SwapContent() {
                           {swapDetails.amountOutUsd ? ` ($${swapDetails.amountOutUsd})` : ""}
                         </p>
                       )}
-                      {swapDetails.destinationChainTxHashes?.map((tx) => (
+                      {swapDetails.destinationChainTxHashes?.map((tx: { hash: string; explorerUrl: string }) => (
                         <a
                           key={tx.hash}
                           href={tx.explorerUrl}
@@ -730,7 +751,7 @@ export function SwapContent() {
                       {swapDetails.refundReason && (
                         <p className="text-xs opacity-80">Reason: {swapDetails.refundReason}</p>
                       )}
-                      {swapDetails.originChainTxHashes?.map((tx) => (
+                      {swapDetails.originChainTxHashes?.map((tx: { hash: string; explorerUrl: string }) => (
                         <a
                           key={tx.hash}
                           href={tx.explorerUrl}
@@ -950,7 +971,7 @@ export function SwapContent() {
                     <div className="flex justify-between">
                       <span className="text-zinc-500 dark:text-zinc-400">Expires</span>
                       <span className={`font-medium ${isQuoteExpired ? "text-red-600" : "text-zinc-700 dark:text-zinc-300"}`}>
-                        {new Date(quote.quote.deadline).toLocaleTimeString()}
+                        {quote.quote.deadline ? new Date(quote.quote.deadline).toLocaleTimeString() : "—"}
                         {isQuoteExpired && " (expired)"}
                       </span>
                     </div>
@@ -962,7 +983,7 @@ export function SwapContent() {
                         rel="noopener noreferrer"
                         className="truncate max-w-[180px] text-xs font-mono text-zinc-600 underline dark:text-zinc-400"
                       >
-                        {quote.quote.depositAddress.slice(0, 8)}…{quote.quote.depositAddress.slice(-6)}
+                        {quote.quote.depositAddress?.slice(0, 8)}…{quote.quote.depositAddress?.slice(-6)}
                       </a>
                     </div>
                   </div>
