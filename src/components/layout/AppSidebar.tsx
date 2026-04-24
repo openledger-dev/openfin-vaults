@@ -3,7 +3,7 @@
 import type { IconType } from "react-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HiOutlineBriefcase, HiOutlineCube, HiOutlineX } from "react-icons/hi";
+import { HiOutlineBriefcase, HiOutlineCube, HiOutlineSwitchHorizontal, HiOutlineX } from "react-icons/hi";
 
 type NavItem = {
   href: string;
@@ -24,6 +24,12 @@ const mainNav: NavItem[] = [
     label: "Portfolio",
     Icon: HiOutlineBriefcase,
     match: (p) => p.startsWith("/portfolio"),
+  },
+  {
+    href: "/swap",
+    label: "Swap",
+    Icon: HiOutlineSwitchHorizontal,
+    match: (p) => p.startsWith("/swap"),
   },
 ];
 
@@ -53,6 +59,7 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
 
   return (
     <>
+      {/* ── Desktop sidebar ── */}
       <aside
         className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 flex-col border-r border-[#F2F2F2] bg-white dark:border-[#1b1b1f] dark:bg-[#000000] lg:flex"
         aria-label="Sidebar"
@@ -65,13 +72,8 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
                 key={href}
                 href={href}
                 className={`group ${navLinkClass(active)}`}
-                onClick={onCloseMobile}
               >
-                <Icon
-                  className={iconClass(active)}
-                  aria-hidden
-                  strokeWidth={2}
-                />
+                <Icon className={iconClass(active)} aria-hidden strokeWidth={2} />
                 <span>{label}</span>
               </Link>
             );
@@ -79,6 +81,7 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
         </nav>
       </aside>
 
+      {/* ── Mobile sidebar ── */}
       {mobileOpen && (
         <div className="fixed inset-0 z-[70] lg:hidden">
           <button
