@@ -476,10 +476,17 @@ export function SwapContent() {
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState("");
 
-  // Default recipient to connected address when wallet connects
+  // Set recipient to connected wallet when the wallet connects/changes,
+  // but only if the destination is EVM (or not yet selected).
+  // Deliberately excludes `recipient` and `toToken` from deps so that
+  // manually clearing the field doesn't trigger a refill.
   useEffect(() => {
-    if (userAddress && !recipient) setRecipient(userAddress);
-  }, [userAddress, recipient]);
+    if (!userAddress) return;
+    if (!toToken || EVM_BLOCKCHAINS.has(toToken.blockchain)) {
+      setRecipient(userAddress);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userAddress]);
 
   // ── Swap hook ──────────────────────────────────────────────────────────────
   const {
@@ -579,7 +586,7 @@ export function SwapContent() {
   }, [quote]);
 
   // Minimum USD value to avoid "Failed to get quote" from market makers
-  const MIN_USD_VALUE = 5;
+  const MIN_USD_VALUE = parseFloat(process.env.NEXT_PUBLIC_SWAP_MIN_USD ?? "1") || 1;
   const belowMinimum = useMemo(() => {
     if (!fromToken?.price || !amount || parseFloat(amount) <= 0) return false;
     return fromToken.price * parseFloat(amount) < MIN_USD_VALUE;
@@ -724,18 +731,25 @@ export function SwapContent() {
                           {swapDetails.amountOutUsd ? ` ($${swapDetails.amountOutUsd})` : ""}
                         </p>
                       )}
-                      {swapDetails.destinationChainTxHashes?.map((tx: { hash: string; explorerUrl: string }) => (
-                        <a
-                          key={tx.hash}
-                          href={tx.explorerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-semibold underline"
-                        >
-                          View on {toToken?.blockchain.toUpperCase()} explorer{" "}
-                          <HiOutlineExternalLink className="h-3 w-3" />
-                        </a>
-                      ))}
+                      {swapDetails.destinationChainTxHashes?.map((tx: { hash: string; explorerUrl: string }) => {
+                        let explorerName = "destination explorer";
+                        try {
+                          const host = new URL(tx.explorerUrl).hostname.replace(/^www\./, "");
+                          explorerName = host;
+                        } catch { /* keep default */ }
+                        return (
+                          <a
+                            key={tx.hash}
+                            href={tx.explorerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold underline"
+                          >
+                            View on {explorerName}{" "}
+                            <HiOutlineExternalLink className="h-3 w-3" />
+                          </a>
+                        );
+                      })}
                     </div>
                   )}
 
