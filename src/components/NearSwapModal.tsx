@@ -589,8 +589,11 @@ export function SwapContent() {
   const MIN_USD_VALUE = parseFloat(process.env.NEXT_PUBLIC_SWAP_MIN_USD ?? "1") || 1;
   const belowMinimum = useMemo(() => {
     if (!fromToken?.price || !amount || parseFloat(amount) <= 0) return false;
-    return fromToken.price * parseFloat(amount) < MIN_USD_VALUE;
-  }, [fromToken, amount]);
+    // Round to 2 decimal places to absorb price-feed imprecision
+    // (e.g. USDT price = $0.99998 → rounds to $1.00)
+    const usdValue = Math.round(fromToken.price * parseFloat(amount) * 100) / 100;
+    return usdValue < MIN_USD_VALUE;
+  }, [fromToken, amount, MIN_USD_VALUE]);
 
   const recipientReady = toToken && !EVM_BLOCKCHAINS.has(toToken.blockchain)
     ? !!recipient   // non-EVM: must have typed a recipient
