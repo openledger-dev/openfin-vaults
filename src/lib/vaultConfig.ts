@@ -134,6 +134,18 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">
       },
     ],
   },
+
+  // ── UltraYield BTC (0x4724...914F) ────────────────────────────────────────
+  "0x472425cc95be779126afa4aa17980210d299914f": {
+    assets: [
+      {
+        address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+        symbol: "cbBTC",
+        decimals: 8,
+        isPegged: false,
+      },
+    ],
+  },
 };
 
 // ── Midas static vault config ─────────────────────────────────────────────────

@@ -18,9 +18,16 @@ interface VaultActionModalProps {
 
 function formatAsset(raw: bigint, decimals: number, symbol: string): string {
   const n = parseFloat(formatUnits(raw, decimals));
+  if (n === 0) return `0 ${symbol}`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(4)}M ${symbol}`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(4)}K ${symbol}`;
-  return `${n.toFixed(4)} ${symbol}`;
+  const dp = decimals >= 8 ? 8 : decimals >= 6 ? 6 : 4;
+  const fixed = n.toFixed(dp);
+  if (parseFloat(fixed) === 0) {
+    const sigPos = -Math.floor(Math.log10(n));
+    return `${n.toFixed(sigPos)} ${symbol}`;
+  }
+  return `${fixed} ${symbol}`;
 }
 
 const ACTION_BTN_CLASS =
@@ -305,6 +312,14 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                       disabled={isBusy || vault.status === "paused"}
                       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-2.5 text-base font-medium text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                     />
+                    <button
+                      type="button"
+                      onClick={() => assetBalance !== undefined && setDepositAmount(formatUnits(assetBalance, decimals))}
+                      disabled={isBusy || vault.status === "paused" || !assetBalance || assetBalance <= BigInt(0)}
+                      className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
+                    >
+                      Max
+                    </button>
                     <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#2a2a32] dark:bg-[#1f2027] dark:text-[#ffffff]">
                       {assetSymbol}
                     </span>
@@ -384,6 +399,14 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                       disabled={isBusy}
                       className="min-w-0 flex-1 border-0 bg-transparent px-1 py-2.5 text-base font-medium text-zinc-900 placeholder:text-zinc-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-60 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                     />
+                    <button
+                      type="button"
+                      onClick={() => shareBalance !== undefined && setRequestRedeemShares(formatUnits(shareBalance, 18))}
+                      disabled={isBusy || !shareBalance || shareBalance <= BigInt(0)}
+                      className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
+                    >
+                      Max
+                    </button>
                     <span className="shrink-0 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-700 dark:border-[#2a2a32] dark:bg-[#1f2027] dark:text-[#ffffff]">
                       {vault.symbol}
                     </span>

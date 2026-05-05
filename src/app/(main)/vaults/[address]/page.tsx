@@ -445,7 +445,15 @@ export default function VaultDetailPage() {
 
   const depositAssetBalanceFmt = useMemo(() => {
     if (depositAssetBalance === undefined) return "—";
-    return `${parseFloat(formatUnits(depositAssetBalance, assetDecForDisplay)).toFixed(4)} ${assetSymForDisplay}`;
+    const n = parseFloat(formatUnits(depositAssetBalance, assetDecForDisplay));
+    if (n === 0) return `0 ${assetSymForDisplay}`;
+    const dp = assetDecForDisplay >= 8 ? 8 : assetDecForDisplay >= 6 ? 6 : 4;
+    const fixed = n.toFixed(dp);
+    if (parseFloat(fixed) === 0) {
+      const sigPos = -Math.floor(Math.log10(n));
+      return `${n.toFixed(sigPos)} ${assetSymForDisplay}`;
+    }
+    return `${fixed} ${assetSymForDisplay}`;
   }, [depositAssetBalance, assetDecForDisplay, assetSymForDisplay]);
 
   // ── State + write contract ────────────────────────────────────────────────

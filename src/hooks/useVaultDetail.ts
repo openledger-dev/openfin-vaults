@@ -66,10 +66,18 @@ function fmt(raw: bigint | undefined, dec: number, sym?: string): string {
   if (raw === undefined) return "—";
   const n = parseFloat(formatUnits(raw, dec));
   const suffix = sym ? ` ${sym}` : "";
+  if (n === 0) return `0${suffix}`;
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(4)}B${suffix}`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(4)}M${suffix}`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(4)}K${suffix}`;
-  return `${n.toFixed(6)}${suffix}`;
+  const dp = dec >= 8 ? 8 : 6;
+  const fixed = n.toFixed(dp);
+  // If the value is too small for the default precision, show the first significant digit
+  if (parseFloat(fixed) === 0) {
+    const sigPos = -Math.floor(Math.log10(n));
+    return `${n.toFixed(sigPos)}${suffix}`;
+  }
+  return `${fixed}${suffix}`;
 }
 
 /**
