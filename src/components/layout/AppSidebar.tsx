@@ -61,7 +61,7 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
     <>
       {/* ── Desktop sidebar ── */}
       <aside
-        className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 flex-col border-r border-[#F2F2F2] bg-white dark:border-[#1b1b1f] dark:bg-[#000000] lg:flex"
+        className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 flex-col border-r border-[#F2F2F2] bg-white dark:border-[#1b1b1f] dark:bg-[#000000] xl:flex"
         aria-label="Sidebar"
       >
         <nav className="flex flex-col gap-0.5 p-3 pt-4" aria-label="App sections">
@@ -83,7 +83,7 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
 
       {/* ── Mobile sidebar ── */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-[70] lg:hidden">
+        <div className="fixed inset-0 z-[70] xl:hidden">
           <button
             type="button"
             aria-label="Close menu overlay"

@@ -22,7 +22,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const walletBtnClass =
-    "shrink-0 rounded-md border px-2 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm " +
+    "shrink-0 rounded-md border px-2 py-2 text-xs font-semibold transition sm:px-3 sm:text-sm " +
     (isConnected
       ? "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]"
       : "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]");
@@ -38,7 +38,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
         <button
           type="button"
           onClick={onMenuClick}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#F2F2F2] text-zinc-700 transition hover:bg-zinc-100 dark:border-[#1b1b1f] dark:text-[#ffffff] dark:hover:bg-[#141417] lg:hidden"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#F2F2F2] text-zinc-700 transition hover:bg-zinc-100 dark:border-[#1b1b1f] dark:text-[#ffffff] dark:hover:bg-[#141417] xl:hidden"
           aria-label="Open menu"
         >
           <HiOutlineMenu className="h-5 w-5" />
