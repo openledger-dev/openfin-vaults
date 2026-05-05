@@ -19,6 +19,10 @@ const STUB_PACKAGES = [
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
 
+  // Keep Node.js-only packages out of the browser bundle.
+  // ioredis (and viem's transports) use stream/net/tls which don't exist in browsers.
+  serverExternalPackages: ["ioredis"],
+
   // Turbopack (used for `next build`)
   turbopack: {
     resolveAlias: Object.fromEntries(
@@ -29,10 +33,20 @@ const nextConfig: NextConfig = {
   // Webpack (used for `next dev --webpack`)
   // Setting alias to `false` tells webpack to resolve the module as an empty
   // object without bundling anything — no stub file needed, no watchpack noise.
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     STUB_PACKAGES.forEach((pkg) => {
       config.resolve.alias[pkg] = false;
     });
+
+    if (isServer) {
+      // ioredis depends on Node.js built-ins (stream, net, tls) that webpack
+      // cannot resolve in some server compilation passes (e.g. instrumentation).
+      // Externalising it here means webpack emits `require("ioredis")` and lets
+      // Node.js resolve it at runtime — the same intent as serverExternalPackages.
+      const prev = Array.isArray(config.externals) ? config.externals : [];
+      config.externals = [...prev, "ioredis"];
+    }
+
     return config;
   },
 

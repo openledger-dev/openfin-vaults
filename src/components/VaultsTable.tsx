@@ -2,27 +2,17 @@
 
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import {
-  DataTable,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Tag,
-  Button,
-  Search,
-  SkeletonText,
-  InlineNotification,
-} from "@carbon/react";
+import { HiOutlineSearch } from "react-icons/hi";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
+import type { PlatformKind } from "@/lib/vaultConfig";
+import { getChainShortName } from "@/lib/chains";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import type { Vault } from "@/types/vault";
 import { VaultActionModal } from "./VaultActionModal";
+import { MorphoVaultActionModal } from "./MorphoVaultActionModal";
+import { MidasVaultActionModal } from "./MidasVaultActionModal";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,7 +35,6 @@ function formatBigIntAsset(
 
 function feePercent(raw: bigint | undefined): string {
   if (raw === undefined) return "—";
-  // 1e18 = 100%
   const pct = (Number(raw) / 1e16).toFixed(2);
   return `${pct}%`;
 }
@@ -55,8 +44,10 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
   return {
     id: v.address,
     address: v.address,
+    kind: v.kind,
     platform: v.platformId,
     platformLabel: v.platformLabel,
+    chainId: v.chainId,
     name: v.name,
     symbol: v.symbol,
     assetAddress: v.assetAddress,
@@ -64,7 +55,6 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
     assetDecimals: decimals,
     tvlFormatted: formatBigIntAsset(v.totalAssets, decimals, v.assetSymbol),
     totalAssets: v.totalAssets,
-    // Fees: 1e18 = 100%, so divide by 1e16 to get percentage (verified against IUltraVault.sol)
     performanceFeePercent:
       v.performanceFee !== undefined ? Number(v.performanceFee) / 1e16 : undefined,
     managementFeePercent:
@@ -73,96 +63,204 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
       v.withdrawalFee !== undefined ? Number(v.withdrawalFee) / 1e16 : undefined,
     status: v.isPaused ? "paused" : "active",
     contractAddress: v.address,
+    depositVaultAddress: v.depositVaultAddress,
+    redemptionVaultAddress: v.redemptionVaultAddress,
+    midasApiKey: v.midasApiKey,
   };
 }
 
-// ── Table headers ─────────────────────────────────────────────────────────────
+function sectionGridTemplate(platformKind: PlatformKind, platformId: string): string {
+  if (platformKind === "morpho") {
+    return "minmax(220px,2fr) minmax(100px,1.2fr) minmax(88px,1fr) minmax(88px,1fr) minmax(88px,1fr) auto minmax(168px,1.1fr)";
+  }
+  if (platformId === "re7") {
+    return "minmax(220px,2fr) minmax(100px,1.2fr) minmax(88px,1fr) minmax(88px,1fr) auto minmax(168px,1.1fr)";
+  }
+  return "minmax(220px,2fr) minmax(100px,1.2fr) minmax(88px,1fr) minmax(72px,0.9fr) minmax(72px,0.9fr) minmax(72px,0.9fr) auto minmax(168px,1.1fr)";
+}
 
-const headers = [
-  { key: "vault", header: "Vault" },
+// ── Table headers — differ by platform kind ───────────────────────────────────
+
+const STANDARD_HEADERS = [
+  { key: "vault", header: "Vault / asset" },
   { key: "asset", header: "Asset" },
   { key: "tvl", header: "TVL" },
   { key: "apy", header: "7D APY" },
-  { key: "perfFee", header: "Perf. Fee" },
-  { key: "mgmtFee", header: "Mgmt. Fee" },
+  { key: "perfFee", header: "Perf. fee" },
+  { key: "mgmtFee", header: "Mgmt. fee" },
   { key: "status", header: "Status" },
   { key: "action", header: "" },
 ];
 
-// ── APY cell — needs its own component so each row can call use7dApy ──────────
+const MORPHO_HEADERS = [
+  { key: "vault", header: "Vault / asset" },
+  { key: "asset", header: "Asset" },
+  { key: "tvl", header: "TVL" },
+  { key: "apy", header: "7D net APY" },
+  { key: "liquidity", header: "Liquidity" },
+  { key: "status", header: "Status" },
+  { key: "action", header: "" },
+];
 
-function ApyCell({ v }: { v: VaultOnChainData }) {
+const RE7_HEADERS = [
+  { key: "vault", header: "Vault / asset" },
+  { key: "asset", header: "Asset" },
+  { key: "tvl", header: "TVL" },
+  { key: "apy", header: "7D APY" },
+  { key: "status", header: "Status" },
+  { key: "action", header: "" },
+];
+
+// ── Vault avatar (decorative) ────────────────────────────────────────────────
+
+function VaultAvatar({ chainId }: { chainId: number }) {
+  const chain = getChainShortName(chainId);
+  const CHAIN_ICON_BY_ID: Record<number, string> = {
+    1: "/assets/icons/chains/ethereum.svg",
+    10: "/assets/icons/chains/optimism.svg",
+    8453: "/assets/icons/chains/base.svg",
+    42161: "/assets/icons/chains/arbitrum.svg",
+    137: "/assets/icons/chains/polygon.svg",
+    56: "/assets/icons/chains/bnb.svg",
+    43114: "/assets/icons/chains/avalanche.svg",
+  };
+  const chainIconSrc = CHAIN_ICON_BY_ID[chainId] ?? "/assets/icons/chains/default.svg";
+  return (
+    <div className="shrink-0" title={chain}>
+      <img
+        src={chainIconSrc}
+        alt={chain}
+        className="h-11 w-11 rounded-full border border-zinc-200 object-cover dark:border-[#1b1b1f]"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
+// ── APY cells ─────────────────────────────────────────────────────────────────
+
+function UltraYieldApyCell({ v }: { v: VaultOnChainData }) {
   const { apy, label, isLoading } = use7dApy(v.oracleAddress, v.address, v.assetAddress);
 
-  if (isLoading) {
-    return <SkeletonText width="40px" />;
-  }
-  if (apy === null) {
-    return <span style={{ color: "#6f6f6f", fontSize: "0.875rem" }}>—</span>;
-  }
+  if (isLoading) return <div className="h-4 w-14 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />;
+  if (apy === null) return <span className="text-sm text-zinc-400 dark:text-zinc-500">—</span>;
 
-  const color = apy >= 0 ? "#42be65" : "#ff832b";
+  const color = apy >= 0 ? "text-emerald-600" : "text-amber-600";
   return (
-    <span style={{ color, fontSize: "0.875rem", fontWeight: 600 }} title={label}>
-      {apy >= 0 ? "+" : ""}{apy.toFixed(2)}%
+    <span className={`text-sm font-semibold ${color}`} title={label}>
+      {apy >= 0 ? "+" : ""}
+      {apy.toFixed(2)}%
     </span>
   );
 }
 
-// ── Supported-assets cell — each row calls its own hook ───────────────────────
+function PrefetchedApyCell({ apy }: { apy: number | null }) {
+  if (apy === null) return <span className="text-sm text-zinc-400 dark:text-zinc-500">—</span>;
+  const pct = apy * 100;
+  const color = pct >= 0 ? "text-emerald-600" : "text-amber-600";
+  return (
+    <span className={`text-sm font-semibold ${color}`}>
+      {pct >= 0 ? "+" : ""}
+      {pct.toFixed(2)}%
+    </span>
+  );
+}
+
+function ApyCell({ v }: { v: VaultOnChainData }) {
+  if (v.kind === "ultrayield") return <UltraYieldApyCell v={v} />;
+  return <PrefetchedApyCell apy={v.apyPrefetched} />;
+}
+
+// ── Supported-assets cell ─────────────────────────────────────────────────────
 
 function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
   const { assets, isLoading } = useSupportedAssets(v.address);
 
-  if (isLoading) return <SkeletonText width="60px" />;
+  if (isLoading) return <div className="h-5 w-16 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />;
 
-  // Fallback: no rateProvider or empty result → show the single base asset
   if (assets.length === 0) {
     return (
-      <span style={{ color: "#c6c6c6", fontSize: "0.875rem", fontWeight: 500 }}>
-        {v.assetSymbol ?? "—"}
-      </span>
+      <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{v.assetSymbol ?? "—"}</span>
     );
   }
 
   return (
-    <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+    <div className="flex flex-wrap gap-1">
       {assets.map((a) => (
-        <Tag
+        <span
           key={a.address}
-          type={a.isPegged ? "cool-gray" : "blue"}
-          size="sm"
           title={a.address}
+          className={
+            "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold " +
+            (a.isPegged
+              ? "border-zinc-200 bg-zinc-50 text-zinc-600"
+              : "border-blue-100 bg-blue-50 text-blue-800") +
+            (a.isPegged
+              ? " dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]"
+              : " dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200")
+          }
         >
           {a.symbol}
-        </Tag>
+        </span>
       ))}
     </div>
   );
 }
 
-// ── Skeleton row ──────────────────────────────────────────────────────────────
+// ── Skeleton section ─────────────────────────────────────────────────────────
 
-function SkeletonRows({ count }: { count: number }) {
+function SkeletonSection({
+  colCount,
+  rows,
+  gridTpl,
+}: {
+  colCount: number;
+  rows: number;
+  gridTpl: string;
+}) {
   return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <TableRow key={`skel-${i}`} style={{ background: "#161616", borderBottom: "1px solid #262626" }}>
-          {headers.map((h) => (
-            <TableCell key={h.key} style={{ padding: "0.875rem 1rem" }}>
-              <SkeletonText width="80%" />
-            </TableCell>
-          ))}
-        </TableRow>
-      ))}
-    </>
+    <div className="space-y-2 overflow-x-auto">
+      <div className="min-w-[900px] space-y-2">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div
+            key={`sk-${i}`}
+            className="grid items-center gap-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#141417]"
+            style={{ gridTemplateColumns: gridTpl }}
+          >
+            {Array.from({ length: colCount }).map((__, j) => (
+              <div key={j} className="h-5 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-// ── Single platform section ───────────────────────────────────────────────────
+// ── Status pill ────────────────────────────────────────────────────────────────
+
+function StatusPill({ paused }: { paused: boolean }) {
+  if (paused) {
+    return (
+      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800">
+        Paused
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800">
+      Active
+    </span>
+  );
+}
+
+// ── Platform section ───────────────────────────────────────────────────────────
+
+type HeaderDef = { key: string; header: string };
 
 interface PlatformSectionProps {
   platformId: string;
+  platformKind: PlatformKind;
   label: string;
   description: string;
   vaults: VaultOnChainData[];
@@ -173,6 +271,8 @@ interface PlatformSectionProps {
 }
 
 function PlatformSection({
+  platformId,
+  platformKind,
   label,
   description,
   vaults,
@@ -181,6 +281,11 @@ function PlatformSection({
   onDeposit,
   onView,
 }: PlatformSectionProps) {
+  const isMorpho = platformKind === "morpho";
+  const isRe7 = platformId === "re7";
+  const headers: HeaderDef[] = isMorpho ? MORPHO_HEADERS : isRe7 ? RE7_HEADERS : STANDARD_HEADERS;
+  const gridTpl = sectionGridTemplate(platformKind, platformId);
+
   const filtered = useMemo(() => {
     if (!searchQuery) return vaults;
     const q = searchQuery.toLowerCase();
@@ -192,167 +297,174 @@ function PlatformSection({
     );
   }, [vaults, searchQuery]);
 
-  const tableRows = filtered.map((v) => {
+  function buildRow(v: VaultOnChainData): Record<string, React.ReactNode> {
     const vault = chainVaultToVault(v);
-    return {
-      id: v.address,
-      vault: (
+
+    const vaultCell = (
+      <div className="flex min-w-0 items-start gap-3">
+        <VaultAvatar chainId={v.chainId} />
         <button
           type="button"
           onClick={() => onView(v.address)}
-          style={{ background: "none", border: "none", cursor: "pointer", textAlign: "left", padding: 0 }}
+          className="min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-900"
         >
-          <p style={{ color: "#4589ff", fontWeight: 600, fontSize: "0.875rem", lineHeight: 1.3, textDecoration: "underline", textDecorationColor: "transparent" }}
-            onMouseEnter={(e) => (e.currentTarget.style.textDecorationColor = "#4589ff")}
-            onMouseLeave={(e) => (e.currentTarget.style.textDecorationColor = "transparent")}
-          >
+          <p className="text-sm font-semibold text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-100">
             {v.name}
           </p>
-          <p style={{ color: "#6f6f6f", fontSize: "0.75rem", fontFamily: "monospace" }}>
-            {v.address.slice(0, 6)}…{v.address.slice(-4)}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+              {v.address.slice(0, 6)}…{v.address.slice(-4)}
+            </p>
+            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
+              {getChainShortName(v.chainId)}
+            </span>
+          </div>
+          {v.userShares !== undefined && v.userShares > BigInt(0) && (
+            <div className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-800 dark:bg-emerald-900/25">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)] dark:shadow-[0_0_0_2px_rgba(16,185,129,0.35)]" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
+                Invested
+              </span>
+              <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
+                {formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+              </span>
+            </div>
+          )}
         </button>
-      ),
+      </div>
+    );
+
+    const base: Record<string, React.ReactNode> = {
+      vault: vaultCell,
       asset: <SupportedAssetsCell v={v} />,
       tvl: (
-        <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
+        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol)}
         </span>
       ),
       apy: <ApyCell v={v} />,
-      perfFee: (
-        <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
-          {feePercent(v.performanceFee)}
-        </span>
-      ),
-      mgmtFee: (
-        <span style={{ color: "#c6c6c6", fontSize: "0.875rem" }}>
-          {feePercent(v.managementFee)}
-        </span>
-      ),
-      status: v.isPaused ? (
-        <Tag type="red" size="sm">Paused</Tag>
-      ) : (
-        <Tag type="green" size="sm">Active</Tag>
-      ),
+      status: <StatusPill paused={v.isPaused} />,
       action: (
-        <div style={{ display: "flex", gap: "0.25rem" }}>
-          <Button kind="ghost" size="sm" onClick={() => onView(v.address)}
-            style={{ color: "#c6c6c6", fontSize: "0.8rem" }}>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onView(v.address)}
+            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
+          >
             View
-          </Button>
-          <Button kind="ghost" size="sm" onClick={() => onDeposit(vault)}
-            style={{ color: "#4589ff", fontSize: "0.8rem" }}>
-            Deposit →
-          </Button>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeposit(vault)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14" />
+              <path d="m5 12 7 7 7-7" />
+            </svg>
+            Deposit
+          </button>
         </div>
       ),
     };
-  });
+
+    if (isMorpho) {
+      return {
+        ...base,
+        liquidity: (
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+          </span>
+        ),
+      };
+    }
+    if (isRe7) {
+      return base;
+    }
+    return {
+      ...base,
+      perfFee: (
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{feePercent(v.performanceFee)}</span>
+      ),
+      mgmtFee: (
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{feePercent(v.managementFee)}</span>
+      ),
+    };
+  }
 
   return (
-    <section style={{ marginBottom: "2.5rem" }}>
-      {/* Section header */}
-      <div style={{ marginBottom: "1rem" }}>
-        <h2 style={{ fontSize: "1.125rem", fontWeight: 700, color: "#f4f4f4", margin: 0 }}>
-          {label}
-        </h2>
-        <p style={{ color: "#6f6f6f", fontSize: "0.8rem", marginTop: "0.25rem" }}>
-          {description}
-        </p>
+    <section className="mb-12">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="mt-1.5 h-6 w-1 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" aria-hidden />
+        <div>
+          <h2 className="text-[1.55rem] font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{label}</h2>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
+        </div>
       </div>
 
       {isLoading ? (
-        <DataTable rows={[]} headers={headers}>
-          {({ getTableProps, getHeaderProps }) => (
-            <TableContainer>
-              <Table {...getTableProps()} size="lg">
-                <TableHead>
-                  <TableRow>
-                    {headers.map((header) => {
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const { key: _key, ...headerProps } = getHeaderProps({ header });
-                      return (
-                        <TableHeader
-                          key={header.key}
-                          {...headerProps}
-                          style={headerStyle}
-                        >
-                          {header.header}
-                        </TableHeader>
-                      );
-                    })}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  <SkeletonRows count={vaults.length || 3} />
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </DataTable>
+        <SkeletonSection colCount={headers.length} rows={vaults.length || 3} gridTpl={gridTpl} />
       ) : filtered.length === 0 ? (
-        <p style={{ color: "#6f6f6f", fontSize: "0.875rem", padding: "1.5rem 0" }}>
-          No vaults match your search.
-        </p>
+        <p className="py-8 text-sm text-zinc-500 dark:text-zinc-400">No vaults match your search.</p>
       ) : (
-        <DataTable rows={tableRows} headers={headers} isSortable={false}>
-          {({ rows, headers: hdrs, getTableProps, getHeaderProps, getRowProps }) => (
-            <TableContainer>
-              <Table {...getTableProps()} size="lg">
-                <TableHead>
-                  <TableRow>
-                    {hdrs.map((header) => {
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const { key: _key, ...headerProps } = getHeaderProps({ header });
-                      return (
-                        <TableHeader key={header.key} {...headerProps} style={headerStyle}>
-                          {header.header}
-                        </TableHeader>
-                      );
-                    })}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows.map((row) => {
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { key: _key, ...rowProps } = getRowProps({ row });
-                    return (
-                      <TableRow
-                        key={row.id}
-                        {...rowProps}
-                        style={{ background: "#161616", borderBottom: "1px solid #262626", cursor: "pointer" }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#1c1c1c"; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = "#161616"; }}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
+            <thead>
+              <tr>
+                {headers.map((h) => (
+                  <th
+                    key={h.key}
+                    className="px-3 py-1 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-300"
+                  >
+                    {h.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((v) => {
+                const row = buildRow(v);
+                const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
+                const cellTone = hasPosition
+                  ? "bg-emerald-50/25 border-emerald-200/80 dark:bg-emerald-900/20 dark:border-emerald-800/70"
+                  : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-[#141417] dark:border-[#1b1b1f]";
+                return (
+                  <tr key={v.address} className="transition hover:opacity-95">
+                    {headers.map((h, idx) => (
+                      <td
+                        key={h.key}
+                        className={
+                          `min-w-0 border-y px-3 py-4 align-middle shadow-sm shadow-zinc-900/5 ${cellTone} ` +
+                          (idx === 0 ? "rounded-l-xl border-l pl-4" : "") +
+                          (idx === headers.length - 1 ? "rounded-r-xl border-r pr-4" : "")
+                        }
                       >
-                        {row.cells.map((cell) => (
-                          <TableCell key={cell.id} style={{ padding: "0.875rem 1rem", verticalAlign: "middle" }}>
-                            {cell.value}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </DataTable>
+                        {h.key === "action" ? (
+                          <div className="flex justify-end">{row[h.key]}</div>
+                        ) : (
+                          row[h.key]
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );
 }
-
-// ── Shared styles ─────────────────────────────────────────────────────────────
-
-const headerStyle: React.CSSProperties = {
-  background: "#1c1c1c",
-  borderBottom: "1px solid #393939",
-  color: "#8d8d8d",
-  fontSize: "0.75rem",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-};
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
@@ -366,43 +478,66 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
   const [selectedVault, setSelectedVault] = useState<Vault | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [txCompletedNotice, setTxCompletedNotice] = useState(false);
 
   const activePlatforms = VAULT_PLATFORMS.filter((p) => p.vaults.length > 0);
 
   if (activePlatforms.length === 0) {
     return (
-      <InlineNotification
-        kind="info"
-        title="No vaults configured"
-        subtitle="Add vault addresses to NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR in your .env.local to get started."
-        hideCloseButton
-      />
+      <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
+        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No vaults configured</p>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          Add vault addresses to `NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR` in your `.env.local` to get started.
+        </p>
+      </div>
     );
   }
 
   return (
     <>
-      {/* Global search */}
-      <div style={{ marginBottom: "1.5rem", maxWidth: "360px" }}>
-        <Search
+      {txCompletedNotice && (
+        <div className="mb-4 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
+          <div className="flex items-start justify-between gap-3 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-emerald-700">Transaction completed</p>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">Vault data has been refreshed.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTxCompletedNotice(false)}
+              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:bg-zinc-800"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="relative mb-8 max-w-md">
+        <label htmlFor="vault-search" className="sr-only">
+          Search vaults
+        </label>
+        <HiOutlineSearch
+          className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400"
+          aria-hidden
+        />
+        <input
           id="vault-search"
-          labelText="Search vaults"
+          type="search"
           placeholder="Search by vault name, symbol…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          size="md"
+          className="w-full rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] py-3 pl-11 pr-4 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:placeholder:text-[#afafb2] dark:focus:border-[#afafb2] dark:focus:ring-zinc-100/10"
         />
       </div>
 
-      {/* One section per platform */}
       {activePlatforms.map((platform) => {
-        const platformVaults = allVaults.filter(
-          (v) => v.platformId === platform.id
-        );
+        const platformVaults = allVaults.filter((v) => v.platformId === platform.id);
         return (
           <PlatformSection
             key={platform.id}
             platformId={platform.id}
+            platformKind={platform.kind}
             label={platform.label}
             description={platform.description}
             vaults={platformVaults}
@@ -417,11 +552,28 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
         );
       })}
 
-      <VaultActionModal
-        vault={selectedVault}
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-      />
+      {selectedVault?.kind === "morpho" ? (
+        <MorphoVaultActionModal
+          vault={selectedVault}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onTxCompleted={() => setTxCompletedNotice(true)}
+        />
+      ) : selectedVault?.kind === "midas" ? (
+        <MidasVaultActionModal
+          vault={selectedVault}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onTxCompleted={() => setTxCompletedNotice(true)}
+        />
+      ) : (
+        <VaultActionModal
+          vault={selectedVault}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onTxCompleted={() => setTxCompletedNotice(true)}
+        />
+      )}
     </>
   );
 }

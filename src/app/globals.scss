@@ -8,8 +8,8 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background-color: #161616;
-  color: #f4f4f4;
+  background-color: transparent;
+  color: inherit;
   font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -20,88 +20,25 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #262626;
+  background: #eef1ee;
 }
 ::-webkit-scrollbar-thumb {
-  background: #525252;
+  background: #c2c7c2;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #6f6f6f;
+  background: #a8aea8;
 }
 
-/* Carbon overrides for dark theme */
-.cds--header {
-  background-color: #161616 !important;
-  border-bottom: 1px solid #393939 !important;
+.dark ::-webkit-scrollbar-track {
+  background: #000000;
 }
 
-.cds--header__name {
-  color: #f4f4f4 !important;
+.dark ::-webkit-scrollbar-thumb {
+  background: #27272b;
 }
 
-.cds--header__menu-item {
-  color: #c6c6c6 !important;
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #afafb2;
 }
 
-.cds--header__menu-item:hover {
-  background-color: #262626 !important;
-  color: #f4f4f4 !important;
-}
-
-.cds--header__menu-item--current {
-  color: #f4f4f4 !important;
-  border-bottom: 2px solid #4589ff !important;
-}
-
-.cds--data-table-container {
-  background: #161616;
-}
-
-.cds--data-table {
-  background: #161616;
-}
-
-.cds--data-table tbody tr:hover td {
-  background: #1c1c1c !important;
-}
-
-.cds--modal-container {
-  background: #262626 !important;
-}
-
-.cds--modal-header {
-  background: #262626 !important;
-}
-
-.cds--search-input {
-  background: #262626 !important;
-  color: #f4f4f4 !important;
-  border-bottom-color: #525252 !important;
-}
-
-.cds--search-input:focus {
-  outline: 2px solid #4589ff !important;
-}
-
-.cds--list-box__menu {
-  background: #262626 !important;
-}
-
-.cds--list-box__menu-item {
-  color: #f4f4f4 !important;
-}
-
-.cds--list-box__menu-item:hover {
-  background: #353535 !important;
-}
-
-.cds--tabs__nav-item--selected .cds--tabs__nav-link {
-  color: #4589ff !important;
-  border-bottom-color: #4589ff !important;
-}
-
-.cds--text-input {
-  background: #262626 !important;
-  color: #f4f4f4 !important;
-}
