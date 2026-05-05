@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+import { useAppKit, useAppKitAccount, useAppKitState } from "@reown/appkit/react";
 import { HiOutlineMenu, HiOutlineMoon, HiOutlineSun } from "react-icons/hi";
 import { useTheme } from "next-themes";
 
@@ -18,10 +18,11 @@ interface AppTopNavProps {
 export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
+  const { initialized, loading } = useAppKitState()
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const walletBtnClass =
-    "shrink-0 rounded-md border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm " +
+    "shrink-0 rounded-md border px-2 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm " +
     (isConnected
       ? "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]"
       : "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]");
@@ -29,6 +30,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
+  const showSkeleton = !mounted || !initialized;
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#F2F2F2] bg-white px-4 dark:border-[#1b1b1f] dark:bg-[#000000] sm:px-6 lg:px-8">
@@ -43,9 +45,9 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
         </button>
         <Link
           href="/"
-          className="mt-0 flex min-w-0 shrink-0 items-center gap-2 px-1 text-zinc-900 dark:text-[#ffffff]"
+          className="mt-0 flex min-w-0 shrink-0 items-center gap-1 text-zinc-900 dark:text-[#ffffff]"
         >
-          <span className="flex size-10 items-center justify-center overflow-hidden rounded-full border border-zinc-300 bg-white shadow-sm transition-colors dark:border-[#2a2a2e] dark:bg-white">
+          <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border border-zinc-300 bg-white shadow-sm transition-colors dark:border-[#2a2a2e] dark:bg-white">
             <Image
               src="/assets/images/open-icon.svg"
               alt="Open Yield logo"
@@ -61,35 +63,46 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
         </Link>
       </div>
 
-      <div className="flex items-center gap-3">
-        {mounted ? (
-          <button
-            type="button"
-            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-            aria-label="Toggle theme"
-            title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#F1F2F0] bg-[#F1F2F0] text-zinc-700 transition hover:bg-zinc-200 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
-          >
-            {resolvedTheme === "dark" ? (
-              <HiOutlineSun className="h-5 w-5" />
-            ) : (
-              <HiOutlineMoon className="h-5 w-5" />
-            )}
-          </button>
-        ) : (
-          <div className="h-9 w-9 rounded-md border border-[#E1E5E1] bg-[#F1F2F0] dark:border-[#1b1b1f] dark:bg-[#141417]" />
+      <div className="flex items-center gap-2 sm:gap-3">
+        {showSkeleton ? (
+          <>
+            <div className="h-8 w-8 rounded-full border border-[#E1E5E1] bg-[#F1F2F0] dark:border-[#1b1b1f] dark:bg-[#141417]" />
+            <span
+                aria-hidden
+                className="h-8 w-px bg-[#E5E7EB] dark:bg-[#1b1b1f]"
+              />
+            <div className="h-9 min-w-[7.125rem] sm:min-w-[8.5rem] shrink-0 rounded-md border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]" />
+          </>
+        ):(
+          <>
+            <button
+              type="button"
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              aria-label="Toggle theme"
+              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#F1F2F0] bg-[#F1F2F0] text-zinc-700 transition hover:bg-zinc-200 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
+            >
+              {resolvedTheme === "dark" ? (
+                <HiOutlineSun className="h-5 w-5" />
+              ) : (
+                <HiOutlineMoon className="h-5 w-5" />
+              )}
+            </button>
+              <span
+                aria-hidden
+                className="h-8 w-px bg-[#E5E7EB] dark:bg-[#1b1b1f]"
+              />
+              <button
+                type="button"
+                onClick={() => open()}
+                className={walletBtnClass}
+              >
+                {isConnected && address ? shortenAddress(address) : "Connect Wallet"}
+              </button>
+          </>
+
         )}
-        <span
-          aria-hidden
-          className="h-8 w-px bg-[#E5E7EB] dark:bg-[#1b1b1f]"
-        />
-        <button
-          type="button"
-          onClick={() => open()}
-          className={walletBtnClass}
-        >
-          {isConnected && address ? shortenAddress(address) : "Connect Wallet"}
-        </button>
+
       </div>
     </header>
   );
