@@ -996,7 +996,7 @@ export default function VaultDetailPage() {
                           disabled={isBusy}
                           className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-sm font-semibold text-amber-800 transition hover:bg-amber-50 disabled:opacity-60 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/60"
                         >
-                          {isBusy ? "Cancelling..." : "Cancel"}
+                          {isBusy && lastActionRef.current === "cancel" ? "Cancelling..." : "Cancel"}
                         </button>
                       </div>
                     </div>
@@ -1016,7 +1016,7 @@ export default function VaultDetailPage() {
                           disabled={isBusy}
                           className={DARK_ACTION_BTN_CLASS}
                         >
-                          {isBusy ? "Claiming..." : "Claim Assets"}
+                          {isBusy && lastActionRef.current === "claim" ? "Claiming..." : "Claim Assets"}
                         </button>
                       </div>
                     </div>
@@ -1365,7 +1365,7 @@ export default function VaultDetailPage() {
                               disabled={isBusy || !termsAccepted}
                               className={DARK_ACTION_BTN_CLASS}
                             >
-                              {isBusy ? "Approving..." : `Approve ${assetSymForDisplay}`}
+                              {isBusy && lastActionRef.current === "approve" ? "Approving..." : `Approve ${assetSymForDisplay}`}
                             </button>
                           </>
                         )}
@@ -1388,7 +1388,7 @@ export default function VaultDetailPage() {
                             }
                             className={DARK_ACTION_BTN_CLASS}
                           >
-                            {isBusy ? "Depositing..." : `Deposit ${assetSymForDisplay}`}
+                            {isBusy && lastActionRef.current === "deposit" ? "Depositing..." : `Deposit ${assetSymForDisplay}`}
                           </button>
                         )}
                       </div>
@@ -1540,7 +1540,7 @@ export default function VaultDetailPage() {
                                   disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                   className={DARK_ACTION_BTN_CLASS}
                                 >
-                                  {isBusy ? "Redeeming..." : (
+                                  {isBusy && lastActionRef.current === "withdraw" ? "Redeeming..." : (
                                     `Instant${midasInstantFeePct !== undefined ? ` (${midasInstantFeePct.toFixed(2)}%)` : ""}`
                                   )}
                                 </button>
@@ -1550,7 +1550,7 @@ export default function VaultDetailPage() {
                                   disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                   className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
                                 >
-                                  {isBusy ? "Requesting..." : "Async (free)"}
+                                  {isBusy && lastActionRef.current === "withdraw" ? "Requesting..." : "Async (free)"}
                                 </button>
                               </div>
                             )}
@@ -1572,7 +1572,7 @@ export default function VaultDetailPage() {
                                 disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                 className={DARK_ACTION_BTN_CLASS}
                               >
-                                {isBusy ? "Redeeming..." : "Redeem shares"}
+                                {isBusy && lastActionRef.current === "withdraw" ? "Redeeming..." : "Redeem shares"}
                               </button>
                             )}
                             {isConnected && vaultKind !== "morpho" && needsShareApprove && (
@@ -1586,7 +1586,7 @@ export default function VaultDetailPage() {
                                   disabled={isBusy || !termsAccepted}
                                   className={DARK_ACTION_BTN_CLASS}
                                 >
-                                  {isBusy ? "Approving..." : `Approve ${vault.symbol}`}
+                                  {isBusy && lastActionRef.current === "approve" ? "Approving..." : `Approve ${vault.symbol}`}
                                 </button>
                               </>
                             )}
@@ -1597,7 +1597,7 @@ export default function VaultDetailPage() {
                                 disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                 className={DARK_ACTION_BTN_CLASS}
                               >
-                                {isBusy ? "Requesting..." : "Request redeem"}
+                                {isBusy && lastActionRef.current === "withdraw" ? "Requesting..." : "Request redeem"}
                               </button>
                             )}
                           </>
