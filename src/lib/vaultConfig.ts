@@ -116,9 +116,10 @@ function parseAddressesWithOptionalChain(
  *   1. Set NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR in .env.local
  *   2. Add a matching entry here
  */
-const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">> = {
+const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "displayName">> = {
   // ── UltraYield USD (0x5463...bca1) ────────────────────────────────────────
   "0x546329a16dcedc46e93f7b03a65f49a84700bca1": {
+    displayName: "UltraYield USD",
     assets: [
       {
         address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
@@ -137,6 +138,7 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">
 
   // ── UltraYield BTC (0x4724...914F) ────────────────────────────────────────
   "0x472425cc95be779126afa4aa17980210d299914f": {
+    displayName: "UltraYield BTC",
     assets: [
       {
         address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
@@ -232,12 +234,19 @@ const MIDAS_VAULT_CONFIG: Record<
  *   1. Add its address to NEXT_PUBLIC_MORPHO_VAULT_ADDR in .env.local
  *   2. Optionally add static asset config below if getPaymentTokens is unavailable
  */
-const MORPHO_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets">> = {
-  // "0x<morpho_vault>": {
-  //   assets: [
-  //     { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
-  //   ],
-  // },
+const MORPHO_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "displayName">> = {
+  // ── Gauntlet USDC Core (0xbeEF...4931, Ethereum mainnet) ──────────────────
+  "0xbeeff75262b2ec16a3c62a807f02ee7627654931": {
+    displayName: "Gauntlet USDC Core",
+  },
+  // ── Gauntlet USDC Prime (0xBEEF...4CB, Ethereum mainnet) ──────────────────
+  "0xbeef01735c132ada46aa9aa4c54623caa92a64cb": {
+    displayName: "Gauntlet USDC Prime",
+  },
+  // ── Moonwell Flagship USDC (0x050c...6f0, Base) ───────────────────────────
+  "0x050ce30b927da55177a4914ec73480238bad56f0": {
+    displayName: "Moonwell Flagship USDC",
+  },
 };
 
 // ── Central platform + vault registry ────────────────────────────────────────

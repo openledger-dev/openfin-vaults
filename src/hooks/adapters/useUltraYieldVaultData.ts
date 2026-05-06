@@ -165,7 +165,9 @@ export function useUltraYieldVaultData(
       platformId: vault.platformId,
       platformLabel: vault.platformLabel,
       chainId: vault.chainId,
-      name: nameRes?.status === "success" ? (nameRes.result as string) : vault.address,
+      name: nameRes?.status === "success"
+        ? (nameRes.result as string)
+        : (vault.displayName ?? `${vault.address.slice(0, 6)}…${vault.address.slice(-4)}`),
       symbol: symbolRes?.status === "success" ? (symbolRes.result as string) : "—",
       decimals: decimalsRes?.status === "success" ? (decimalsRes.result as number) : 18,
       assetAddress,

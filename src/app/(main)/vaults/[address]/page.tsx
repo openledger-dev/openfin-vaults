@@ -15,7 +15,7 @@ import { useVaultDetail } from "@/hooks/useVaultDetail";
 import { useToast } from "@/components/ui/Toaster";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
-import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
+import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import type { MidasApyMap, MidasPriceMap, MidasPendingRedemption } from "@/lib/midasApi";
@@ -401,6 +401,27 @@ export default function VaultDetailPage() {
     [supportedAssets, selectedAssetAddr]
   );
 
+  // ── Withdrawal asset selection (UltraYield only, mirrors deposit selector) ─
+  const [selectedWithdrawAssetAddr, setSelectedWithdrawAssetAddr] = useState<`0x${string}` | undefined>(undefined);
+  useEffect(() => {
+    if (supportedAssets.length > 0 && !selectedWithdrawAssetAddr) {
+      setSelectedWithdrawAssetAddr(supportedAssets[0].address);
+    }
+  }, [supportedAssets, selectedWithdrawAssetAddr]);
+
+  const withdrawAsset = useMemo(
+    () => supportedAssets.find((a) => a.address === selectedWithdrawAssetAddr) ?? supportedAssets[0] ?? null,
+    [supportedAssets, selectedWithdrawAssetAddr]
+  );
+
+  const withdrawAssetAddr = vaultKind === "ultrayield"
+    ? (withdrawAsset?.address ?? vault.assetAddress)
+    : vault.assetAddress;
+  const withdrawAssetDec = withdrawAsset?.decimals ?? vault.assetDecimals ?? 18;
+  const withdrawAssetSym = vaultKind === "ultrayield"
+    ? (withdrawAsset?.symbol ?? vault.assetSymbol ?? "—")
+    : (vault.assetSymbol ?? "—");
+
   // For Morpho: deposit asset = vault's ERC-4626 base asset
   const morphoDepositDec = vault.assetDecimals ?? 18;
   const morphoDepositSym = vault.assetSymbol ?? "—";
@@ -432,6 +453,26 @@ export default function VaultDetailPage() {
   const depositAssetBalance   = depositAssetMeta?.[0]?.status === "success" ? (depositAssetMeta[0].result as bigint) : undefined;
   const depositAssetAllowance = depositAssetMeta?.[1]?.status === "success" ? (depositAssetMeta[1].result as bigint) : undefined;
   const midasLiveShares       = midasShareBalData?.[0]?.status === "success" ? (midasShareBalData[0].result as bigint) : undefined;
+
+  // ── Pending / claimable for the selected withdrawal asset ─────────────────
+  // (useVaultDetail reads these for the base asset only; this catches USDT etc.)
+  const withdrawRedeemContracts = useMemo(() => {
+    if (vaultKind !== "ultrayield" || !userAddress || !withdrawAssetAddr || !vaultAddress) return [];
+    return [
+      { address: vaultAddress, abi: VAULT_READ_ABI, functionName: "getPendingRedeemForAsset"   as const, args: [withdrawAssetAddr, userAddress] as [`0x${string}`, `0x${string}`], chainId: vaultChainId },
+      { address: vaultAddress, abi: VAULT_READ_ABI, functionName: "getClaimableRedeemForAsset" as const, args: [withdrawAssetAddr, userAddress] as [`0x${string}`, `0x${string}`], chainId: vaultChainId },
+    ];
+  }, [vaultKind, userAddress, withdrawAssetAddr, vaultAddress, vaultChainId]);
+
+  const { data: withdrawRedeemData } = useReadContracts({
+    contracts: withdrawRedeemContracts,
+    query: { enabled: withdrawRedeemContracts.length > 0 },
+  });
+
+  const withdrawPending   = withdrawRedeemData?.[0]?.status === "success"
+    ? (withdrawRedeemData[0].result as { shares: bigint; requestTime: bigint }) : undefined;
+  const withdrawClaimable = withdrawRedeemData?.[1]?.status === "success"
+    ? (withdrawRedeemData[1].result as { assets: bigint; shares: bigint }) : undefined;
 
   const assetDecForDisplay = vaultKind === "morpho" ? morphoDepositDec : (depositAsset?.decimals ?? 18);
   const assetSymForDisplay = vaultKind === "morpho" ? morphoDepositSym : (depositAsset?.symbol ?? "—");
@@ -648,24 +689,24 @@ export default function VaultDetailPage() {
     writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
   }
   function handleRequestRedeem() {
-    if (!vaultAddress || !vault.assetAddress || !userAddress || redeemAmountParsed <= BigInt(0)) return;
-    const assetAddress = vault.assetAddress;
-    setConfirmMessage(`Confirm request redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
+    if (!vaultAddress || !withdrawAssetAddr || !userAddress || redeemAmountParsed <= BigInt(0)) return;
+    setConfirmMessage(`Confirm request redeem ${redeemAmount || "0"} ${vault.symbol || "shares"} → ${withdrawAssetSym}?`);
     setConfirmAction(() => () => {
       lastActionRef.current = "withdraw"; resetWrite();
-      writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [assetAddress, redeemAmountParsed, userAddress, userAddress] });
+      writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [withdrawAssetAddr, redeemAmountParsed, userAddress, userAddress] });
     });
     setConfirmOpen(true);
   }
   function handleCancelRedeem() {
-    if (!vaultAddress || !vault.assetAddress || !userAddress) return;
+    if (!vaultAddress || !withdrawAssetAddr || !userAddress) return;
     lastActionRef.current = "cancel"; resetWrite();
-    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "cancelRedeemRequestOfAsset", args: [vault.assetAddress, userAddress, userAddress] });
+    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "cancelRedeemRequestOfAsset", args: [withdrawAssetAddr, userAddress, userAddress] });
   }
   function handleClaim() {
-    if (!vaultAddress || !vault.assetAddress || !userAddress || !vault.claimableShares || vault.claimableShares === BigInt(0)) return;
+    const claimableShares = withdrawClaimable?.shares ?? vault.claimableShares;
+    if (!vaultAddress || !withdrawAssetAddr || !userAddress || !claimableShares || claimableShares === BigInt(0)) return;
     lastActionRef.current = "claim"; resetWrite();
-    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "redeemAsset", args: [vault.assetAddress, vault.claimableShares, userAddress, userAddress] });
+    writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "redeemAsset", args: [withdrawAssetAddr, claimableShares, userAddress, userAddress] });
   }
 
   // ── Guard ─────────────────────────────────────────────────────────────────
@@ -792,14 +833,16 @@ export default function VaultDetailPage() {
                 : assetSym !== "—" && (
                     <span className={HEADER_TAG_CLASS}>{assetSym.toUpperCase()}</span>
                   )}
-              <span className={HEADER_TAG_CLASS}>
-                <span className="mr-1 text-zinc-600 dark:text-zinc-300" aria-hidden>
-                  ●
-                </span>
-                {vault.isPaused ? "PAUSED" : "ACTIVE"}
-              </span>
               <span className={HEADER_TAG_CLASS}>{protocolPillLabel(vaultKind)}</span>
               <span className={HEADER_TAG_CLASS}>{chainPill}</span>
+              <span className={
+                vault.isPaused
+                  ? "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+              }>
+                <span className="mr-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+                {vault.isPaused ? "PAUSED" : "ACTIVE"}
+              </span>
             </div>
           </header>
 
@@ -937,17 +980,14 @@ export default function VaultDetailPage() {
                     ))}
                   </div>
 
-                  {/* UltraYield-only: pending + claimable redeem */}
-                  {vaultKind === "ultrayield" && vault.pendingShares !== undefined && vault.pendingShares > BigInt(0) && (
+                  {/* UltraYield-only: pending + claimable redeem (per selected withdrawal asset) */}
+                  {vaultKind === "ultrayield" && (withdrawPending?.shares ?? vault.pendingShares ?? BigInt(0)) > BigInt(0) && (
                     <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 p-4 dark:border-amber-800 dark:bg-amber-900/25">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-xs font-semibold text-amber-800">Pending redemption</p>
+                          <p className="text-xs font-semibold text-amber-800">Pending redemption · {withdrawAssetSym}</p>
                           <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-100">
-                            {vault.pendingShares !== undefined
-                              ? `${parseFloat(formatUnits(vault.pendingShares, vault.decimals)).toFixed(6)} ${vault.symbol}`
-                              : "—"
-                            } escrowed · fulfillment ≤ 72h
+                            {`${parseFloat(formatUnits(withdrawPending?.shares ?? vault.pendingShares ?? BigInt(0), vault.decimals)).toFixed(6)} ${vault.symbol}`} escrowed · fulfillment ≤ 72h
                           </p>
                         </div>
                         <button
@@ -961,16 +1001,13 @@ export default function VaultDetailPage() {
                       </div>
                     </div>
                   )}
-                  {vaultKind === "ultrayield" && vault.claimableAssets !== undefined && vault.claimableAssets > BigInt(0) && (
+                  {vaultKind === "ultrayield" && (withdrawClaimable?.assets ?? vault.claimableAssets ?? BigInt(0)) > BigInt(0) && (
                     <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/90 p-4 dark:border-emerald-800 dark:bg-emerald-900/30">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-xs font-semibold text-emerald-800">Ready to claim</p>
+                          <p className="text-xs font-semibold text-emerald-800">Ready to claim · {withdrawAssetSym}</p>
                           <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-100">
-                            {vault.claimableAssets !== undefined
-                              ? `${parseFloat(formatUnits(vault.claimableAssets, vault.assetDecimals ?? 18)).toFixed(6)} ${vault.assetSymbol ?? ""}`
-                              : "—"
-                            } available
+                            {`${parseFloat(formatUnits(withdrawClaimable?.assets ?? vault.claimableAssets ?? BigInt(0), withdrawAssetDec)).toFixed(6)} ${withdrawAssetSym}`} available
                           </p>
                         </div>
                         <button
@@ -1384,6 +1421,31 @@ export default function VaultDetailPage() {
                             </div>
                           </div>
                         )}
+                        {vaultKind === "ultrayield" && supportedAssets.length > 1 && (
+                          <div className="mb-4">
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                              Receive as
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {supportedAssets.map((a) => (
+                                <button
+                                  key={a.address}
+                                  type="button"
+                                  disabled={!isConnected}
+                                  onClick={() => { setSelectedWithdrawAssetAddr(a.address); setRedeemAmount(""); }}
+                                  className={
+                                    "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
+                                    (withdrawAsset?.address === a.address
+                                      ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
+                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
+                                  }
+                                >
+                                  {a.symbol}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         <div className="mb-2 flex items-baseline justify-between gap-2">
                           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
@@ -1426,7 +1488,7 @@ export default function VaultDetailPage() {
                         <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
                           <TxSummaryRow
                             label="You will receive"
-                            value={`${redeemAmount || "0.00"} ${assetSymForDisplay}`}
+                            value={`${redeemAmount || "0.00"} ${vaultKind === "ultrayield" ? withdrawAssetSym : assetSymForDisplay}`}
                           />
                         </div>
 

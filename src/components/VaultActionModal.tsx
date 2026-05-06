@@ -8,6 +8,7 @@ import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import type { Vault } from "@/types/vault";
 import { useQueryClient } from "@tanstack/react-query";
 import { getTxExplorerLink } from "@/lib/chains";
+import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 
 interface VaultActionModalProps {
   vault: Vault | null;
@@ -49,9 +50,34 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
 
   const vaultAddr = vault?.address;
-  const assetAddr = vault?.assetAddress;
-  const decimals = vault?.assetDecimals ?? 18;
-  const assetSymbol = vault?.assetSymbol ?? "—";
+
+  // Supported assets (USDC + USDT for USD vault, cbBTC for BTC vault, etc.)
+  const { assets: supportedAssets } = useSupportedAssets(vaultAddr);
+  const [selectedAssetAddr, setSelectedAssetAddr] = useState<`0x${string}` | undefined>(undefined);
+
+  // Reset to first supported asset whenever the vault changes
+  useEffect(() => {
+    if (supportedAssets.length > 0) {
+      setSelectedAssetAddr(supportedAssets[0].address);
+    } else if (vault?.assetAddress) {
+      setSelectedAssetAddr(vault.assetAddress);
+    }
+    // Only re-run when the vault itself changes, not when supportedAssets reference rotates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vault?.address]);
+
+  const activeAsset = useMemo(() => {
+    if (supportedAssets.length > 0) {
+      return supportedAssets.find((a) => a.address === selectedAssetAddr) ?? supportedAssets[0];
+    }
+    return vault
+      ? { address: vault.assetAddress!, symbol: vault.assetSymbol, decimals: vault.assetDecimals ?? 18, isPegged: false }
+      : null;
+  }, [supportedAssets, selectedAssetAddr, vault]);
+
+  const assetAddr   = activeAsset?.address ?? vault?.assetAddress;
+  const decimals    = activeAsset?.decimals ?? vault?.assetDecimals ?? 18;
+  const assetSymbol = activeAsset?.symbol   ?? vault?.assetSymbol ?? "—";
 
   // ── On-chain reads for this vault + user ─────────────────────────────────
   const enabled = !!vaultAddr && !!assetAddr && !!userAddress && open;
@@ -292,6 +318,28 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
               {/* ── Deposit ─────────────────────────────────────────────── */}
               {actionTab === "deposit" && (
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 sm:p-5 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
+                  {/* Asset selector */}
+                  {supportedAssets.length > 1 && (
+                    <div className="mb-4">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Deposit Asset</p>
+                      <div className="flex flex-wrap gap-2">
+                        {supportedAssets.map((a) => (
+                          <button
+                            key={a.address}
+                            type="button"
+                            onClick={() => { setSelectedAssetAddr(a.address); setDepositAmount(""); }}
+                            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                              a.address === assetAddr
+                                ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900"
+                                : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-zinc-200 dark:hover:border-zinc-500"
+                            }`}
+                          >
+                            {a.symbol}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
                     Wallet balance:{" "}
                     <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -347,6 +395,29 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
               {/* ── Withdraw (async ERC-7540) ────────────────────────────── */}
               {actionTab === "withdraw" && (
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 sm:p-5 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
+
+                  {/* Asset selector */}
+                  {supportedAssets.length > 1 && (
+                    <div className="mb-4">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Withdraw Asset</p>
+                      <div className="flex flex-wrap gap-2">
+                        {supportedAssets.map((a) => (
+                          <button
+                            key={a.address}
+                            type="button"
+                            onClick={() => { setSelectedAssetAddr(a.address); setRequestRedeemShares(""); }}
+                            className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${
+                              a.address === assetAddr
+                                ? "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900"
+                                : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-zinc-200 dark:hover:border-zinc-500"
+                            }`}
+                          >
+                            {a.symbol}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Claimable section */}
                   {claimableRedeem && claimableRedeem.shares > BigInt(0) && (
