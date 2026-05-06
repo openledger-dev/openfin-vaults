@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Open Yield — Ethereum DeFi Vaults",
+  title: "Open Vault — Ethereum DeFi Vaults",
   description:
     "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
 };

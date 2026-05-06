@@ -62,15 +62,16 @@ const METAMORPHO_READ_ABI = [
   { name: "feeRecipient", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
 ] as const;
 
-function fmt(raw: bigint | undefined, dec: number, sym?: string): string {
+function fmt(raw: bigint | undefined, dec: number, sym?: string, fixedDp?: number): string {
   if (raw === undefined) return "—";
   const n = parseFloat(formatUnits(raw, dec));
   const suffix = sym ? ` ${sym}` : "";
   if (n === 0) return `0${suffix}`;
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(4)}B${suffix}`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(4)}M${suffix}`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(4)}K${suffix}`;
-  const dp = dec >= 8 ? 8 : 6;
+  const abbrevDp = fixedDp ?? 4;
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(abbrevDp)}B${suffix}`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(abbrevDp)}M${suffix}`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(abbrevDp)}K${suffix}`;
+  const dp = fixedDp ?? (dec >= 8 ? 8 : 6);
   const fixed = n.toFixed(dp);
   // If the value is too small for the default precision, show the first significant digit
   if (parseFloat(fixed) === 0) {
@@ -258,8 +259,8 @@ export function useVaultDetail(
     totalSupply,
     sharePrice,
     sharePriceFormatted: fmt(sharePrice, aDec, assetSymbol),
-    tvlFormatted:        fmt(totalAssets, aDec, assetSymbol),
-    totalSupplyFormatted: fmt(totalSupply, vDec, symbol),
+    tvlFormatted:        fmt(totalAssets, aDec, assetSymbol, 2),
+    totalSupplyFormatted: fmt(totalSupply, vDec, symbol, 2),
     isPaused,
     performanceFee,
     managementFee,

@@ -22,6 +22,8 @@ export type MorphoVaultApy = {
   weeklyNetApy: number | null;
   /** Total assets in the vault (as USD string) */
   totalAssetsUsd: number | null;
+  /** Performance fee as a decimal (0.05 = 5%). Fallback if on-chain fee() call fails. */
+  fee: number | null;
 };
 
 const VAULT_APY_QUERY = /* graphql */ `
@@ -34,6 +36,7 @@ const VAULT_APY_QUERY = /* graphql */ `
         address
         name
         symbol
+        fee
         state {
           weeklyNetApy
           totalAssetsUsd
@@ -72,6 +75,7 @@ export async function fetchMorphoVaultApys(
           address: string;
           name?: string | null;
           symbol?: string | null;
+          fee?: number | null;
           state?: {
             weeklyNetApy?: number | null;
             totalAssetsUsd?: number | null;
@@ -92,6 +96,7 @@ export async function fetchMorphoVaultApys(
       address: item.address,
       name: item.name ?? null,
       symbol: item.symbol ?? null,
+      fee: item.fee ?? null,
       weeklyNetApy: item.state?.weeklyNetApy ?? null,
       totalAssetsUsd: item.state?.totalAssetsUsd ?? null,
     };

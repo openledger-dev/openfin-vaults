@@ -22,7 +22,7 @@ import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
 import type { MorphoVaultApy } from "@/lib/morphoApi";
 
-// MetaMorpho read ABI — ERC-4626 standard + totalIdle (MetaMorpho-specific)
+// MetaMorpho read ABI — ERC-4626 standard + MetaMorpho-specific getters
 const ERC4626_READ_ABI = [
   { name: "name",        type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
   { name: "symbol",      type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
@@ -31,9 +31,15 @@ const ERC4626_READ_ABI = [
   { name: "asset",       type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { name: "totalAssets", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
   { name: "totalIdle",   type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  /**
+   * MetaMorpho.fee() — performance fee rate in WAD (1e18 = 100%).
+   * Returned as uint96 but stored as bigint; same scale as UltraYield fees.
+   * There is no separate management fee in MetaMorpho.
+   */
+  { name: "fee",         type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"  }] },
 ] as const;
 
-const FIELD_COUNT = ERC4626_READ_ABI.length; // 7
+const FIELD_COUNT = ERC4626_READ_ABI.length; // 8
 type MorphoField = (typeof ERC4626_READ_ABI)[number]["name"];
 
 export function useMorphoVaultData(
@@ -142,6 +148,7 @@ export function useMorphoVaultData(
     const assetRes       = stage1Data?.[base + 4];
     const totalAssetsRes = stage1Data?.[base + 5];
     const totalIdleRes   = stage1Data?.[base + 6];
+    const feeRes         = stage1Data?.[base + 7];
 
     const assetAddress     = assetRes?.status     === "success" ? (assetRes.result     as `0x${string}`) : undefined;
     const assetSymbolRes   = stage2Data?.[i * 2 + 0];
@@ -177,7 +184,11 @@ export function useMorphoVaultData(
       totalSupply,
       liquidityRaw,
       isPaused: false,
-      performanceFee: undefined,
+      performanceFee: feeRes?.status === "success"
+        ? (feeRes.result as bigint)
+        : apiEntry?.fee != null
+          ? BigInt(Math.round(apiEntry.fee * 1e18))
+          : undefined,
       managementFee: undefined,
       withdrawalFee: undefined,
       oracleAddress: undefined,

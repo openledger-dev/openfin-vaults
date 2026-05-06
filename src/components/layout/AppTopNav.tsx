@@ -50,7 +50,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
           <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border border-zinc-300 bg-white shadow-sm transition-colors dark:border-[#2a2a2e] dark:bg-white">
             <Image
               src="/assets/images/open-icon.svg"
-              alt="Open Yield logo"
+              alt="Open Vault logo"
               width={20}
               height={20}
               className="h-6 w-6 object-contain"
@@ -58,7 +58,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
             />
           </span>
           <span className="truncate text-base font-bold leading-none tracking-tight text-[#0F172A] dark:text-[#ffffff] sm:text-lg">
-            Open Yield
+            Open Vault
           </span>
         </Link>
       </div>

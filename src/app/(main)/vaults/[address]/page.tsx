@@ -9,7 +9,6 @@ import { parseUnits, formatUnits, maxUint256 } from "viem";
 import {
   HiOutlineDocumentDuplicate,
   HiOutlineExternalLink,
-  HiOutlineInformationCircle,
 } from "react-icons/hi";
 import { useAppKit } from "@reown/appkit/react";
 import { useVaultDetail } from "@/hooks/useVaultDetail";
@@ -146,18 +145,11 @@ function AddressRow({ label, value, chainId = 1 }: { label: string; value: strin
 
 // ── Fee row ───────────────────────────────────────────────────────────────────
 
-function FeeRow({ label, pct, tooltip }: { label: string; pct: number | undefined; tooltip: string }) {
+function FeeRow({ label, pct }: { label: string; pct: number | undefined; tooltip?: string }) {
   return (
     <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
-      <span className="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+      <span className="text-sm text-zinc-500 dark:text-zinc-400">
         {label}
-        <button
-          type="button"
-          title={tooltip}
-          className="cursor-help border-0 bg-transparent p-0 text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-        >
-          <HiOutlineInformationCircle className="h-3.5 w-3.5" />
-        </button>
       </span>
       <span
         className={
@@ -459,6 +451,7 @@ export default function VaultDetailPage() {
   // ── State + write contract ────────────────────────────────────────────────
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemAmount, setRedeemAmount]   = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   /** 0 = Deposit, 1 = Withdraw/Redeem — local tabs (light UI, same as Carbon Tabs) */
   const [actionTabIdx, setActionTabIdx] = useState(0);
   useEffect(() => {
@@ -470,8 +463,11 @@ export default function VaultDetailPage() {
   const [addressCopied, setAddressCopied] = useState(false);
 
   const { writeContract, data: txHash, isPending: isWritePending, error: writeError, reset: resetWrite } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
+  const { isLoading: isConfirming, isSuccess: isConfirmed, isError: isTxReverted } = useWaitForTransactionReceipt({ hash: txHash });
   const isBusy = isWritePending || isConfirming;
+
+  const [lastAction, setLastAction] = useState<"deposit" | "withdraw" | "approve" | "claim" | "cancel" | "">("");
+  const [txFeedback, setTxFeedback] = useState<{ status: "success" | "error"; action: string } | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -489,6 +485,21 @@ export default function VaultDetailPage() {
     if (!isConfirmed) return;
     void queryClient.invalidateQueries();
   }, [isConfirmed, queryClient]);
+
+  // Show inline success feedback after tx confirms
+  useEffect(() => {
+    if (!isConfirmed || !lastAction) return;
+    setTxFeedback({ status: "success", action: lastAction });
+  }, [isConfirmed, lastAction]);
+
+  // Show inline error feedback on wallet rejection or on-chain revert
+  useEffect(() => {
+    if ((!writeError && !isTxReverted) || !lastAction) return;
+    setTxFeedback({ status: "error", action: lastAction });
+  }, [writeError, isTxReverted, lastAction]);
+
+  // Clear feedback when user edits the amount
+  useEffect(() => { setTxFeedback(null); }, [depositAmount, redeemAmount]);
 
   const depositAmountParsed = useMemo(() => {
     try { return depositAmount ? parseUnits(depositAmount, assetDecForDisplay) : BigInt(0); }
@@ -522,12 +533,14 @@ export default function VaultDetailPage() {
 
   function handleApproveAsset() {
     if (!depositAssetAddr || !depositSpenderAddr) return;
+    setLastAction("approve"); setTxFeedback(null); resetWrite();
     writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, maxUint256] });
   }
 
   // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
   function handleMidasDeposit() {
     if (!midasDepositVault || !depositAssetAddr || !userAddress || midasDepositParsed18 <= BigInt(0)) return;
+    setLastAction("deposit"); setTxFeedback(null); resetWrite();
     writeContract({
       address: midasDepositVault,
       abi: MIDAS_DEPOSIT_ABI,
@@ -541,6 +554,7 @@ export default function VaultDetailPage() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
+      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
       writeContract({
         address: midasRedemptionVault,
         abi: MIDAS_REDEEM_ABI,
@@ -556,6 +570,7 @@ export default function VaultDetailPage() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm async redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
+      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
       writeContract({
         address: midasRedemptionVault,
         abi: MIDAS_REDEEM_ABI,
@@ -570,6 +585,7 @@ export default function VaultDetailPage() {
   function handleUYDeposit() {
     const asset = depositAsset;
     if (!vaultAddress || !asset || !userAddress || depositAmountParsed <= BigInt(0)) return;
+    setLastAction("deposit"); setTxFeedback(null); resetWrite();
     writeContract({
       address: vaultAddress,
       abi: VAULT_WRITE_ABI,
@@ -581,6 +597,7 @@ export default function VaultDetailPage() {
   // Morpho deposit (standard ERC-4626)
   function handleMorphoDeposit() {
     if (!vaultAddress || !userAddress || depositAmountParsed <= BigInt(0)) return;
+    setLastAction("deposit"); setTxFeedback(null); resetWrite();
     writeContract({
       address: vaultAddress,
       abi: ERC4626_WRITE_ABI,
@@ -594,6 +611,7 @@ export default function VaultDetailPage() {
     if (!vaultAddress || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
+      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
       writeContract({
         address: vaultAddress,
         abi: ERC4626_WRITE_ABI,
@@ -607,6 +625,7 @@ export default function VaultDetailPage() {
   // UltraYield share approval + async redeem
   function handleApproveShares() {
     if (!vaultAddress) return;
+    setLastAction("approve"); setTxFeedback(null); resetWrite();
     writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
   }
   function handleRequestRedeem() {
@@ -614,16 +633,19 @@ export default function VaultDetailPage() {
     const assetAddress = vault.assetAddress;
     setConfirmMessage(`Confirm request redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
+      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
       writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [assetAddress, redeemAmountParsed, userAddress, userAddress] });
     });
     setConfirmOpen(true);
   }
   function handleCancelRedeem() {
     if (!vaultAddress || !vault.assetAddress || !userAddress) return;
+    setLastAction("cancel"); setTxFeedback(null); resetWrite();
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "cancelRedeemRequestOfAsset", args: [vault.assetAddress, userAddress, userAddress] });
   }
   function handleClaim() {
     if (!vaultAddress || !vault.assetAddress || !userAddress || !vault.claimableShares || vault.claimableShares === BigInt(0)) return;
+    setLastAction("claim"); setTxFeedback(null); resetWrite();
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "redeemAsset", args: [vault.assetAddress, vault.claimableShares, userAddress, userAddress] });
   }
 
@@ -1029,14 +1051,12 @@ export default function VaultDetailPage() {
                           tooltip="Annual fee on total assets under management. Max 5%." />
                         <FeeRow label="Withdrawal Fee" pct={vault.withdrawalFeePercent}
                           tooltip="One-time fee deducted at redemption fulfillment. Max 1%." />
-                        {vault.highwaterMark !== undefined && (
-                          <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
-                            <span className="text-sm text-zinc-500 dark:text-zinc-400">High-Water Mark</span>
-                            <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                              {vault.highwaterMark.toString()}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
+                          <span className="text-sm text-zinc-500 dark:text-zinc-400">Withdrawal Period</span>
+                          <span className="font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            3 days
+                          </span>
+                        </div>
                       </>
                     )}
                   </>
@@ -1112,11 +1132,14 @@ export default function VaultDetailPage() {
                       </>
                     : <>
                         <AddressRow label="Vault"         value={vaultAddress}        chainId={vaultChainId} />
-                        <AddressRow label="Asset Token"   value={vault.assetAddress}  chainId={vaultChainId} />
-                        <AddressRow label="Fee Recipient" value={vault.feeRecipient}  chainId={vaultChainId} />
+                        {supportedAssets.length > 0
+                          ? supportedAssets.map((a) => (
+                              <AddressRow key={a.address} label={`${a.symbol} (asset token)`} value={a.address} chainId={vaultChainId} />
+                            ))
+                          : <AddressRow label="Asset Token" value={vault.assetAddress} chainId={vaultChainId} />
+                        }
                         {vaultKind === "ultrayield" && (
                           <>
-                            <AddressRow label="Funds Holder"  value={vault.fundsHolder}   chainId={vaultChainId} />
                             <AddressRow label="Oracle"        value={vault.oracle}         chainId={vaultChainId} />
                             <AddressRow label="Rate Provider" value={vault.rateProvider}  chainId={vaultChainId} />
                           </>
@@ -1242,14 +1265,39 @@ export default function VaultDetailPage() {
                             label="You will receive"
                             value={`${depositAmount || "0.00"} ${(vault.symbol || "shares").toUpperCase()}`}
                           />
-                          <TxSummaryRow label="Est. gas cost" value="—" valueTone="accent" />
-                          <TxSummaryRow label="Slippage tolerance" value="0.5%" />
                         </div>
 
                         {vaultKind === "midas" && (
                           <p className="mb-4 text-xs text-gray-500 dark:text-zinc-400">
                             Instant mint — {vault.symbol || "token"} delivered to your wallet immediately.
                           </p>
+                        )}
+
+                        {isConnected && (
+                          <label className="mb-4 flex cursor-pointer items-start gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={termsAccepted}
+                              onChange={(e) => setTermsAccepted(e.target.checked)}
+                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
+                            />
+                            <span className="text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
+                              I agree to the{" "}
+                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
+                                Privacy Policy
+                              </a>
+                              {" "}and{" "}
+                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
+                                Terms of Use
+                              </a>
+                            </span>
+                          </label>
+                        )}
+
+                        {isConnected && txFeedback?.action === "deposit" && (
+                          <div className={`mb-3 rounded-lg px-3 py-2.5 text-sm font-medium ${txFeedback.status === "success" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"}`}>
+                            {txFeedback.status === "success" ? "Deposit successful" : "Deposit failed, please try again"}
+                          </div>
                         )}
 
                         {isConnected && vault.isPaused && (
@@ -1264,7 +1312,7 @@ export default function VaultDetailPage() {
                             <button
                               type="button"
                               onClick={handleApproveAsset}
-                              disabled={isBusy}
+                              disabled={isBusy || !termsAccepted}
                               className={DARK_ACTION_BTN_CLASS}
                             >
                               {isBusy ? "Approving..." : `Approve ${assetSymForDisplay}`}
@@ -1283,6 +1331,7 @@ export default function VaultDetailPage() {
                             }
                             disabled={
                               isBusy ||
+                              !termsAccepted ||
                               (vaultKind === "midas"
                                 ? midasDepositParsed18 <= BigInt(0)
                                 : depositAmountParsed <= BigInt(0))
@@ -1366,9 +1415,34 @@ export default function VaultDetailPage() {
                             label="You will receive"
                             value={`${redeemAmount || "0.00"} ${assetSymForDisplay}`}
                           />
-                          <TxSummaryRow label="Est. gas cost" value="—" valueTone="accent" />
-                          <TxSummaryRow label="Slippage tolerance" value="—" />
                         </div>
+
+                        {isConnected && (
+                          <label className="mb-4 flex cursor-pointer items-start gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={termsAccepted}
+                              onChange={(e) => setTermsAccepted(e.target.checked)}
+                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
+                            />
+                            <span className="text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
+                              I agree to the{" "}
+                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
+                                Privacy Policy
+                              </a>
+                              {" "}and{" "}
+                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
+                                Terms of Use
+                              </a>
+                            </span>
+                          </label>
+                        )}
+
+                        {isConnected && txFeedback?.action === "withdraw" && (
+                          <div className={`mb-3 rounded-lg px-3 py-2.5 text-sm font-medium ${txFeedback.status === "success" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"}`}>
+                            {txFeedback.status === "success" ? "Withdrawal request submitted successfully" : "Withdrawal failed, please try again"}
+                          </div>
+                        )}
 
                         {vaultKind === "midas" ? (
                           <>
@@ -1394,7 +1468,7 @@ export default function VaultDetailPage() {
                                 <button
                                   type="button"
                                   onClick={handleMidasRedeemInstant}
-                                  disabled={isBusy || redeemAmountParsed <= BigInt(0)}
+                                  disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                   className={DARK_ACTION_BTN_CLASS}
                                 >
                                   {isBusy ? "Redeeming..." : (
@@ -1404,7 +1478,7 @@ export default function VaultDetailPage() {
                                 <button
                                   type="button"
                                   onClick={handleMidasRedeemRequest}
-                                  disabled={isBusy || redeemAmountParsed <= BigInt(0)}
+                                  disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                   className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
                                 >
                                   {isBusy ? "Requesting..." : "Async (free)"}
@@ -1426,7 +1500,7 @@ export default function VaultDetailPage() {
                               <button
                                 type="button"
                                 onClick={handleMorphoRedeem}
-                                disabled={isBusy || redeemAmountParsed <= BigInt(0)}
+                                disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                 className={DARK_ACTION_BTN_CLASS}
                               >
                                 {isBusy ? "Redeeming..." : "Redeem shares"}
@@ -1440,7 +1514,7 @@ export default function VaultDetailPage() {
                                 <button
                                   type="button"
                                   onClick={handleApproveShares}
-                                  disabled={isBusy}
+                                  disabled={isBusy || !termsAccepted}
                                   className={DARK_ACTION_BTN_CLASS}
                                 >
                                   {isBusy ? "Approving..." : `Approve ${vault.symbol}`}
@@ -1451,7 +1525,7 @@ export default function VaultDetailPage() {
                               <button
                                 type="button"
                                 onClick={handleRequestRedeem}
-                                disabled={isBusy || redeemAmountParsed <= BigInt(0)}
+                                disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                                 className={DARK_ACTION_BTN_CLASS}
                               >
                                 {isBusy ? "Requesting..." : "Request redeem"}
