@@ -4,6 +4,7 @@ import "./globals.tailwind.css";
 import "./globals.scss";
 import { ContextProvider } from "@/context";
 import { ThemeProvider } from "@/context/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toaster";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -26,7 +27,9 @@ export default function RootLayout({
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="bg-white font-sans text-zinc-900 antialiased dark:bg-[#000000] dark:text-[#ffffff]">
         <ThemeProvider>
-          <ContextProvider>{children}</ContextProvider>
+          <ContextProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ContextProvider>
         </ThemeProvider>
       </body>
     </html>

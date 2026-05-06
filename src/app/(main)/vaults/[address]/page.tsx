@@ -12,6 +12,7 @@ import {
 } from "react-icons/hi";
 import { useAppKit } from "@reown/appkit/react";
 import { useVaultDetail } from "@/hooks/useVaultDetail";
+import { useToast } from "@/components/ui/Toaster";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
@@ -464,10 +465,13 @@ export default function VaultDetailPage() {
 
   const { writeContract, data: txHash, isPending: isWritePending, error: writeError, reset: resetWrite } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed, isError: isTxReverted } = useWaitForTransactionReceipt({ hash: txHash });
-  const isBusy = isWritePending || isConfirming;
+  // Re-enable buttons as soon as any error is known, even before wagmi clears isWritePending
+  const isBusy = (isWritePending || isConfirming) && !writeError && !isTxReverted;
 
-  const [lastAction, setLastAction] = useState<"deposit" | "withdraw" | "approve" | "claim" | "cancel" | "">("");
-  const [txFeedback, setTxFeedback] = useState<{ status: "success" | "error"; action: string } | null>(null);
+  const { toast } = useToast();
+  // Use a ref so handlers always write the latest action synchronously
+  // (state updates are async — a ref avoids stale-closure issues in effects)
+  const lastActionRef = React.useRef<string>("");
 
   const queryClient = useQueryClient();
 
@@ -486,20 +490,35 @@ export default function VaultDetailPage() {
     void queryClient.invalidateQueries();
   }, [isConfirmed, queryClient]);
 
-  // Show inline success feedback after tx confirms
+  // Toast + form reset on tx success
   useEffect(() => {
-    if (!isConfirmed || !lastAction) return;
-    setTxFeedback({ status: "success", action: lastAction });
-  }, [isConfirmed, lastAction]);
+    if (!isConfirmed) return;
+    const action = lastActionRef.current;
+    const messages: Record<string, string> = {
+      deposit:  "Deposit successful",
+      withdraw: "Withdrawal request submitted successfully",
+      approve:  "Approval confirmed",
+      claim:    "Claim successful",
+      cancel:   "Redeem request cancelled",
+    };
+    toast({ kind: "success", title: messages[action] ?? "Transaction confirmed" });
+    if (action === "deposit") setDepositAmount("");
+    if (action === "withdraw") setRedeemAmount("");
+  }, [isConfirmed, toast]);
 
-  // Show inline error feedback on wallet rejection or on-chain revert
+  // Toast on wallet rejection or on-chain revert
   useEffect(() => {
-    if ((!writeError && !isTxReverted) || !lastAction) return;
-    setTxFeedback({ status: "error", action: lastAction });
-  }, [writeError, isTxReverted, lastAction]);
-
-  // Clear feedback when user edits the amount
-  useEffect(() => { setTxFeedback(null); }, [depositAmount, redeemAmount]);
+    if (!writeError && !isTxReverted) return;
+    const action = lastActionRef.current;
+    const messages: Record<string, string> = {
+      deposit:  "Deposit failed, please try again",
+      withdraw: "Withdrawal failed, please try again",
+      approve:  "Approval failed, please try again",
+      claim:    "Claim failed, please try again",
+      cancel:   "Cancel failed, please try again",
+    };
+    toast({ kind: "error", title: messages[action] ?? "Transaction failed" });
+  }, [writeError, isTxReverted, toast]);
 
   const depositAmountParsed = useMemo(() => {
     try { return depositAmount ? parseUnits(depositAmount, assetDecForDisplay) : BigInt(0); }
@@ -533,14 +552,14 @@ export default function VaultDetailPage() {
 
   function handleApproveAsset() {
     if (!depositAssetAddr || !depositSpenderAddr) return;
-    setLastAction("approve"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "approve"; resetWrite();
     writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, maxUint256] });
   }
 
   // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
   function handleMidasDeposit() {
     if (!midasDepositVault || !depositAssetAddr || !userAddress || midasDepositParsed18 <= BigInt(0)) return;
-    setLastAction("deposit"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "deposit"; resetWrite();
     writeContract({
       address: midasDepositVault,
       abi: MIDAS_DEPOSIT_ABI,
@@ -554,7 +573,7 @@ export default function VaultDetailPage() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
-      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
+      lastActionRef.current = "withdraw"; resetWrite();
       writeContract({
         address: midasRedemptionVault,
         abi: MIDAS_REDEEM_ABI,
@@ -570,7 +589,7 @@ export default function VaultDetailPage() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm async redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
-      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
+      lastActionRef.current = "withdraw"; resetWrite();
       writeContract({
         address: midasRedemptionVault,
         abi: MIDAS_REDEEM_ABI,
@@ -585,7 +604,7 @@ export default function VaultDetailPage() {
   function handleUYDeposit() {
     const asset = depositAsset;
     if (!vaultAddress || !asset || !userAddress || depositAmountParsed <= BigInt(0)) return;
-    setLastAction("deposit"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "deposit"; resetWrite();
     writeContract({
       address: vaultAddress,
       abi: VAULT_WRITE_ABI,
@@ -597,7 +616,7 @@ export default function VaultDetailPage() {
   // Morpho deposit (standard ERC-4626)
   function handleMorphoDeposit() {
     if (!vaultAddress || !userAddress || depositAmountParsed <= BigInt(0)) return;
-    setLastAction("deposit"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "deposit"; resetWrite();
     writeContract({
       address: vaultAddress,
       abi: ERC4626_WRITE_ABI,
@@ -611,7 +630,7 @@ export default function VaultDetailPage() {
     if (!vaultAddress || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
-      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
+      lastActionRef.current = "withdraw"; resetWrite();
       writeContract({
         address: vaultAddress,
         abi: ERC4626_WRITE_ABI,
@@ -625,7 +644,7 @@ export default function VaultDetailPage() {
   // UltraYield share approval + async redeem
   function handleApproveShares() {
     if (!vaultAddress) return;
-    setLastAction("approve"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "approve"; resetWrite();
     writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
   }
   function handleRequestRedeem() {
@@ -633,19 +652,19 @@ export default function VaultDetailPage() {
     const assetAddress = vault.assetAddress;
     setConfirmMessage(`Confirm request redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
-      setLastAction("withdraw"); setTxFeedback(null); resetWrite();
+      lastActionRef.current = "withdraw"; resetWrite();
       writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "requestRedeemOfAsset", args: [assetAddress, redeemAmountParsed, userAddress, userAddress] });
     });
     setConfirmOpen(true);
   }
   function handleCancelRedeem() {
     if (!vaultAddress || !vault.assetAddress || !userAddress) return;
-    setLastAction("cancel"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "cancel"; resetWrite();
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "cancelRedeemRequestOfAsset", args: [vault.assetAddress, userAddress, userAddress] });
   }
   function handleClaim() {
     if (!vaultAddress || !vault.assetAddress || !userAddress || !vault.claimableShares || vault.claimableShares === BigInt(0)) return;
-    setLastAction("claim"); setTxFeedback(null); resetWrite();
+    lastActionRef.current = "claim"; resetWrite();
     writeContract({ address: vaultAddress, abi: VAULT_WRITE_ABI, functionName: "redeemAsset", args: [vault.assetAddress, vault.claimableShares, userAddress, userAddress] });
   }
 
@@ -1294,12 +1313,6 @@ export default function VaultDetailPage() {
                           </label>
                         )}
 
-                        {isConnected && txFeedback?.action === "deposit" && (
-                          <div className={`mb-3 rounded-lg px-3 py-2.5 text-sm font-medium ${txFeedback.status === "success" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"}`}>
-                            {txFeedback.status === "success" ? "Deposit successful" : "Deposit failed, please try again"}
-                          </div>
-                        )}
-
                         {isConnected && vault.isPaused && (
                           <p className="mb-3 text-sm font-medium text-amber-800">Vault is paused — deposits disabled.</p>
                         )}
@@ -1438,12 +1451,6 @@ export default function VaultDetailPage() {
                           </label>
                         )}
 
-                        {isConnected && txFeedback?.action === "withdraw" && (
-                          <div className={`mb-3 rounded-lg px-3 py-2.5 text-sm font-medium ${txFeedback.status === "success" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400"}`}>
-                            {txFeedback.status === "success" ? "Withdrawal request submitted successfully" : "Withdrawal failed, please try again"}
-                          </div>
-                        )}
-
                         {vaultKind === "midas" ? (
                           <>
                             <div className="mb-4 grid grid-cols-2 gap-2">
@@ -1540,7 +1547,7 @@ export default function VaultDetailPage() {
                       <>
                         <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50/80 px-4 py-4 text-center dark:border-[#1b1b1f] dark:bg-[#141417]/70">
                           <p className="text-sm leading-relaxed text-gray-500 dark:text-zinc-400">
-                            Connect your institutional wallet to execute on-chain transactions.
+                            Connect your wallet to execute on-chain transactions.
                           </p>
                         </div>
                         <button
