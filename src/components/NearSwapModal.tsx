@@ -595,12 +595,20 @@ export function SwapContent() {
     return usdValue < MIN_USD_VALUE;
   }, [fromToken, amount, MIN_USD_VALUE]);
 
+  // Exceeds wallet balance check
+  const exceedsBalance = useMemo(() => {
+    if (!walletBalance || !amount || parseFloat(amount) <= 0) return false;
+    const amountFloat = parseFloat(amount);
+    const balanceFloat = parseFloat(formatUnits(walletBalance.value, walletBalance.decimals));
+    return amountFloat > balanceFloat;
+  }, [walletBalance, amount]);
+
   const recipientReady = toToken && !EVM_BLOCKCHAINS.has(toToken.blockchain)
     ? !!recipient   // non-EVM: must have typed a recipient
     : !!userAddress; // EVM: just need wallet connected
 
   const canGetQuote =
-    !!fromToken && !!toToken && !!amount && parseFloat(amount) > 0 && recipientReady && !isBusy && !belowMinimum;
+    !!fromToken && !!toToken && !!amount && parseFloat(amount) > 0 && recipientReady && !isBusy && !belowMinimum && !exceedsBalance;
 
   const canExecute =
     swapStatus === "quote_ready" && !isBusy && !isQuoteExpired && isConnected;
@@ -856,13 +864,22 @@ export function SwapContent() {
                     </div>
                   )}
 
-                  <div className="mt-2 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-1.5 shadow-sm dark:border-[#1b1b1f] dark:bg-[#0b0c10]">
+                  <div className={`mt-2 flex items-center rounded-xl border px-3 py-1.5 shadow-sm dark:bg-[#0b0c10] ${
+                    exceedsBalance
+                      ? "border-red-400 bg-red-50/60 dark:border-red-600 dark:bg-red-900/10"
+                      : "border-zinc-300 bg-white/95 dark:border-[#1b1b1f]"
+                  }`}>
                     <input
                       type="number"
                       min="0"
                       placeholder="0.00"
                       value={amount}
-                      onChange={(e) => { setAmount(e.target.value); reset(); }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Allow typing freely — validation shown via exceedsBalance flag
+                        setAmount(val);
+                        reset();
+                      }}
                       disabled={isBusy || !fromToken}
                       className={INPUT_CLASS}
                     />
@@ -872,7 +889,13 @@ export function SwapContent() {
                       </span>
                     )}
                   </div>
-                  {fromToken?.price && amount && parseFloat(amount) > 0 && (
+                  {exceedsBalance && (
+                    <p className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                      <span aria-hidden>⚠</span>
+                      Amount exceeds your balance of {formattedBalance} {fromToken?.symbol}
+                    </p>
+                  )}
+                  {!exceedsBalance && fromToken?.price && amount && parseFloat(amount) > 0 && (
                     <p className={`mt-1.5 text-xs ${belowMinimum ? "font-semibold text-amber-600 dark:text-amber-400" : "text-zinc-500 dark:text-zinc-400"}`}>
                       ≈ ${(fromToken.price * parseFloat(amount)).toFixed(2)}
                       {belowMinimum && ` — minimum ~$${MIN_USD_VALUE} required`}
