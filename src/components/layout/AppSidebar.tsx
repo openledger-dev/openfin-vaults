@@ -3,7 +3,14 @@
 import type { IconType } from "react-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HiOutlineBriefcase, HiOutlineCube, HiOutlineSwitchHorizontal, HiOutlineX } from "react-icons/hi";
+import {
+  HiOutlineBriefcase,
+  HiOutlineCube,
+  HiOutlineDocumentText,
+  HiOutlineShieldCheck,
+  HiOutlineSwitchHorizontal,
+  HiOutlineX,
+} from "react-icons/hi";
 
 type NavItem = {
   href: string;
@@ -30,6 +37,21 @@ const mainNav: NavItem[] = [
     label: "Swap",
     Icon: HiOutlineSwitchHorizontal,
     match: (p) => p.startsWith("/swap"),
+  },
+];
+
+const legalNav: NavItem[] = [
+  {
+    href: "/privacy-policy",
+    label: "Privacy Policy",
+    Icon: HiOutlineShieldCheck,
+    match: (p) => p.startsWith("/privacy-policy"),
+  },
+  {
+    href: "/terms-of-use",
+    label: "Terms of Use",
+    Icon: HiOutlineDocumentText,
+    match: (p) => p.startsWith("/terms-of-use"),
   },
 ];
 
@@ -64,7 +86,7 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
         className="fixed bottom-0 left-0 top-16 z-40 hidden w-64 flex-col border-r border-[#F2F2F2] bg-white dark:border-[#1b1b1f] dark:bg-[#000000] xl:flex"
         aria-label="Sidebar"
       >
-        <nav className="flex flex-col gap-0.5 p-3 pt-4" aria-label="App sections">
+        <nav className="flex flex-1 flex-col gap-0.5 p-3 pt-4" aria-label="App sections">
           {mainNav.map(({ href, label, Icon, match }) => {
             const active = match(pathname);
             return (
@@ -78,6 +100,27 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
               </Link>
             );
           })}
+
+          <div className="mt-auto rounded-xl border border-[#F2F2F2] bg-[#F7F7F7] p-2 dark:border-[#1b1b1f] dark:bg-[#0d0d10]">
+            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Legal
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {legalNav.map(({ href, label, Icon, match }) => {
+                const active = match(pathname);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`group ${navLinkClass(active)}`}
+                  >
+                    <Icon className={iconClass(active)} aria-hidden strokeWidth={2} />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </nav>
       </aside>
 
@@ -117,6 +160,25 @@ export function AppSidebar({ mobileOpen, onCloseMobile }: AppSidebarProps) {
                   </Link>
                 );
               })}
+              <div className="mt-3 rounded-xl border border-[#F2F2F2] bg-[#F7F7F7] p-2 dark:border-[#1b1b1f] dark:bg-[#0d0d10]">
+                <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  Legal
+                </p>
+                {legalNav.map(({ href, label, Icon, match }) => {
+                  const active = match(pathname);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`group ${navLinkClass(active)}`}
+                      onClick={onCloseMobile}
+                    >
+                      <Icon className={iconClass(active)} aria-hidden strokeWidth={2} />
+                      <span>{label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </nav>
           </aside>
         </div>
