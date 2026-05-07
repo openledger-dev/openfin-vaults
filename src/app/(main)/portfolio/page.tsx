@@ -39,9 +39,9 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
 
   return (
     <div
-      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[3px] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-[#1b1b1f] dark:bg-[#141417] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5"
-      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#15803d"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#16a34a"; }}
+      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[0.1875rem] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-[#1b1b1f] dark:bg-[#141417] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5 dark:hover:border-l-[#16a34a]"
+      // onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#15803d"; }}
+      // onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#16a34a"; }}
       onClick={onClick}
       role="button"
       tabIndex={0}
