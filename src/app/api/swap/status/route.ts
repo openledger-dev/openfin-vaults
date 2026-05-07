@@ -6,14 +6,29 @@
  *                SUCCESS | INCOMPLETE_DEPOSIT | REFUNDED | FAILED
  */
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
+import { isEVMAddress } from "@/lib/swapValidation";
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
+// 60 status polls per IP per minute (polling every ~1 s is reasonable)
+const RATE_LIMIT = 60;
+const WINDOW_SEC = 60;
+
 export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(ip, "swap:status", RATE_LIMIT, WINDOW_SEC);
+  if (rl.exceeded) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? WINDOW_SEC) } }
+    );
+  }
+
   try {
     const depositAddress = req.nextUrl.searchParams.get("depositAddress");
-    if (!depositAddress) {
-      return NextResponse.json({ error: "depositAddress is required" }, { status: 400 });
+    if (!depositAddress || !isEVMAddress(depositAddress)) {
+      return NextResponse.json({ error: "depositAddress must be a valid EVM address" }, { status: 400 });
     }
 
     const headers: Record<string, string> = {

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
+import { parseUnits, formatUnits, type Abi } from "viem";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import type { Vault } from "@/types/vault";
@@ -139,8 +139,9 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   function handleApproveAsset() {
-    if (!assetAddr || !vaultAddr) return;
-    writeContract({ address: assetAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, maxUint256] });
+    if (!assetAddr || !vaultAddr || depositAmountParsed <= BigInt(0)) return;
+    // Approve exactly the deposit amount — never unlimited allowance
+    writeContract({ address: assetAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, depositAmountParsed] });
   }
 
   function handleDeposit() {
@@ -154,9 +155,9 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   }
 
   function handleApproveShares() {
-    if (!vaultAddr) return;
-    // Vault spends its own shares from owner (_spendAllowance in requestRedeemOfAsset)
-    writeContract({ address: vaultAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, maxUint256] });
+    if (!vaultAddr || requestSharesParsed <= BigInt(0)) return;
+    // Approve exactly the redeem amount — never unlimited allowance
+    writeContract({ address: vaultAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, requestSharesParsed] });
   }
 
   function handleRequestRedeem() {

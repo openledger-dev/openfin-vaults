@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { parseUnits, formatUnits, maxUint256 } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import {
   HiOutlineDocumentDuplicate,
   HiOutlineExternalLink,
@@ -18,6 +18,7 @@ import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
+import { recordTermsAcceptance, hasAcceptedTerms } from "@/lib/termsAudit";
 import type { MidasApyMap, MidasPriceMap, MidasPendingRedemption } from "@/lib/midasApi";
 import type { MorphoVaultApy } from "@/lib/morphoApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
@@ -493,7 +494,12 @@ export default function VaultDetailPage() {
   // ── State + write contract ────────────────────────────────────────────────
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemAmount, setRedeemAmount]   = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(() => {
+    // Pre-check if this wallet+vault combo was already accepted in a prior session
+    if (typeof window === "undefined") return false;
+    try { return hasAcceptedTerms(userAddress ?? "", vaultAddress ?? ""); }
+    catch { return false; }
+  });
   /** 0 = Deposit, 1 = Withdraw/Redeem — local tabs (light UI, same as Carbon Tabs) */
   const [actionTabIdx, setActionTabIdx] = useState(0);
   useEffect(() => {
@@ -592,9 +598,10 @@ export default function VaultDetailPage() {
   // ── Write handlers ────────────────────────────────────────────────────────
 
   function handleApproveAsset() {
-    if (!depositAssetAddr || !depositSpenderAddr) return;
+    if (!depositAssetAddr || !depositSpenderAddr || depositAmountParsed <= BigInt(0)) return;
     lastActionRef.current = "approve"; resetWrite();
-    writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, maxUint256] });
+    // Approve exactly the deposit amount — never unlimited allowance
+    writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, depositAmountParsed] });
   }
 
   // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
@@ -684,9 +691,10 @@ export default function VaultDetailPage() {
 
   // UltraYield share approval + async redeem
   function handleApproveShares() {
-    if (!vaultAddress) return;
+    if (!vaultAddress || redeemAmountParsed <= BigInt(0)) return;
     lastActionRef.current = "approve"; resetWrite();
-    writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
+    // Approve exactly the redeem amount — never unlimited allowance
+    writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, redeemAmountParsed] });
   }
   function handleRequestRedeem() {
     if (!vaultAddress || !withdrawAssetAddr || !userAddress || redeemAmountParsed <= BigInt(0)) return;
@@ -1334,7 +1342,13 @@ export default function VaultDetailPage() {
                             <input
                               type="checkbox"
                               checked={termsAccepted}
-                              onChange={(e) => setTermsAccepted(e.target.checked)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setTermsAccepted(checked);
+                                if (checked && userAddress && vaultAddress) {
+                                  recordTermsAcceptance(userAddress, vaultAddress);
+                                }
+                              }}
                               className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
                             />
                             <span className="text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
@@ -1497,7 +1511,13 @@ export default function VaultDetailPage() {
                             <input
                               type="checkbox"
                               checked={termsAccepted}
-                              onChange={(e) => setTermsAccepted(e.target.checked)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setTermsAccepted(checked);
+                                if (checked && userAddress && vaultAddress) {
+                                  recordTermsAcceptance(userAddress, vaultAddress);
+                                }
+                              }}
                               className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
                             />
                             <span className="text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
