@@ -947,6 +947,54 @@ export default function VaultDetailPage() {
               </div>
 
               <div className="flex flex-col gap-6">
+              <div className="lg:hidden">
+                <VaultDetailActionPanel
+                  walletPending={walletPending}
+                  isConnected={isConnected}
+                  vault={vault}
+                  hasAssetAddr={hasAssetAddr}
+                  actionTabIdx={actionTabIdx}
+                  setActionTabIdx={setActionTabIdx}
+                  vaultKind={vaultKind}
+                  supportedAssets={supportedAssets}
+                  depositAsset={depositAsset}
+                  withdrawAsset={withdrawAsset}
+                  setSelectedAssetAddr={setSelectedAssetAddr}
+                  setSelectedWithdrawAssetAddr={setSelectedWithdrawAssetAddr}
+                  setDepositAmount={setDepositAmount}
+                  setRedeemAmount={setRedeemAmount}
+                  depositAssetBalanceFmt={depositAssetBalanceFmt}
+                  depositAmount={depositAmount}
+                  redeemAmount={redeemAmount}
+                  isBusy={isBusy}
+                  assetSymForDisplay={assetSymForDisplay}
+                  withdrawAssetSym={withdrawAssetSym}
+                  depositAssetBalance={depositAssetBalance}
+                  handleMaxDeposit={handleMaxDeposit}
+                  handleMaxRedeem={handleMaxRedeem}
+                  termsAccepted={termsAccepted}
+                  setTermsAccepted={setTermsAccepted}
+                  needsAssetApprove={needsAssetApprove}
+                  needsShareApprove={needsShareApprove}
+                  handleApproveAsset={handleApproveAsset}
+                  handleMidasDeposit={handleMidasDeposit}
+                  handleMorphoDeposit={handleMorphoDeposit}
+                  handleUYDeposit={handleUYDeposit}
+                  midasDepositParsed18={midasDepositParsed18}
+                  depositAmountParsed={depositAmountParsed}
+                  lastAction={lastActionRef.current}
+                  darkActionBtnClass={DARK_ACTION_BTN_CLASS}
+                  midasLiveShares={midasLiveShares}
+                  midasInstantFeePct={midasInstantFeePct}
+                  redeemAmountParsed={redeemAmountParsed}
+                  handleMidasRedeemInstant={handleMidasRedeemInstant}
+                  handleMidasRedeemRequest={handleMidasRedeemRequest}
+                  handleMorphoRedeem={handleMorphoRedeem}
+                  handleApproveShares={handleApproveShares}
+                  handleRequestRedeem={handleRequestRedeem}
+                  openWalletConnect={openWalletConnect}
+                />
+              </div>
 
               {/* Your Position */}
               {(isConnected || walletPending) && (
@@ -1208,7 +1256,7 @@ export default function VaultDetailPage() {
             </div>
 
             {/* ── RIGHT COLUMN — deposit / withdraw (reference layout) ─ */}
-            <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-[420px] lg:max-w-[420px] lg:self-start">
+            <aside className="hidden w-full shrink-0 lg:sticky lg:top-20 lg:block lg:w-[420px] lg:max-w-[420px] lg:self-start">
               <VaultDetailActionPanel
                 walletPending={walletPending}
                 isConnected={isConnected}
