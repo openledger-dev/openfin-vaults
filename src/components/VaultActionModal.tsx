@@ -233,8 +233,8 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
             { label: "Status", value: vault.status === "paused" ? "Paused" : "Active", color: vault.status === "paused" ? "text-amber-600" : "text-emerald-600" },
             { label: "Asset", value: assetSymbol, color: "text-zinc-900 dark:text-zinc-100" },
           ].map((item) => (
-            <div key={item.label} className="min-h-[92px] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4 dark:border-[#1b1b1f] dark:bg-[#141417]">
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-[#afafb2]">{item.label}</p>
+            <div key={item.label} className="min-h-[5.75rem] rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] px-5 py-4 dark:border-[#1b1b1f] dark:bg-[#141417]">
+              <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-[#afafb2]">{item.label}</p>
               <p className={`text-[1.25rem] font-bold leading-tight ${item.color}`}>{item.value}</p>
             </div>
           ))}

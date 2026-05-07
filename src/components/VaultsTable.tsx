@@ -220,7 +220,7 @@ function SkeletonSection({
 }) {
   return (
     <div className="space-y-2 overflow-x-auto">
-      <div className="min-w-[900px] space-y-2">
+      <div className="min-w-[56.25rem] space-y-2">
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={`sk-${i}`}
@@ -594,7 +594,7 @@ function PlatformSection({
             {filtered.map((v) => renderVaultCard(v))}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
+            <table className="w-full min-w-[61.25rem] border-separate border-spacing-y-2">
               <thead>
                 <tr>
                   {headers.map((h) => (

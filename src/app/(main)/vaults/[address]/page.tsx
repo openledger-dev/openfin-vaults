@@ -714,7 +714,7 @@ export default function VaultDetailPage() {
   if (!vaultAddress) {
     return (
       <div className="min-h-full bg-white dark:bg-[#000000]">
-        <div className="mx-auto max-w-[900px] px-6 py-16 lg:px-8">
+        <div className="mx-auto max-w-[56.25rem] px-6 py-16 lg:px-8">
           <div className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
             <p className="text-sm font-semibold text-red-700">Invalid vault address</p>
             <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
@@ -1206,7 +1206,7 @@ export default function VaultDetailPage() {
                         key={item.title}
                         className="flex flex-col gap-1.5 sm:flex-row sm:gap-3"
                       >
-                        <span className="shrink-0 text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:min-w-[130px] sm:pt-0.5">
+                        <span className="shrink-0 text-sm font-semibold text-zinc-900 dark:text-zinc-100 sm:min-w-[8.125rem] sm:pt-0.5">
                           {item.title}
                         </span>
                         <span className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
@@ -1256,7 +1256,7 @@ export default function VaultDetailPage() {
             </div>
 
             {/* ── RIGHT COLUMN — deposit / withdraw (reference layout) ─ */}
-            <aside className="hidden w-full shrink-0 lg:sticky lg:top-20 lg:block lg:w-[420px] lg:max-w-[420px] lg:self-start">
+            <aside className="hidden w-full shrink-0 lg:sticky lg:top-20 lg:block lg:w-[26.25rem] lg:max-w-[26.25rem] lg:self-start">
               <VaultDetailActionPanel
                 walletPending={walletPending}
                 isConnected={isConnected}
@@ -1310,7 +1310,7 @@ export default function VaultDetailPage() {
       {confirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#090B11]/65 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
-          <div className="relative z-10 w-full max-w-[460px] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
+          <div className="relative z-10 w-full max-w-[28.75rem] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Confirm Redemption</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{confirmMessage}</p>
             <div className="mt-5 flex justify-end gap-2">

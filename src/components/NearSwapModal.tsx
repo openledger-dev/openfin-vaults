@@ -636,7 +636,7 @@ export function SwapContent() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-[560px]">
+    <div className="mx-auto w-full max-w-[35rem]">
 
           {/* ── Header ───────────────────────────────────────────────────────── */}
           <div className="mb-4">
@@ -1021,7 +1021,7 @@ export function SwapContent() {
                         href={`${NEAR_INTENTS_EXPLORER}/?search=${quote.quote.depositAddress}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="truncate max-w-[180px] text-xs font-mono text-zinc-600 underline dark:text-zinc-400"
+                        className="truncate max-w-[11.25rem] text-xs font-mono text-zinc-600 underline dark:text-zinc-400"
                       >
                         {quote.quote.depositAddress?.slice(0, 8)}…{quote.quote.depositAddress?.slice(-6)}
                       </a>
