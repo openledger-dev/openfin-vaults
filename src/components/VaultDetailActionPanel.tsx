@@ -138,7 +138,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               role="tab"
               aria-selected={actionTabIdx === 0}
               className={
-                "-mb-px flex-1 border-b-[3px] pb-3 text-center text-sm transition " +
+                "-mb-px flex-1 border-b-[0.1875rem] pb-3 text-center text-sm transition " +
                 (actionTabIdx === 0
                   ? "border-black font-bold text-black dark:border-[#2a2a2e] dark:text-zinc-100"
                   : "border-transparent font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200")
@@ -152,7 +152,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               role="tab"
               aria-selected={actionTabIdx === 1}
               className={
-                "-mb-px flex-1 border-b-[3px] pb-3 text-center text-sm transition " +
+                "-mb-px flex-1 border-b-[0.1875rem] pb-3 text-center text-sm transition " +
                 (actionTabIdx === 1
                   ? "border-black font-bold text-black dark:border-[#2a2a2e] dark:text-zinc-100"
                   : "border-transparent font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200")
@@ -167,7 +167,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
             <div>
               {(vaultKind === "midas" || vaultKind === "ultrayield") && supportedAssets.length > 1 && (
                 <div className="mb-4">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                  <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                     {vaultKind === "midas" ? "Payment token" : "Deposit asset"}
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -195,10 +195,10 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               )}
 
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                   Input amount
                 </span>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                   Balance: {depositAssetBalanceFmt}
                 </span>
               </div>
@@ -220,7 +220,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                     type="button"
                     disabled={!isConnected || isBusy || vault.isPaused || depositAssetBalance === undefined}
                     onClick={handleMaxDeposit}
-                    className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
+                    className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[0.6875rem] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                   >
                     Max
                   </button>
@@ -309,7 +309,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
             <div>
               {vaultKind === "midas" && supportedAssets.length > 1 && (
                 <div className="mb-4">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                  <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                     Receive as
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -334,7 +334,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               )}
               {vaultKind === "ultrayield" && supportedAssets.length > 1 && (
                 <div className="mb-4">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                  <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                     Receive as
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -359,10 +359,10 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               )}
 
               <div className="mb-2 flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                   Input amount
                 </span>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                   Balance:{" "}
                   {midasLiveShares !== undefined
                     ? `${parseFloat(formatUnits(midasLiveShares, 18)).toFixed(6)} ${vault.symbol}`
@@ -389,7 +389,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                     type="button"
                     disabled={!isConnected || isBusy}
                     onClick={handleMaxRedeem}
-                    className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
+                    className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[0.6875rem] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                   >
                     Max
                   </button>
@@ -428,7 +428,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                 <>
                   <div className="mb-4 grid grid-cols-2 gap-2">
                     <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Instant fee</p>
+                      <p className="text-[0.625rem] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Instant fee</p>
                       <p
                         className={
                           "mt-0.5 text-base font-bold " +
@@ -439,7 +439,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                       </p>
                     </div>
                     <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Standard fee</p>
+                      <p className="text-[0.625rem] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Standard fee</p>
                       <p className="mt-0.5 text-base font-bold text-slate-600 dark:text-zinc-300">0%</p>
                     </div>
                   </div>
@@ -465,7 +465,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                       </button>
                     </div>
                   )}
-                  <p className="mt-3 text-[11px] leading-relaxed text-gray-500 dark:text-zinc-400">
+                  <p className="mt-3 text-[0.6875rem] leading-relaxed text-gray-500 dark:text-zinc-400">
                     Standard redemptions are processed in order. Once submitted, they cannot be cancelled.
                   </p>
                 </>

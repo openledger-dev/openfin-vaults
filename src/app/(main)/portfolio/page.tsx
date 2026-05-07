@@ -39,9 +39,9 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
 
   return (
     <div
-      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[3px] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-[#1b1b1f] dark:bg-[#141417] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5"
-      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#15803d"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#16a34a"; }}
+      className="flex cursor-pointer flex-col gap-4 rounded-xl border border-[#e1e5e1] border-l-[0.1875rem] border-l-green-600 bg-[#f1f2f0] p-4 transition-colors dark:border-[#1b1b1f] dark:bg-[#141417] md:flex-row md:items-center md:justify-between md:gap-6 md:p-5 dark:hover:border-l-[#16a34a]"
+      // onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#15803d"; }}
+      // onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderLeftColor = "#16a34a"; }}
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -63,15 +63,15 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
           <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
             {vault.address.slice(0, 6)}…{vault.address.slice(-4)}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {kindLabel}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {getChainName(vault.chainId)}
           </span>
           <span
             className={
-              "rounded-md border px-1.5 py-0.5 text-[11px] font-semibold dark:border-opacity-70 " +
+              "rounded-md border px-1.5 py-0.5 text-[0.6875rem] font-semibold dark:border-opacity-70 " +
               (vault.isPaused
                 ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
                 : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300")
@@ -176,7 +176,7 @@ function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void
   return (
     <div
       className={
-        "flex cursor-pointer flex-col gap-4 rounded-xl border border-l-[3px] p-4 md:flex-row md:items-center md:justify-between md:gap-6 md:px-6 " +
+        "flex cursor-pointer flex-col gap-4 rounded-xl border border-l-[0.1875rem] p-4 md:flex-row md:items-center md:justify-between md:gap-6 md:px-6 " +
         (isClaimable
           ? "border-emerald-300 bg-emerald-50/90 dark:border-emerald-800 dark:bg-emerald-900/25"
           : "border-amber-300 bg-amber-50/90 dark:border-amber-800 dark:bg-amber-900/20")
@@ -199,10 +199,10 @@ function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void
             {statusLabel}
           </span>
           <span className="text-[0.9375rem] font-semibold text-zinc-900 dark:text-zinc-100">{item.vault.name}</span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {kindLabel}
           </span>
-          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
+          <span className="rounded-md border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]">
             {getChainName(item.vault.chainId)}
           </span>
         </div>

@@ -197,7 +197,7 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
       {/* Connected wallet + explorer link */}
       <div className="flex items-center justify-between gap-2 rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] px-3 py-2.5 dark:border-[#1b1b1f] dark:bg-[#101014]">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+          <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
             Connected wallet
           </p>
           {walletAddress ? (
@@ -213,7 +213,7 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
           target="_blank"
           rel="noopener noreferrer"
           title="View all on NEAR Intents Explorer"
-          className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-[#2a2a2e] dark:bg-[#0b0c10] dark:text-zinc-300 dark:hover:bg-[#16171c]"
+          className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-[#2a2a2e] dark:bg-[#0b0c10] dark:text-zinc-300 dark:hover:bg-[#16171c]"
         >
           Explorer <HiOutlineExternalLink className="h-3 w-3" />
         </a>
@@ -265,7 +265,7 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
                   <span className="flex-1 text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                     {assetLabel(tx.originAsset)} → {assetLabel(tx.destinationAsset)}
                   </span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide ${
                     tx.status === "SUCCESS"
                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                       : tx.status === "REFUNDED"
@@ -279,7 +279,7 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
                 </div>
 
                 {/* Row 2: amounts + time */}
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.6875rem] text-zinc-500 dark:text-zinc-400">
                   <span>
                     <span className="font-medium text-zinc-700 dark:text-zinc-300">{tx.amountInFormatted}</span>
                     {tx.amountInUsd && <span className="ml-1 text-zinc-400">(${parseFloat(tx.amountInUsd).toFixed(2)})</span>}
@@ -295,7 +295,7 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
 
                 {/* Refund reason */}
                 {tx.refundReason && (
-                  <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400">
+                  <p className="mt-1 text-[0.625rem] text-amber-600 dark:text-amber-400">
                     Refund reason: {tx.refundReason.replace(/_/g, " ")}
                   </p>
                 )}
@@ -306,7 +306,7 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
                     href={`${NEAR_INTENTS_EXPLORER}/?search=${tx.depositAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-200"
+                    className="inline-flex items-center gap-1 text-[0.6875rem] text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-200"
                   >
                     View on Explorer <HiOutlineExternalLink className="h-2.5 w-2.5" />
                   </a>
@@ -636,7 +636,7 @@ export function SwapContent() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="mx-auto w-full max-w-[560px]">
+    <div className="mx-auto w-full max-w-[35rem]">
 
           {/* ── Header ───────────────────────────────────────────────────────── */}
           <div className="mb-4">
@@ -856,7 +856,7 @@ export function SwapContent() {
                             }
                           }}
                           disabled={isBusy}
-                          className="rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 transition hover:bg-zinc-200 disabled:opacity-50 dark:border-[#2a2a32] dark:bg-[#1f2027] dark:text-zinc-300 dark:hover:bg-[#2a2a3a]"
+                          className="rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wider text-zinc-600 transition hover:bg-zinc-200 disabled:opacity-50 dark:border-[#2a2a32] dark:bg-[#1f2027] dark:text-zinc-300 dark:hover:bg-[#2a2a3a]"
                         >
                           Max
                         </button>
@@ -958,7 +958,7 @@ export function SwapContent() {
                       <span className="min-w-0 flex-1 truncate font-mono text-sm text-zinc-700 dark:text-zinc-300">
                         {userAddress ?? "—"}
                       </span>
-                      <span className="shrink-0 rounded-md bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:bg-[#27272b] dark:text-[#afafb2]">
+                      <span className="shrink-0 rounded-md bg-zinc-200 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-500 dark:bg-[#27272b] dark:text-[#afafb2]">
                         Connected
                       </span>
                     </div>
@@ -1021,7 +1021,7 @@ export function SwapContent() {
                         href={`${NEAR_INTENTS_EXPLORER}/?search=${quote.quote.depositAddress}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="truncate max-w-[180px] text-xs font-mono text-zinc-600 underline dark:text-zinc-400"
+                        className="truncate max-w-[11.25rem] text-xs font-mono text-zinc-600 underline dark:text-zinc-400"
                       >
                         {quote.quote.depositAddress?.slice(0, 8)}…{quote.quote.depositAddress?.slice(-6)}
                       </a>
@@ -1114,7 +1114,7 @@ export function SwapContent() {
               </div>
 
               {/* ── Footer note ───────────────────────────────────────────────── */}
-              <p className="mt-4 text-center text-[10px] text-zinc-400 dark:text-zinc-600">
+              <p className="mt-4 text-center text-[0.625rem] text-zinc-400 dark:text-zinc-600">
                 Swap is executed by{" "}
                 <a
                   href="https://docs.near-intents.org/integration/distribution-channels/1click-api/about-1click-api"

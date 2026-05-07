@@ -116,7 +116,7 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
                     <div className="flex items-end gap-2">
                       <span
                         className={
-                          "rounded-md border px-2 py-0.5 text-[11px] font-semibold " +
+                          "rounded-md border px-2 py-0.5 text-[0.6875rem] font-semibold " +
                           (vault.isPaused
                             ? "border-red-200 bg-red-50 text-red-700"
                             : "border-emerald-200 bg-emerald-50 text-emerald-700")
@@ -125,7 +125,7 @@ export function UserPositionsPanel({ vaults, isLoading }: UserPositionsPanelProp
                         {vault.isPaused ? "Paused" : "Active"}
                       </span>
                       <span
-                        className="rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700"
+                        className="rounded-md border border-zinc-300 bg-zinc-100 px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700"
                       >
                         {vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Midas" : "UltraYield"}
                       </span>

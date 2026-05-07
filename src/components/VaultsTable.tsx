@@ -220,7 +220,7 @@ function SkeletonSection({
 }) {
   return (
     <div className="space-y-2 overflow-x-auto">
-      <div className="min-w-[900px] space-y-2">
+      <div className="min-w-[56.25rem] space-y-2">
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={`sk-${i}`}
@@ -275,13 +275,13 @@ function MobileSkeletonSection({ rows }: { rows: number }) {
 function StatusPill({ paused }: { paused: boolean }) {
   if (paused) {
     return (
-      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800">
+      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-wide text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-900/30 dark:text-red-300 dark:ring-red-800">
         Paused
       </span>
     );
   }
   return (
-    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800">
+    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-[0.6875rem] font-bold uppercase tracking-wide text-emerald-800 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:ring-emerald-800">
       Active
     </span>
   );
@@ -348,14 +348,14 @@ function PlatformSection({
             <p className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
               {v.address.slice(0, 6)}…{v.address.slice(-4)}
             </p>
-            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
+            <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
               {getChainShortName(v.chainId)}
             </span>
           </div>
           {v.userShares !== undefined && v.userShares > BigInt(0) && (
             <div className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-800 dark:bg-emerald-900/25">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)] dark:shadow-[0_0_0_2px_rgba(16,185,129,0.35)]" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
+              <span className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
                 Invested
               </span>
               <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
@@ -461,10 +461,10 @@ function PlatformSection({
                 </p>
               </button>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                <span className="font-mono text-[0.6875rem] text-zinc-500 dark:text-zinc-400">
                   {v.address.slice(0, 6)}…{v.address.slice(-4)}
                 </span>
-                <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
+                <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
                   {getChainShortName(v.chainId)}
                 </span>
               </div>
@@ -476,7 +476,7 @@ function PlatformSection({
         {hasPosition && (
           <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-800 dark:bg-emerald-900/25">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
+            <span className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
               Invested
             </span>
             <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
@@ -486,20 +486,20 @@ function PlatformSection({
         )}
 
         <div className="mb-4">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Assets</p>
+          <p className="mb-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Assets</p>
           <SupportedAssetsCell v={v} />
         </div>
 
         <div className="mb-4 grid grid-cols-2 gap-3 border-t border-zinc-200 pt-3 dark:border-[#1b1b1f]">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">TVL</p>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">TVL</p>
             <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {tvlValue}
               {tvlSymbol ? ` ${tvlSymbol}` : ""}
             </p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               {isMorphoVault ? "7D net APY" : "7D APY"}
             </p>
             <div className="mt-1 text-sm font-semibold">
@@ -508,7 +508,7 @@ function PlatformSection({
           </div>
           {isMorphoVault && (
             <div className="col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Liquidity</p>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Liquidity</p>
               <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                 {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
               </p>
@@ -517,7 +517,7 @@ function PlatformSection({
           {!isMorphoVault && !isRe7 && (
             <>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Perf. fee
                 </p>
                 <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -525,7 +525,7 @@ function PlatformSection({
                 </p>
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   Mgmt. fee
                 </p>
                 <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -594,7 +594,7 @@ function PlatformSection({
             {filtered.map((v) => renderVaultCard(v))}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
+            <table className="w-full min-w-[61.25rem] border-separate border-spacing-y-2">
               <thead>
                 <tr>
                   {headers.map((h) => (
