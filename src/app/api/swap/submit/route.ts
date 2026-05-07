@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     const data = await res.json().catch(() => null);
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[swap/submit] unexpected error", err);
+    return NextResponse.json({ error: "Failed to submit swap deposit" }, { status: 500 });
   }
 }
