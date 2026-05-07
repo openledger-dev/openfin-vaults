@@ -54,6 +54,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
     console.error("[swap/quote] unexpected error", err);
-    return NextResponse.json({ message: String(err) }, { status: 500 });
+    return NextResponse.json({ message: "Failed to fetch swap quote" }, { status: 500 });
   }
 }

@@ -25,6 +25,7 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL } from "@/lib/redis";
 import { fetchUltraYieldApy } from "@/lib/onchain";
+import { isAllowedVault } from "@/lib/allowlist";
 import type { Address } from "viem";
 
 function isAddress(v: string | null): v is Address {
@@ -43,6 +44,12 @@ export async function GET(request: Request) {
       { error: "Missing or invalid required params: oracle, vault, asset (must be 0x addresses)" },
       { status: 400 }
     );
+  }
+
+  // Only the vault needs to be in the allowlist. The asset and oracle are the
+  // vault's own on-chain values — if the vault is known, they are implicitly trusted.
+  if (!isAllowedVault(vault)) {
+    return NextResponse.json({ error: "Unknown vault address" }, { status: 403 });
   }
 
   const cacheKey = `uy:apy:${chainId}:${vault.toLowerCase()}:${asset.toLowerCase()}`;

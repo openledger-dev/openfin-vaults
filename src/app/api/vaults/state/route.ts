@@ -22,6 +22,7 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, serialize } from "@/lib/redis";
 import { fetchOnChainState } from "@/lib/onchain";
+import { isAllowedVault } from "@/lib/allowlist";
 import type { PlatformKind } from "@/lib/vaultConfig";
 
 export async function GET(request: Request) {
@@ -33,6 +34,10 @@ export async function GET(request: Request) {
 
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
     return NextResponse.json({ error: "Invalid or missing vault address" }, { status: 400 });
+  }
+
+  if (!isAllowedVault(address)) {
+    return NextResponse.json({ error: "Unknown vault address" }, { status: 403 });
   }
 
   const cacheKey = `vault:state:${chainId}:${address.toLowerCase()}`;

@@ -27,6 +27,7 @@ export async function GET() {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[swap/tokens] unexpected error", err);
+    return NextResponse.json({ error: "Failed to fetch swap tokens" }, { status: 500 });
   }
 }

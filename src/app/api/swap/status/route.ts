@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    console.error("[swap/status] unexpected error", err);
+    return NextResponse.json({ error: "Failed to fetch swap status" }, { status: 500 });
   }
 }
