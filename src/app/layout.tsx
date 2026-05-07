@@ -16,6 +16,16 @@ export const metadata: Metadata = {
   title: "Open Vault — Ethereum DeFi Vaults",
   description:
     "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
+  openGraph: {
+    title: "Open Vault — Ethereum DeFi Vaults",
+    description:
+      "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
+    images: [
+      {
+        url: "/og-image.png",
+      },
+    ],
+  },
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
