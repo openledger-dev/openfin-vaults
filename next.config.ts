@@ -19,6 +19,44 @@ const STUB_PACKAGES = [
 const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
 
+  // ── HTTP security headers ────────────────────────────────────────────────
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          // Prevent clickjacking — disallow embedding in iframes
+          { key: "X-Frame-Options", value: "DENY" },
+          // Prevent MIME-type sniffing
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Don't send full URL as Referer to third parties
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Restrict access to browser features not needed by this app
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+          // Enforce HTTPS for future visits (1 year, include subdomains)
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          // CSP: tightened for a DeFi app that only talks to known origins.
+          // - script-src: Next.js needs 'self' + inline scripts for hydration
+          // - connect-src: wallet RPCs, 1Click API, NEAR intents explorer, Morpho GraphQL, Midas API, WalletConnect relay
+          // - frame-src: WalletConnect QR modal uses an iframe
+          { key: "Content-Security-Policy", value: [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self' https: wss:",
+            "frame-src 'self' https://verify.walletconnect.com https://verify.walletconnect.org",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "upgrade-insecure-requests",
+          ].join("; ") },
+        ],
+      },
+    ];
+  },
+
   // Keep Node.js-only packages out of the browser bundle.
   // ioredis (and viem's transports) use stream/net/tls which don't exist in browsers.
   serverExternalPackages: ["ioredis"],

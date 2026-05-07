@@ -36,10 +36,10 @@ const VAULT_APY_QUERY = /* graphql */ `
         address
         name
         symbol
-        fee
         state {
-          weeklyNetApy
+          weeklyNetApy: avgNetApy(lookback: SEVEN_DAYS)
           totalAssetsUsd
+          fee
         }
       }
     }
@@ -75,10 +75,10 @@ export async function fetchMorphoVaultApys(
           address: string;
           name?: string | null;
           symbol?: string | null;
-          fee?: number | null;
           state?: {
             weeklyNetApy?: number | null;
             totalAssetsUsd?: number | null;
+            fee?: number | null;
           } | null;
         }>;
       };
@@ -96,7 +96,7 @@ export async function fetchMorphoVaultApys(
       address: item.address,
       name: item.name ?? null,
       symbol: item.symbol ?? null,
-      fee: item.fee ?? null,
+      fee: item.state?.fee ?? null,
       weeklyNetApy: item.state?.weeklyNetApy ?? null,
       totalAssetsUsd: item.state?.totalAssetsUsd ?? null,
     };

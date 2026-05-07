@@ -22,6 +22,7 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, serialize } from "@/lib/redis";
 import { fetchOnChainMeta } from "@/lib/onchain";
+import { isAllowedVault } from "@/lib/allowlist";
 import type { PlatformKind } from "@/lib/vaultConfig";
 
 export async function GET(request: Request) {
@@ -35,6 +36,10 @@ export async function GET(request: Request) {
   }
   if (!["ultrayield", "morpho", "midas"].includes(kind)) {
     return NextResponse.json({ error: "Invalid kind — must be ultrayield, morpho, or midas" }, { status: 400 });
+  }
+
+  if (!isAllowedVault(address)) {
+    return NextResponse.json({ error: "Unknown vault address" }, { status: 403 });
   }
 
   const cacheKey = `vault:meta:${chainId}:${address.toLowerCase()}`;
