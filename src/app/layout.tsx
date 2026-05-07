@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: "Open Vault — Ethereum DeFi Vaults",
   description:
     "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

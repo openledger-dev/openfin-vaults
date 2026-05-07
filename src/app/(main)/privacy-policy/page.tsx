@@ -314,24 +314,38 @@ Users may manage certain cookie or tracking preferences through browser settings
           </section>
           <section>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">9. Data Retention</h2>
-            <p className="mt-2">
-            <strong>We retain Personal Information for as long as reasonably necessary to:</strong>
-            </p>
-<p className="mt-2">
-    (a) provide and operate the Services;
-    (b) comply with legal, tax, accounting, sanctions, security, or regulatory obligations;
-    (c) resolve disputes and enforce agreements;
-    (d) maintain records and audit trails;
-    (e) investigate fraud, abuse, or security incidents;
-    (f) preserve business continuity and operational integrity.
-</p>
-<p className="mt-2">
-    Certain blockchain-related information may be permanently retained on decentralized networks outside our control.
-</p>
-<p className="mt-2">
-    Even where deletion requests are granted, backup systems, archived systems, legal obligations, fraud-prevention requirements, or blockchain immutability may prevent complete deletion.
-</p>
+
+  <p className="mt-2">
+  <strong>We retain Personal Information for as long as reasonably necessary to:</strong>
+  </p>
+
+  <p className="mt-2">
+  (a) provide and operate the Services;
+  </p>
+  <p className="mt-2">
+  (b) comply with legal, tax, accounting, sanctions, security, or regulatory obligations;
+  </p>
+  <p className="mt-2">
+  (c) resolve disputes and enforce agreements;
+  </p>
+  <p className="mt-2">
+  (d) maintain records and audit trails;
+  </p>
+  <p className="mt-2">
+  (e) investigate fraud, abuse, or security incidents;
+  </p>
+  <p className="mt-2">
+  (f) preserve business continuity and operational integrity.
+  </p>
+  <p className="mt-2">
+      Certain blockchain-related information may be permanently retained on decentralized networks outside our control.
+  </p>
+  <p className="mt-2">
+      Even where deletion requests are granted, backup systems, archived systems, legal obligations, fraud-prevention requirements, or blockchain immutability may prevent complete deletion.
+  </p>
+
           </section>
+
           <section>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">10. Security</h2>
   <p className="mt-2">
@@ -344,15 +358,28 @@ Users may manage certain cookie or tracking preferences through browser settings
   However, no blockchain system, AI System, exchange integration, internet-based platform, cloud environment, API connection, Wallet environment, decentralized network, or electronic storage system can be guaranteed to be fully secure.
   </p>
   <p className="mt-2">
-  Users remain solely responsible for safeguarding:
+  <strong>Users remain solely responsible for safeguarding:</strong>
+  </p>
+  <p className="mt-2">
   (a) Wallet credentials;
-    (b) private keys and seed phrases;
-    (c) exchange credentials and API keys;
-    (d) passwords and authentication methods;
-    (e) devices, browsers, operating systems, and connected accounts.
+  </p>
+  <p className="mt-2">
+  (b) private keys and seed phrases;
+  </p>
+  <p className="mt-2">
+  (c) exchange credentials and API keys;
+  </p>
+  <p className="mt-2">
+  (d) passwords and authentication methods;
+  </p>
+  <p className="mt-2">
+  (e) devices, browsers, operating systems, and connected accounts.
+  </p>
+  <p className="mt-2">
     OpenFin is not responsible for losses arising from phishing, credential theft, malware, malicious Smart Contracts, compromised devices, compromised Wallets, compromised exchanges, social engineering, unauthorized access, or third-party security failures.
   </p>
           </section>
+
           <section>
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">11. International Data Transfers</h2>
   <p className="mt-2">
@@ -402,6 +429,8 @@ Such rights may be subject to identity verification, legal limitations, complian
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">13. Children and Minors</h2>
             <p className="mt-2">
             The Services are not directed toward individuals under eighteen years of age.
+            </p>
+            <p className="mt-2">
 OpenFin does not knowingly collect Personal Information from minors.
 </p>
 <p className="mt-2">
