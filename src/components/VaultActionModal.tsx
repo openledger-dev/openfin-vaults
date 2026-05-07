@@ -243,13 +243,13 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
         {/* Fee tags (all 3 from the Fees struct) */}
         <div className="mb-4 flex flex-wrap gap-2">
           {vault.performanceFeePercent != null && (
-            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Perf. Fee: {vault.performanceFeePercent.toFixed(2)}%</span>
+            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Perf. Fee: {vault.performanceFeePercent.toFixed(2)}%</span>
           )}
           {vault.managementFeePercent != null && (
-            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Mgmt. Fee: {vault.managementFeePercent.toFixed(2)}%</span>
+            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Mgmt. Fee: {vault.managementFeePercent.toFixed(2)}%</span>
           )}
           {vault.withdrawalFeePercent != null && (
-            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Withdrawal Fee: {vault.withdrawalFeePercent.toFixed(2)}%</span>
+            <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Withdrawal Fee: {vault.withdrawalFeePercent.toFixed(2)}%</span>
           )}
         </div>
 
@@ -321,7 +321,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                   {/* Asset selector */}
                   {supportedAssets.length > 1 && (
                     <div className="mb-4">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Deposit Asset</p>
+                      <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Deposit Asset</p>
                       <div className="flex flex-wrap gap-2">
                         {supportedAssets.map((a) => (
                           <button
@@ -364,7 +364,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                       type="button"
                       onClick={() => assetBalance !== undefined && setDepositAmount(formatUnits(assetBalance, decimals))}
                       disabled={isBusy || vault.status === "paused" || !assetBalance || assetBalance <= BigInt(0)}
-                      className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
+                      className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[0.6875rem] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                     >
                       Max
                     </button>
@@ -399,7 +399,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                   {/* Asset selector */}
                   {supportedAssets.length > 1 && (
                     <div className="mb-4">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Withdraw Asset</p>
+                      <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Withdraw Asset</p>
                       <div className="flex flex-wrap gap-2">
                         {supportedAssets.map((a) => (
                           <button
@@ -474,7 +474,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                       type="button"
                       onClick={() => shareBalance !== undefined && setRequestRedeemShares(formatUnits(shareBalance, 18))}
                       disabled={isBusy || !shareBalance || shareBalance <= BigInt(0)}
-                      className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
+                      className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[0.6875rem] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                     >
                       Max
                     </button>

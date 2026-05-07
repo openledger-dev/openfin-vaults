@@ -198,8 +198,8 @@ export function MorphoVaultActionModal({ vault, open, onClose, onTxCompleted }: 
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">ERC-4626 (Morpho)</span>
-          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Sync Redemption</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">ERC-4626 (Morpho)</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Sync Redemption</span>
         </div>
 
         {isConfirmed && (

@@ -174,7 +174,7 @@ function protocolPillLabel(kind: PlatformKind): string {
 }
 
 const HEADER_TAG_CLASS =
-  "inline-flex items-center rounded-full bg-[#F2F2F2] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-800 dark:bg-[#141417] dark:text-[#ffffff]";
+  "inline-flex items-center rounded-full bg-[#F2F2F2] px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-800 dark:bg-[#141417] dark:text-[#ffffff]";
 const DARK_ACTION_BTN_CLASS =
   "w-full rounded-xl border border-transparent bg-zinc-900 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:bg-zinc-400/70 disabled:text-zinc-200 dark:border-[#1b1b1f] dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2] dark:disabled:border-[#1b1b1f] dark:disabled:bg-[#27272b] dark:disabled:text-[#afafb2]";
 
@@ -838,8 +838,8 @@ export default function VaultDetailPage() {
               <span className={HEADER_TAG_CLASS}>{chainPill}</span>
               <span className={
                 vault.isPaused
-                  ? "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
-                  : "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                  ? "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                  : "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-[0.6875rem] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
               }>
                 <span className="mr-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
                 {vault.isPaused ? "PAUSED" : "ACTIVE"}
@@ -858,13 +858,13 @@ export default function VaultDetailPage() {
               </div>
               <div className="flex flex-wrap items-center gap-6">
                 <div>
-                  <span className="mr-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                  <span className="mr-2 text-[0.625rem] font-semibold uppercase tracking-wider text-emerald-700">
                     Shares
                   </span>
                   <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{vault.userSharesFormatted}</span>
                 </div>
                 <div>
-                  <span className="mr-2 text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                  <span className="mr-2 text-[0.625rem] font-semibold uppercase tracking-wider text-emerald-700">
                     Value
                   </span>
                   <span className="text-base font-bold text-zinc-900 dark:text-zinc-100">
@@ -1019,7 +1019,7 @@ export default function VaultDetailPage() {
                         isLoading: vault.isLoading },
                     ].map((s) => (
                       <div key={s.label} className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{s.label}</p>
+                        <p className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{s.label}</p>
                         {s.isLoading ? (
                           <div className="h-6 w-28 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
                         ) : (

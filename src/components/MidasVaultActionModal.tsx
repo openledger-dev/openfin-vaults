@@ -302,8 +302,8 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Midas RWA</span>
-          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[11px] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Instant + Async Redemption</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Midas RWA</span>
+          <span className="rounded-full border border-[#E1E5E1] bg-[#F1F2F0] px-2 py-0.5 text-[0.6875rem] font-semibold text-zinc-700 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">Instant + Async Redemption</span>
         </div>
 
         {isConfirmed && (
@@ -467,20 +467,20 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
                     {/* Fee + mode comparison */}
                     <div className="mb-4 grid grid-cols-2 gap-2">
                       <div className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <p className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                           Instant Fee
                         </p>
                         <p className={"text-sm font-bold " + (instantFeePct !== undefined ? "text-amber-600" : "text-zinc-400")}>
                           {instantFeePct !== undefined ? `${instantFeePct.toFixed(2)}%` : "—"}
                         </p>
-                        <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Atomic, funds returned immediately</p>
+                        <p className="mt-1 text-[0.625rem] text-zinc-500 dark:text-zinc-400">Atomic, funds returned immediately</p>
                       </div>
                       <div className="rounded-lg border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <p className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                           Standard Fee
                         </p>
                         <p className="text-sm font-bold text-emerald-600">0%</p>
-                        <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400">Async, processed in order — no cancel</p>
+                        <p className="mt-1 text-[0.625rem] text-zinc-500 dark:text-zinc-400">Async, processed in order — no cancel</p>
                       </div>
                     </div>
 
