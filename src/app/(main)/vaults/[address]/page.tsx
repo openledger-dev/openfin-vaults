@@ -1308,9 +1308,9 @@ export default function VaultDetailPage() {
         </div>
 
       {confirmOpen && (
-        <div className="fixed inset-0 z-[60]">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-[#090B11]/65 backdrop-blur-sm" onClick={() => setConfirmOpen(false)} />
-          <div className="relative z-10 mx-auto mt-40 w-[min(460px,92vw)] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
+          <div className="relative z-10 w-full max-w-[460px] rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xl dark:border-[#1b1b1f] dark:bg-[#141417]">
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Confirm Redemption</h3>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{confirmMessage}</p>
             <div className="mt-5 flex justify-end gap-2">
