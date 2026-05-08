@@ -88,7 +88,29 @@ const MIDAS_REDEEM_ABI = [
     type: "function",
     stateMutability: "view",
     inputs: [],
-    outputs: [{ type: "uint256" }], // 1e18 = 100%
+    // ONE_HUNDRED_PERCENT = 10_000 → 1% = 100
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    // Auto-generated getter for public mapping(address => TokenConfig)
+    // TokenConfig { dataFeed, fee (ONE_HUNDRED_PERCENT = 10_000), allowance, stable }
+    name: "tokensConfig",
+    type: "function",
+    stateMutability: "view",
+    inputs:  [{ name: "token", type: "address" }],
+    outputs: [
+      { name: "dataFeed",  type: "address" },
+      { name: "fee",       type: "uint256" },
+      { name: "allowance", type: "uint256" },
+      { name: "stable",    type: "bool"    },
+    ],
+  },
+  {
+    name: "getPaymentTokens",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address[]" }],
   },
 ] as const;
 
@@ -245,13 +267,15 @@ export default function VaultDetailPage() {
         midasApiKey:            entry.midasApiKey,
         depositVaultAddress:    entry.depositVaultAddress,
         redemptionVaultAddress: entry.redemptionVaultAddress,
+        assets:                 entry.assets,
       };
     }
     return null;
   }, [vaultAddress]);
 
-  const midasDepositVault    = vaultConfig?.depositVaultAddress;
-  const midasRedemptionVault = vaultConfig?.redemptionVaultAddress;
+  const midasDepositVault         = vaultConfig?.depositVaultAddress;
+  const midasRedemptionVault      = vaultConfig?.redemptionVaultAddress;
+  const midasPrimaryPaymentToken  = vaultConfig?.assets?.[0]?.address as `0x${string}` | undefined;
 
   const vaultKind    = vaultConfig?.kind    ?? "ultrayield";
   const vaultChainId = vaultConfig?.chainId ?? 1;
@@ -356,7 +380,37 @@ export default function VaultDetailPage() {
     query: { enabled: !!midasRedemptionVault },
   });
   const midasInstantFeeRaw = midasFeeData?.[0]?.status === "success" ? (midasFeeData[0].result as bigint) : undefined;
-  const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 1e16 : undefined;
+  // ManageableVault: ONE_HUNDRED_PERCENT = 10_000 → divide by 100 to get a plain percentage
+  const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 100 : undefined;
+
+  // ── Discover payment tokens when vault has no static assets config ────────
+  // getPaymentTokens() returns the on-chain set; we use element [0] as the
+  // primary token for the tokensConfig fee lookup.
+  const { data: paymentTokensData } = useReadContracts({
+    contracts: midasRedemptionVault && !midasPrimaryPaymentToken
+      ? [{ address: midasRedemptionVault, abi: MIDAS_REDEEM_ABI, functionName: "getPaymentTokens" as const, chainId: vaultChainId }]
+      : [],
+    query: { enabled: vaultKind === "midas" && !!midasRedemptionVault && !midasPrimaryPaymentToken },
+  });
+  const discoveredPaymentToken = paymentTokensData?.[0]?.status === "success"
+    ? (paymentTokensData[0].result as `0x${string}`[])?.[0]
+    : undefined;
+  const effectivePaymentToken = midasPrimaryPaymentToken ?? discoveredPaymentToken;
+
+  // ── Midas per-token fee (tokensConfig mapping on redemption vault) ─────────
+  const { data: midasTokenFeeData } = useReadContracts({
+    contracts: midasRedemptionVault && effectivePaymentToken
+      ? [{ address: midasRedemptionVault, abi: MIDAS_REDEEM_ABI, functionName: "tokensConfig" as const, args: [effectivePaymentToken], chainId: vaultChainId }]
+      : [],
+    query: { enabled: vaultKind === "midas" && !!midasRedemptionVault && !!effectivePaymentToken },
+  });
+  const midasTokenFeeRaw = midasTokenFeeData?.[0]?.status === "success"
+    ? ((midasTokenFeeData[0].result as unknown as [string, bigint, bigint, boolean])?.[1])
+    : undefined;
+  // Same scale: ONE_HUNDRED_PERCENT = 10_000 → divide by 100
+  const midasTokenFeePct = midasTokenFeeRaw !== undefined
+    ? Number(midasTokenFeeRaw) / 100
+    : undefined;
 
   // ── Derived Midas values ──────────────────────────────────────────────────
   const midasPrice  = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
@@ -1201,15 +1255,18 @@ export default function VaultDetailPage() {
                 </div>
                 {vaultKind === "midas" ? (
                   <>
-                    <FeeRow label="Instant Redemption Fee"
+                    <FeeRow label="Management Fees"
+                      pct={undefined}
+                      tooltip="Annual management fee on AUM. Refer to Midas documentation for the current rate." />
+                    <FeeRow label="Performance Fees"
+                      pct={undefined}
+                      tooltip="Performance fee on yield. Refer to Midas documentation for the current rate." />
+                    <FeeRow label="Instant Fees"
                       pct={midasInstantFeePct}
-                      tooltip="Fee charged for atomic (instant) redemptions. Read from the redemption vault's instantFee parameter." />
-                    <FeeRow label="Standard Redemption Fee"
-                      pct={0}
-                      tooltip="No fee for standard (async) redemptions — processed in order by the Midas team." />
-                    <FeeRow label="Deposit Fee"
-                      pct={0}
-                      tooltip="No fee for minting Midas tokens via depositInstant." />
+                      tooltip="Additional fee charged when redeeming instantly (atomic). Read from the Redemption Vault's instantFee parameter." />
+                    <FeeRow label="Token Fees"
+                      pct={midasTokenFeePct}
+                      tooltip="Per-payment-token fee applied on redemptions. Read from tokensConfig on the Redemption Vault for the primary configured payment token." />
                   </>
                 ) : vault.isLoading ? (
                   <LightSectionSkeleton rows={3} />
@@ -1219,10 +1276,13 @@ export default function VaultDetailPage() {
                       tooltip={vaultKind === "morpho"
                         ? "Fee on yield taken by the vault's fee recipient."
                         : "Charged on profits above the high-water mark. Max 30%."} />
+                    <FeeRow label="Management Fee"
+                      pct={vaultKind === "morpho" ? 0 : vault.managementFeePercent}
+                      tooltip={vaultKind === "morpho"
+                        ? "MetaMorpho vaults do not charge a management fee."
+                        : "Annual fee on total assets under management. Max 5%."} />
                     {vaultKind === "ultrayield" && (
                       <>
-                        <FeeRow label="Management Fee" pct={vault.managementFeePercent}
-                          tooltip="Annual fee on total assets under management. Max 5%." />
                         <FeeRow label="Withdrawal Fee" pct={vault.withdrawalFeePercent}
                           tooltip="One-time fee deducted at redemption fulfillment. Max 1%." />
                         <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
