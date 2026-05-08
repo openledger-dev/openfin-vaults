@@ -23,7 +23,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchUltraYieldApy } from "@/lib/onchain";
 import { isAllowedVault } from "@/lib/allowlist";
 import type { Address } from "viem";
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown vault address" }, { status: 403 });
   }
 
-  const cacheKey = `uy:apy:${chainId}:${vault.toLowerCase()}:${asset.toLowerCase()}`;
+  const cacheKey = redisKey(`uy:apy:${chainId}:${vault.toLowerCase()}:${asset.toLowerCase()}`);
 
   try {
     const data = await cachedFetch(cacheKey, TTL.APY_7D, () =>

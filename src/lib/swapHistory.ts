@@ -1,9 +1,12 @@
 /**
- * swapHistory — localStorage persistence for in-flight and recent swaps.
+ * swapHistory — sessionStorage persistence for in-flight and recent swaps.
+ *
+ * Uses sessionStorage (not localStorage) so swap records are scoped to the
+ * current browser tab and cleared automatically when the tab is closed.
+ * This limits the window of exposure to XSS attacks compared to localStorage,
+ * which persists indefinitely across sessions.
  *
  * Stores up to MAX_ENTRIES swap records keyed by depositAddress.
- * This lets users track swaps that were submitted before cbBTC (or any
- * destination asset) arrived, even after the swap modal is closed.
  */
 import type { SavedSwap } from "@/types/swap";
 
@@ -13,7 +16,7 @@ const MAX_ENTRIES = 20;
 function load(): SavedSwap[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]") as SavedSwap[];
+    return JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "[]") as SavedSwap[];
   } catch {
     return [];
   }
@@ -21,7 +24,7 @@ function load(): SavedSwap[] {
 
 function save(entries: SavedSwap[]) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
 }
 
 export function saveSwap(entry: SavedSwap) {

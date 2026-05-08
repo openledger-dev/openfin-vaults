@@ -13,7 +13,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
 
 export async function GET(request: Request) {
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
   // Stable cache key: sort addresses so order doesn't create duplicate entries
   const sorted   = [...addresses].map((a) => a.toLowerCase()).sort().join(",");
-  const cacheKey = `morpho:apys:${chainId}:${sorted}`;
+  const cacheKey = redisKey(`morpho:apys:${chainId}:${sorted}`);
 
   try {
     const data = await cachedFetch(cacheKey, TTL.APY, () =>

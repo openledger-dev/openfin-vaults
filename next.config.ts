@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: https:",
-            "font-src 'self' data:",
+            "font-src 'self' data: https://fonts.reown.com",
             "connect-src 'self' https: wss:",
             "frame-src 'self' https://verify.walletconnect.com https://verify.walletconnect.org",
             "object-src 'none'",

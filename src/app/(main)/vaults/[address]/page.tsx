@@ -11,6 +11,7 @@ import {
   HiOutlineExternalLink,
 } from "react-icons/hi";
 import { useAppKit } from "@reown/appkit/react";
+import { VaultDetailActionPanel } from "@/components/VaultDetailActionPanel";
 import { useVaultDetail } from "@/hooks/useVaultDetail";
 import { useToast } from "@/components/ui/Toaster";
 import { use7dApy } from "@/hooks/use7dApy";
@@ -19,7 +20,7 @@ import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import { recordTermsAcceptance, hasAcceptedTerms } from "@/lib/termsAudit";
-import type { MidasApyMap, MidasPriceMap, MidasPendingRedemption } from "@/lib/midasApi";
+import type { MidasApyMap, MidasPriceMap, MidasTvlMap, MidasPendingRedemption } from "@/lib/midasApi";
 import type { MorphoVaultApy } from "@/lib/morphoApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
 import { getChainShortName, getAddressExplorerLink, getTxExplorerLink } from "@/lib/chains";
@@ -318,6 +319,18 @@ export default function VaultDetailPage() {
       }),
   });
 
+  const { data: midasTvlMap, isLoading: midasTvlLoading } = useQuery({
+    queryKey: ["midasDetailTvls"],
+    enabled: vaultKind === "midas",
+    staleTime: 10 * 60 * 1_000,
+    gcTime:    20 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/midas/tvl").then((r) => {
+        if (!r.ok) throw new Error(`Midas TVL API error: ${r.status}`);
+        return r.json() as Promise<MidasTvlMap>;
+      }),
+  });
+
   const { data: midasPendingRedemptions = [], isLoading: midasPendingLoading } = useQuery({
     queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
     enabled: vaultKind === "midas" && !!vaultAddress && !!userAddress,
@@ -346,23 +359,32 @@ export default function VaultDetailPage() {
   const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 1e16 : undefined;
 
   // ── Derived Midas values ──────────────────────────────────────────────────
-  const midasPrice = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
-  const midasApy   = midasApiKey && midasApyMap   ? (midasApyMap[midasApiKey]   ?? null) : null;
+  const midasPrice  = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
+  const midasApy    = midasApiKey && midasApyMap   ? (midasApyMap[midasApiKey]   ?? null) : null;
+  const midasTvlUsd = midasApiKey && midasTvlMap   ? (midasTvlMap[midasApiKey]   ?? null) : null;
   const USDC_DEC   = 6;
-  // totalSupply is in 18-decimal share units; price is USD per share
-  const midasTvlFormatted = useMemo(() => {
-    if (!vault.totalSupply || midasPrice === null) return "—";
-    const tvl = (Number(vault.totalSupply) / 1e18) * midasPrice;
+
+  function fmtUsd(tvl: number): string {
     if (tvl >= 1_000_000) return `${(tvl / 1_000_000).toFixed(2)}M USD`;
     if (tvl >= 1_000)     return `${(tvl / 1_000).toFixed(2)}K USD`;
     return `${tvl.toFixed(2)} USD`;
-  }, [vault.totalSupply, midasPrice]);
+  }
+
+  // Use the authoritative Midas TVL API value; fall back to totalSupply × price
+  const midasTvlFormatted = useMemo(() => {
+    if (midasTvlUsd !== null) return fmtUsd(midasTvlUsd);
+    if (!vault.totalSupply || midasPrice === null) return "—";
+    const vDec = vault.decimals ?? 18;
+    const tvl = (Number(vault.totalSupply) / 10 ** vDec) * midasPrice;
+    return fmtUsd(tvl);
+  }, [midasTvlUsd, vault.totalSupply, vault.decimals, midasPrice]);
   const midasSharePriceFormatted = midasPrice !== null ? `$${midasPrice.toFixed(6)}` : "—";
   const midasUserValueFormatted = useMemo(() => {
     if (!vault.userShares || midasPrice === null) return "—";
-    const val = (Number(vault.userShares) / 1e18) * midasPrice;
+    const vDec = vault.decimals ?? 18;
+    const val = (Number(vault.userShares) / 10 ** vDec) * midasPrice;
     return `${val.toFixed(4)} USD`;
-  }, [vault.userShares, midasPrice]);
+  }, [vault.userShares, vault.decimals, midasPrice]);
 
   // When the on-chain name() call fails it falls back to the raw address.
   // Use the Morpho API name as a secondary fallback so the page always shows
@@ -594,6 +616,44 @@ export default function VaultDetailPage() {
     if (payDec === 18) return depositAmountParsed;
     return depositAmountParsed * BigInt(10 ** (18 - payDec));
   }, [vaultKind, depositAmountParsed, depositAsset]);
+
+  // ── "You will receive" conversion previews ────────────────────────────────
+  // sharePrice (from useVaultDetail) = (10^vDec * totalAssets) / totalSupply
+  // Units: assetDecimals per share (so it's the price of 1 share in asset terms)
+  // sharesOut = depositAmountParsed * 10^vDec / sharePrice
+  const depositSharesOutFmt = useMemo(() => {
+    const sym = vault.symbol || "shares";
+    if (!depositAmount || depositAmountParsed <= BigInt(0)) return `0.00 ${sym}`;
+    if (vaultKind === "midas") {
+      if (!midasPrice) return `— ${sym}`;
+      const shares = parseFloat(depositAmount) / midasPrice;
+      return `${shares.toFixed(6)} ${sym}`;
+    }
+    if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return `— ${sym}`;
+    const vDec = vault.decimals;
+    const sharesOut = (depositAmountParsed * BigInt(10 ** vDec)) / vault.sharePrice;
+    const sharesFloat = parseFloat(formatUnits(sharesOut, vDec));
+    if (sharesFloat === 0) return `0.00 ${sym}`;
+    return `${sharesFloat.toFixed(6)} ${sym}`;
+  }, [depositAmount, depositAmountParsed, vault.sharePrice, vault.decimals, vault.symbol, vaultKind, midasPrice]);
+
+  // assetsOut = redeemAmountParsed * sharePrice / 10^vDec
+  const redeemAssetsOutFmt = useMemo(() => {
+    if (!redeemAmount || redeemAmountParsed <= BigInt(0)) return `0.00 ${withdrawAssetSym}`;
+    if (vaultKind === "midas") {
+      if (!midasPrice) return `— ${assetSymForDisplay}`;
+      const assets = parseFloat(redeemAmount) * midasPrice;
+      return `${assets.toFixed(6)} ${assetSymForDisplay}`;
+    }
+    if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return `— ${withdrawAssetSym}`;
+    const vDec = vault.decimals;
+    const aDec = withdrawAssetDec;
+    const assetsOut = (redeemAmountParsed * vault.sharePrice) / BigInt(10 ** vDec);
+    const assetsFloat = parseFloat(formatUnits(assetsOut, aDec));
+    if (assetsFloat === 0) return `0.00 ${withdrawAssetSym}`;
+    const dp = aDec >= 6 ? 6 : 4;
+    return `${assetsFloat.toFixed(dp)} ${withdrawAssetSym}`;
+  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetSym, withdrawAssetDec, assetSymForDisplay]);
 
   // ── Write handlers ────────────────────────────────────────────────────────
 
@@ -917,9 +977,9 @@ export default function VaultDetailPage() {
             <StatCard
               label="Total Value Locked"
               value={vaultKind === "midas" ? midasTvlFormatted : vault.tvlFormatted}
-              sub={vaultKind === "midas" ? "totalSupply × price (Midas API)" : "totalAssets() via contract"}
+              sub={vaultKind === "midas" ? "TVL from Midas API" : "totalAssets() via contract"}
               color="text-zinc-900 dark:text-zinc-100"
-              loading={vault.isLoading || (vaultKind === "midas" && midasPriceLoading)}
+              loading={vault.isLoading || (vaultKind === "midas" && (midasPriceLoading || midasTvlLoading))}
             />
             <StatCard label="Total Supply" value={vault.totalSupplyFormatted} sub="Vault shares outstanding" loading={vault.isLoading} />
             <StatCard
@@ -954,6 +1014,56 @@ export default function VaultDetailPage() {
               </div>
 
               <div className="flex flex-col gap-6">
+              <div className="lg:hidden">
+                <VaultDetailActionPanel
+                  walletPending={walletPending}
+                  isConnected={isConnected}
+                  vault={vault}
+                  hasAssetAddr={hasAssetAddr}
+                  actionTabIdx={actionTabIdx}
+                  setActionTabIdx={setActionTabIdx}
+                  vaultKind={vaultKind}
+                  supportedAssets={supportedAssets}
+                  depositAsset={depositAsset}
+                  withdrawAsset={withdrawAsset}
+                  setSelectedAssetAddr={setSelectedAssetAddr}
+                  setSelectedWithdrawAssetAddr={setSelectedWithdrawAssetAddr}
+                  setDepositAmount={setDepositAmount}
+                  setRedeemAmount={setRedeemAmount}
+                  depositAssetBalanceFmt={depositAssetBalanceFmt}
+                  depositAmount={depositAmount}
+                  redeemAmount={redeemAmount}
+                  isBusy={isBusy}
+                  assetSymForDisplay={assetSymForDisplay}
+                  withdrawAssetSym={withdrawAssetSym}
+                  depositAssetBalance={depositAssetBalance}
+                  handleMaxDeposit={handleMaxDeposit}
+                  handleMaxRedeem={handleMaxRedeem}
+                  termsAccepted={termsAccepted}
+                  setTermsAccepted={setTermsAccepted}
+                  needsAssetApprove={needsAssetApprove}
+                  needsShareApprove={needsShareApprove}
+                  handleApproveAsset={handleApproveAsset}
+                  handleMidasDeposit={handleMidasDeposit}
+                  handleMorphoDeposit={handleMorphoDeposit}
+                  handleUYDeposit={handleUYDeposit}
+                  midasDepositParsed18={midasDepositParsed18}
+                  depositAmountParsed={depositAmountParsed}
+                  lastAction={lastActionRef.current}
+                  darkActionBtnClass={DARK_ACTION_BTN_CLASS}
+                  midasLiveShares={midasLiveShares}
+                  midasInstantFeePct={midasInstantFeePct}
+                  redeemAmountParsed={redeemAmountParsed}
+                  handleMidasRedeemInstant={handleMidasRedeemInstant}
+                  handleMidasRedeemRequest={handleMidasRedeemRequest}
+                  handleMorphoRedeem={handleMorphoRedeem}
+                  handleApproveShares={handleApproveShares}
+                  handleRequestRedeem={handleRequestRedeem}
+                  openWalletConnect={openWalletConnect}
+                  depositSharesOutFmt={depositSharesOutFmt}
+                  redeemAssetsOutFmt={redeemAssetsOutFmt}
+                />
+              </div>
 
               {/* Your Position */}
               {(isConnected || walletPending) && (
@@ -1215,435 +1325,55 @@ export default function VaultDetailPage() {
             </div>
 
             {/* ── RIGHT COLUMN — deposit / withdraw (reference layout) ─ */}
-            <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-[420px] lg:max-w-[420px] lg:self-start">
-              <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm shadow-gray-900/5 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                {walletPending || (isConnected && vault.isLoading && !hasAssetAddr) ? (
-                  <p className="py-12 text-center text-sm text-gray-500 dark:text-zinc-400">Loading vault data…</p>
-                ) : isConnected && !hasAssetAddr ? (
-                  <p className="py-12 text-center text-sm text-gray-500 dark:text-zinc-400">
-                    {vault.isLoading ? "Loading vault data…" : "Asset address unavailable"}
-                  </p>
-                ) : (
-                  <>
-                    <div
-                      className="mb-6 flex gap-6 border-b border-gray-200 dark:border-[#1b1b1f]"
-                      role="tablist"
-                      aria-label="Vault actions"
-                    >
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={actionTabIdx === 0}
-                        className={
-                          "-mb-px flex-1 border-b-[3px] pb-3 text-center text-sm transition " +
-                          (actionTabIdx === 0
-                            ? "border-black font-bold text-black dark:border-[#2a2a2e] dark:text-zinc-100"
-                            : "border-transparent font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200")
-                        }
-                        onClick={() => setActionTabIdx(0)}
-                      >
-                        Deposit
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={actionTabIdx === 1}
-                        className={
-                          "-mb-px flex-1 border-b-[3px] pb-3 text-center text-sm transition " +
-                          (actionTabIdx === 1
-                            ? "border-black font-bold text-black dark:border-[#2a2a2e] dark:text-zinc-100"
-                            : "border-transparent font-medium text-gray-500 hover:text-gray-800 dark:text-zinc-400 dark:hover:text-zinc-200")
-                        }
-                        onClick={() => setActionTabIdx(1)}
-                      >
-                        {vaultKind === "midas" ? "Redeem" : "Withdraw"}
-                      </button>
-                    </div>
-
-                    {actionTabIdx === 0 && (
-                      <div>
-                        {(vaultKind === "midas" || vaultKind === "ultrayield") && supportedAssets.length > 1 && (
-                          <div className="mb-4">
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                              {vaultKind === "midas" ? "Payment token" : "Deposit asset"}
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {supportedAssets.map((a) => (
-                                <button
-                                  key={a.address}
-                                  type="button"
-                                  disabled={!isConnected}
-                                  onClick={() => {
-                                    setSelectedAssetAddr(a.address);
-                                    setDepositAmount("");
-                                  }}
-                                  className={
-                                    "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
-                                    (depositAsset?.address === a.address
-                                      ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
-                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
-                                  }
-                                >
-                                  {a.symbol}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                            Input amount
-                          </span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                            Balance: {depositAssetBalanceFmt}
-                          </span>
-                        </div>
-
-                        <div className="mb-4 flex rounded-xl border border-gray-200 bg-[#EEEEEE] px-3 py-1 pl-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                          <input
-                            id="detail-deposit"
-                            placeholder="0.00"
-                            value={depositAmount}
-                            onChange={(e) => setDepositAmount(e.target.value)}
-                            type="number"
-                            min={0}
-                            disabled={!isConnected || isBusy || vault.isPaused}
-                            className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-base font-semibold text-slate-700 placeholder:text-gray-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-50 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                          />
-                          <div className="flex shrink-0 items-center gap-1.5 pr-0.5">
-                            <span className="text-sm font-semibold text-gray-700 dark:text-zinc-200">{assetSymForDisplay}</span>
-                            <button
-                              type="button"
-                              disabled={!isConnected || isBusy || vault.isPaused || depositAssetBalance === undefined}
-                              onClick={handleMaxDeposit}
-                              className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
-                            >
-                              Max
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
-                          <TxSummaryRow
-                            label="You will receive"
-                            value={`${depositAmount || "0.00"} ${(vault.symbol || "shares").toUpperCase()}`}
-                          />
-                        </div>
-
-                        {vaultKind === "midas" && (
-                          <p className="mb-4 text-xs text-gray-500 dark:text-zinc-400">
-                            Instant mint — {vault.symbol || "token"} delivered to your wallet immediately.
-                          </p>
-                        )}
-
-                        {isConnected && (
-                          <label className="mb-4 flex cursor-pointer items-start gap-2.5">
-                            <input
-                              type="checkbox"
-                              checked={termsAccepted}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setTermsAccepted(checked);
-                                if (checked && userAddress && vaultAddress) {
-                                  recordTermsAcceptance(userAddress, vaultAddress);
-                                }
-                              }}
-                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
-                            />
-                            <span className="text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
-                              I agree to the{" "}
-                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
-                                Privacy Policy
-                              </a>
-                              {" "}and{" "}
-                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
-                                Terms of Use
-                              </a>
-                            </span>
-                          </label>
-                        )}
-
-                        {isConnected && vault.isPaused && (
-                          <p className="mb-3 text-sm font-medium text-amber-800">Vault is paused — deposits disabled.</p>
-                        )}
-                        {isConnected && !vault.isPaused && needsAssetApprove && (
-                          <>
-                            <p className="mb-3 text-xs text-gray-500 dark:text-zinc-400">
-                              Step 1: Approve {vaultKind === "midas" ? "deposit vault" : "vault"} to spend{" "}
-                              {assetSymForDisplay}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={handleApproveAsset}
-                              disabled={isBusy || !termsAccepted}
-                              className={DARK_ACTION_BTN_CLASS}
-                            >
-                              {isBusy && lastActionRef.current === "approve" ? "Approving..." : `Approve ${assetSymForDisplay}`}
-                            </button>
-                          </>
-                        )}
-                        {isConnected && !vault.isPaused && !needsAssetApprove && (
-                          <button
-                            type="button"
-                            onClick={
-                              vaultKind === "midas"
-                                ? handleMidasDeposit
-                                : vaultKind === "morpho"
-                                  ? handleMorphoDeposit
-                                  : handleUYDeposit
-                            }
-                            disabled={
-                              isBusy ||
-                              !termsAccepted ||
-                              (vaultKind === "midas"
-                                ? midasDepositParsed18 <= BigInt(0)
-                                : depositAmountParsed <= BigInt(0))
-                            }
-                            className={DARK_ACTION_BTN_CLASS}
-                          >
-                            {isBusy && lastActionRef.current === "deposit" ? "Depositing..." : `Deposit ${assetSymForDisplay}`}
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {actionTabIdx === 1 && (
-                      <div>
-                        {vaultKind === "midas" && supportedAssets.length > 1 && (
-                          <div className="mb-4">
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                              Receive as
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {supportedAssets.map((a) => (
-                                <button
-                                  key={a.address}
-                                  type="button"
-                                  disabled={!isConnected}
-                                  onClick={() => setSelectedAssetAddr(a.address)}
-                                  className={
-                                    "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
-                                    (depositAsset?.address === a.address
-                                      ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
-                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
-                                  }
-                                >
-                                  {a.symbol}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {vaultKind === "ultrayield" && supportedAssets.length > 1 && (
-                          <div className="mb-4">
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                              Receive as
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {supportedAssets.map((a) => (
-                                <button
-                                  key={a.address}
-                                  type="button"
-                                  disabled={!isConnected}
-                                  onClick={() => { setSelectedWithdrawAssetAddr(a.address); setRedeemAmount(""); }}
-                                  className={
-                                    "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
-                                    (withdrawAsset?.address === a.address
-                                      ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
-                                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
-                                  }
-                                >
-                                  {a.symbol}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                            Input amount
-                          </span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
-                            Balance:{" "}
-                            {midasLiveShares !== undefined
-                              ? `${parseFloat(formatUnits(midasLiveShares, 18)).toFixed(6)} ${vault.symbol}`
-                              : vault.userSharesFormatted}
-                          </span>
-                        </div>
-
-                        <div className="mb-4 flex rounded-xl border border-gray-200 bg-[#EEEEEE] px-3 py-1 pl-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                          <input
-                            id="detail-redeem"
-                            placeholder="0.00"
-                            value={redeemAmount}
-                            onChange={(e) => setRedeemAmount(e.target.value)}
-                            type="number"
-                            min={0}
-                            disabled={!isConnected || isBusy}
-                            className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-base font-semibold text-slate-700 placeholder:text-gray-400 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none focus:outline-none focus:ring-0 disabled:opacity-50 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                          />
-                          <div className="flex shrink-0 items-center gap-1.5 pr-0.5">
-                            <span className="max-w-[4.5rem] truncate text-sm font-semibold text-gray-700 dark:text-zinc-200">
-                              {vault.symbol || "Shares"}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={!isConnected || isBusy}
-                              onClick={handleMaxRedeem}
-                              className="rounded-md bg-gray-200 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-800 transition hover:bg-gray-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
-                            >
-                              Max
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
-                          <TxSummaryRow
-                            label="You will receive"
-                            value={`${redeemAmount || "0.00"} ${vaultKind === "ultrayield" ? withdrawAssetSym : assetSymForDisplay}`}
-                          />
-                        </div>
-
-                        {isConnected && (
-                          <label className="mb-4 flex cursor-pointer items-start gap-2.5">
-                            <input
-                              type="checkbox"
-                              checked={termsAccepted}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setTermsAccepted(checked);
-                                if (checked && userAddress && vaultAddress) {
-                                  recordTermsAcceptance(userAddress, vaultAddress);
-                                }
-                              }}
-                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
-                            />
-                            <span className="text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
-                              I agree to the{" "}
-                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
-                                Privacy Policy
-                              </a>
-                              {" "}and{" "}
-                              <a href="#" target="_blank" rel="noopener noreferrer" className="font-medium text-zinc-700 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100">
-                                Terms of Use
-                              </a>
-                            </span>
-                          </label>
-                        )}
-
-                        {vaultKind === "midas" ? (
-                          <>
-                            <div className="mb-4 grid grid-cols-2 gap-2">
-                              <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Instant fee</p>
-                                <p
-                                  className={
-                                    "mt-0.5 text-base font-bold " +
-                                    (midasInstantFeePct !== undefined ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-zinc-500")
-                                  }
-                                >
-                                  {midasInstantFeePct !== undefined ? `${midasInstantFeePct.toFixed(2)}%` : "—"}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border border-gray-200 bg-white/90 p-3 dark:border-[#1b1b1f] dark:bg-[#141417]">
-                                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Standard fee</p>
-                                <p className="mt-0.5 text-base font-bold text-slate-600 dark:text-zinc-300">0%</p>
-                              </div>
-                            </div>
-                            {isConnected && (
-                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <button
-                                  type="button"
-                                  onClick={handleMidasRedeemInstant}
-                                  disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
-                                  className={DARK_ACTION_BTN_CLASS}
-                                >
-                                  {isBusy && lastActionRef.current === "withdraw" ? "Redeeming..." : (
-                                    `Instant${midasInstantFeePct !== undefined ? ` (${midasInstantFeePct.toFixed(2)}%)` : ""}`
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleMidasRedeemRequest}
-                                  disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
-                                  className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
-                                >
-                                  {isBusy && lastActionRef.current === "withdraw" ? "Requesting..." : "Async (free)"}
-                                </button>
-                              </div>
-                            )}
-                            <p className="mt-3 text-[11px] leading-relaxed text-gray-500 dark:text-zinc-400">
-                              Standard redemptions are processed in order. Once submitted, they cannot be cancelled.
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="mb-4 text-xs leading-relaxed text-gray-500 dark:text-zinc-400">
-                              {vaultKind === "morpho"
-                                ? "Synchronous ERC-4626 redemption — assets returned immediately."
-                                : `Async redemption — operator fulfills within 72h.${vault.withdrawalFeePercent ? ` Withdrawal fee: ${vault.withdrawalFeePercent.toFixed(2)}%.` : ""}`}
-                            </p>
-                            {isConnected && vaultKind === "morpho" && (
-                              <button
-                                type="button"
-                                onClick={handleMorphoRedeem}
-                                disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
-                                className={DARK_ACTION_BTN_CLASS}
-                              >
-                                {isBusy && lastActionRef.current === "withdraw" ? "Redeeming..." : "Redeem shares"}
-                              </button>
-                            )}
-                            {isConnected && vaultKind !== "morpho" && needsShareApprove && (
-                              <>
-                                <p className="mb-3 text-xs text-gray-500 dark:text-zinc-400">
-                                  Step 1 of 2: Approve vault to escrow shares
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={handleApproveShares}
-                                  disabled={isBusy || !termsAccepted}
-                                  className={DARK_ACTION_BTN_CLASS}
-                                >
-                                  {isBusy && lastActionRef.current === "approve" ? "Approving..." : `Approve ${vault.symbol}`}
-                                </button>
-                              </>
-                            )}
-                            {isConnected && vaultKind !== "morpho" && !needsShareApprove && (
-                              <button
-                                type="button"
-                                onClick={handleRequestRedeem}
-                                disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
-                                className={DARK_ACTION_BTN_CLASS}
-                              >
-                                {isBusy && lastActionRef.current === "withdraw" ? "Requesting..." : "Request redeem"}
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-
-                    {!isConnected && (
-                      <>
-                        <div className="mt-6 rounded-xl border border-dashed border-gray-300 bg-gray-50/80 px-4 py-4 text-center dark:border-[#1b1b1f] dark:bg-[#141417]/70">
-                          <p className="text-sm leading-relaxed text-gray-500 dark:text-zinc-400">
-                            Connect your wallet to execute on-chain transactions.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openWalletConnect()}
-                          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-black py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-neutral-900 dark:border-[#1b1b1f] dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2]"
-                        >
-                          Connect Wallet
-                        </button>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
+            <aside className="hidden w-full shrink-0 lg:sticky lg:top-20 lg:block lg:w-[420px] lg:max-w-[420px] lg:self-start">
+              <VaultDetailActionPanel
+                walletPending={walletPending}
+                isConnected={isConnected}
+                vault={vault}
+                hasAssetAddr={hasAssetAddr}
+                actionTabIdx={actionTabIdx}
+                setActionTabIdx={setActionTabIdx}
+                vaultKind={vaultKind}
+                supportedAssets={supportedAssets}
+                depositAsset={depositAsset}
+                withdrawAsset={withdrawAsset}
+                setSelectedAssetAddr={setSelectedAssetAddr}
+                setSelectedWithdrawAssetAddr={setSelectedWithdrawAssetAddr}
+                setDepositAmount={setDepositAmount}
+                setRedeemAmount={setRedeemAmount}
+                depositAssetBalanceFmt={depositAssetBalanceFmt}
+                depositAmount={depositAmount}
+                redeemAmount={redeemAmount}
+                isBusy={isBusy}
+                assetSymForDisplay={assetSymForDisplay}
+                withdrawAssetSym={withdrawAssetSym}
+                depositAssetBalance={depositAssetBalance}
+                handleMaxDeposit={handleMaxDeposit}
+                handleMaxRedeem={handleMaxRedeem}
+                termsAccepted={termsAccepted}
+                setTermsAccepted={setTermsAccepted}
+                needsAssetApprove={needsAssetApprove}
+                needsShareApprove={needsShareApprove}
+                handleApproveAsset={handleApproveAsset}
+                handleMidasDeposit={handleMidasDeposit}
+                handleMorphoDeposit={handleMorphoDeposit}
+                handleUYDeposit={handleUYDeposit}
+                midasDepositParsed18={midasDepositParsed18}
+                depositAmountParsed={depositAmountParsed}
+                lastAction={lastActionRef.current}
+                darkActionBtnClass={DARK_ACTION_BTN_CLASS}
+                midasLiveShares={midasLiveShares}
+                midasInstantFeePct={midasInstantFeePct}
+                redeemAmountParsed={redeemAmountParsed}
+                handleMidasRedeemInstant={handleMidasRedeemInstant}
+                handleMidasRedeemRequest={handleMidasRedeemRequest}
+                handleMorphoRedeem={handleMorphoRedeem}
+                handleApproveShares={handleApproveShares}
+                handleRequestRedeem={handleRequestRedeem}
+                openWalletConnect={openWalletConnect}
+                depositSharesOutFmt={depositSharesOutFmt}
+                redeemAssetsOutFmt={redeemAssetsOutFmt}
+              />
             </aside>
           </div>
         </div>

@@ -237,6 +237,39 @@ function SkeletonSection({
   );
 }
 
+function MobileSkeletonSection({ rows }: { rows: number }) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={`m-sk-${i}`}
+          className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]"
+        >
+          <div className="mb-4 flex items-center gap-3">
+            <div className="h-11 w-11 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-36 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+              <div className="h-3 w-28 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((__, j) => (
+              <div key={j} className="space-y-1.5">
+                <div className="h-2.5 w-14 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+                <div className="h-4 w-20 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <div className="h-9 w-20 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-700" />
+            <div className="h-9 w-28 animate-pulse rounded-lg bg-zinc-200 dark:bg-zinc-700" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Status pill ────────────────────────────────────────────────────────────────
 
 function StatusPill({ paused }: { paused: boolean }) {
@@ -348,13 +381,6 @@ function PlatformSection({
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => onView(v.address)}
-            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
-          >
-            View
-          </button>
-          <button
-            type="button"
             onClick={() => onDeposit(vault)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
@@ -401,6 +427,134 @@ function PlatformSection({
     };
   }
 
+  function renderVaultCard(v: VaultOnChainData): React.ReactNode {
+    const vault = chainVaultToVault(v);
+    const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
+    const isMorphoVault = v.kind === "morpho";
+    const tvlDisplay = formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol);
+    const [tvlValue, ...tvlSymbolParts] = tvlDisplay.split(" ");
+    const tvlSymbol = tvlSymbolParts.join(" ");
+
+    return (
+      <article
+        key={v.address}
+        className="flex flex-col rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]"
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <VaultAvatar chainId={v.chainId} />
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={() => onView(v.address)}
+                className="min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-900"
+              >
+                <p className="truncate text-sm font-semibold text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-100">
+                  {v.name}
+                </p>
+              </button>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                  {v.address.slice(0, 6)}…{v.address.slice(-4)}
+                </span>
+                <span className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#afafb2]">
+                  {getChainShortName(v.chainId)}
+                </span>
+              </div>
+            </div>
+          </div>
+          <StatusPill paused={v.isPaused} />
+        </div>
+
+        {hasPosition && (
+          <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-800 dark:bg-emerald-900/25">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
+              Invested
+            </span>
+            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
+              {formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+            </span>
+          </div>
+        )}
+
+        <div className="mb-4">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Assets</p>
+          <SupportedAssetsCell v={v} />
+        </div>
+
+        <div className="mb-4 grid grid-cols-2 gap-3 border-t border-zinc-200 pt-3 dark:border-[#1b1b1f]">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">TVL</p>
+            <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {tvlValue}
+              {tvlSymbol ? ` ${tvlSymbol}` : ""}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {isMorphoVault ? "7D net APY" : "7D APY"}
+            </p>
+            <div className="mt-1 text-sm font-semibold">
+              <ApyCell v={v} />
+            </div>
+          </div>
+          {isMorphoVault && (
+            <div className="col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Liquidity</p>
+              <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+              </p>
+            </div>
+          )}
+          {!isMorphoVault && !isRe7 && (
+            <>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Perf. fee
+                </p>
+                <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  {feePercent(v.performanceFee)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Mgmt. fee
+                </p>
+                <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  {feePercent(v.managementFee)}
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="mt-auto">
+          <button
+            type="button"
+            onClick={() => onDeposit(vault)}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14" />
+              <path d="m5 12 7 7 7-7" />
+            </svg>
+            Deposit
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   return (
     <section className="mb-12">
       <div className="mb-4 flex items-start gap-3">
@@ -412,55 +566,65 @@ function PlatformSection({
       </div>
 
       {isLoading ? (
-        <SkeletonSection colCount={headers.length} rows={vaults.length || 3} gridTpl={gridTpl} />
+        <>
+          <MobileSkeletonSection rows={vaults.length || 3} />
+          <div className="hidden md:block">
+            <SkeletonSection colCount={headers.length} rows={vaults.length || 3} gridTpl={gridTpl} />
+          </div>
+        </>
       ) : filtered.length === 0 ? (
         <p className="py-8 text-sm text-zinc-500 dark:text-zinc-400">No vaults match your search.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
-            <thead>
-              <tr>
-                {headers.map((h) => (
-                  <th
-                    key={h.key}
-                    className="px-3 py-1 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-300"
-                  >
-                    {h.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((v) => {
-                const row = buildRow(v);
-                const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
-                const cellTone = hasPosition
-                  ? "bg-emerald-50/25 border-emerald-200/80 dark:bg-emerald-900/20 dark:border-emerald-800/70"
-                  : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-[#141417] dark:border-[#1b1b1f]";
-                return (
-                  <tr key={v.address} className="transition hover:opacity-95">
-                    {headers.map((h, idx) => (
-                      <td
-                        key={h.key}
-                        className={
-                          `min-w-0 border-y px-3 py-4 align-middle shadow-sm shadow-zinc-900/5 ${cellTone} ` +
-                          (idx === 0 ? "rounded-l-xl border-l pl-4" : "") +
-                          (idx === headers.length - 1 ? "rounded-r-xl border-r pr-4" : "")
-                        }
-                      >
-                        {h.key === "action" ? (
-                          <div className="flex justify-end">{row[h.key]}</div>
-                        ) : (
-                          row[h.key]
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {filtered.map((v) => renderVaultCard(v))}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[980px] border-separate border-spacing-y-2">
+              <thead>
+                <tr>
+                  {headers.map((h) => (
+                    <th
+                      key={h.key}
+                      className="px-3 py-1 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-300"
+                    >
+                      {h.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((v) => {
+                  const row = buildRow(v);
+                  const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
+                  const cellTone = hasPosition
+                    ? "bg-emerald-50/25 border-emerald-200/80 dark:bg-emerald-900/20 dark:border-emerald-800/70"
+                    : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-[#141417] dark:border-[#1b1b1f]";
+                  return (
+                    <tr key={v.address} className="transition hover:opacity-95">
+                      {headers.map((h, idx) => (
+                        <td
+                          key={h.key}
+                          className={
+                            `min-w-0 border-y px-3 py-4 align-middle shadow-sm shadow-zinc-900/5 ${cellTone} ` +
+                            (idx === 0 ? "rounded-l-xl border-l pl-4" : "") +
+                            (idx === headers.length - 1 ? "rounded-r-xl border-r pr-4" : "")
+                          }
+                        >
+                          {h.key === "action" ? (
+                            <div className="flex justify-end">{row[h.key]}</div>
+                          ) : (
+                            row[h.key]
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </section>
   );
@@ -543,10 +707,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
             vaults={platformVaults}
             isLoading={isLoading}
             searchQuery={searchQuery}
-            onDeposit={(vault) => {
-              setSelectedVault(vault);
-              setModalOpen(true);
-            }}
+            onDeposit={(vault) => router.push(`/vaults/${vault.address}`)}
             onView={(address) => router.push(`/vaults/${address}`)}
           />
         );

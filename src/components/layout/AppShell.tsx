@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
       />
-      <div className="pt-16 lg:pl-64">
+      <div className="pt-16 xl:pl-64">
         <main className="min-h-[calc(100vh-4rem)] bg-white dark:bg-[#000000]">{children}</main>
       </div>
     </div>

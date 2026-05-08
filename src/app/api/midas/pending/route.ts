@@ -16,7 +16,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
 
 export async function GET(request: Request) {
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   }
 
   const wallet = address?.toLowerCase() ?? "all";
-  const cacheKey = `midas:pending:${chainId}:${token.toLowerCase()}:${wallet}`;
+  const cacheKey = redisKey(`midas:pending:${chainId}:${token.toLowerCase()}:${wallet}`);
 
   try {
     const data = await cachedFetch(cacheKey, TTL.PENDING, () =>

@@ -44,6 +44,24 @@ export const TTL = {
   PENDING: envTtl("REDIS_TTL_PENDING", 60),       // default 1 min
 };
 
+// ── Key namespace ─────────────────────────────────────────────────────────────
+
+const KEY_PREFIX = process.env.REDIS_KEY_PREFIX
+  ? `${process.env.REDIS_KEY_PREFIX}:`
+  : "";
+
+/**
+ * Prepend the REDIS_KEY_PREFIX namespace (if set) to a cache key.
+ * Use this for every Redis key to isolate environments that share one instance.
+ *
+ * @example
+ *   REDIS_KEY_PREFIX=openvault  →  redisKey("midas:apys") === "openvault:midas:apys"
+ *   REDIS_KEY_PREFIX unset      →  redisKey("midas:apys") === "midas:apys"
+ */
+export function redisKey(key: string): string {
+  return `${KEY_PREFIX}${key}`;
+}
+
 // ── Singleton connection ──────────────────────────────────────────────────────
 
 declare global {

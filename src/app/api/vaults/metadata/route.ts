@@ -20,7 +20,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL, serialize } from "@/lib/redis";
+import { cachedFetch, TTL, serialize, redisKey } from "@/lib/redis";
 import { fetchOnChainMeta } from "@/lib/onchain";
 import { isAllowedVault } from "@/lib/allowlist";
 import type { PlatformKind } from "@/lib/vaultConfig";
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unknown vault address" }, { status: 403 });
   }
 
-  const cacheKey = `vault:meta:${chainId}:${address.toLowerCase()}`;
+  const cacheKey = redisKey(`vault:meta:${chainId}:${address.toLowerCase()}`);
 
   try {
     const data = await cachedFetch(cacheKey, TTL.META, () =>
