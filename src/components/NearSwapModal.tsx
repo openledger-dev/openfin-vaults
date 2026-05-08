@@ -18,7 +18,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { formatUnits } from "viem";
 import type { Address } from "viem";
 import { useAccount, useBalance, useReadContract } from "wagmi";
-import { useAppKit } from "@reown/appkit/react";
+import { useAppKit, useAppKitState } from "@reown/appkit/react";
 import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClipboard, HiOutlineClock } from "react-icons/hi";
 import { useSwap, EVM_CHAINS, parseEvmAsset } from "@/hooks/useSwap";
 import type { SwapToken, SwapStatusResponse, ExplorerTransaction, ExplorerHistoryResponse } from "@/types/swap";
@@ -438,10 +438,64 @@ function SwapStatusCard({ statusData, onRecheck, isChecking }: SwapStatusCardPro
   );
 }
 
+/** Shown while AppKit hydrates so we don’t flash “Connect Wallet” for connected users. */
+function SwapFormSkeleton() {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading swap form">
+      <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
+        <div className={`mb-3 h-3 w-24 ${bar}`} />
+        <div className={`h-12 w-full rounded-xl ${bar}`} />
+      </div>
+      <div className="flex justify-center">
+        <div className={`h-9 w-9 shrink-0 rounded-full ${bar}`} />
+      </div>
+      <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
+        <div className={`mb-3 h-3 w-28 ${bar}`} />
+        <div className={`h-12 w-full rounded-xl ${bar}`} />
+      </div>
+      <div>
+        <div className={`mb-1.5 h-3 w-20 ${bar}`} />
+        <div className={`h-11 w-full rounded-xl ${bar}`} />
+      </div>
+      <div className={`mt-5 h-12 w-full rounded-lg ${bar}`} />
+    </div>
+  );
+}
+
+function TrackPanelSkeleton() {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading track">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1b1b1f] dark:bg-[#0f1014]"
+        >
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 shrink-0 rounded-full ${bar}`} />
+            <div className={`h-4 flex-1 ${bar}`} />
+            <div className={`h-5 w-16 shrink-0 rounded-full ${bar}`} />
+          </div>
+          <div className={`mt-2.5 h-3 w-[85%] ${bar}`} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Swap content (used both as a page and can be embedded anywhere) ───────────
 export function SwapContent() {
   const { address: userAddress, isConnected } = useAccount();
   const { open: openWallet } = useAppKit();
+  const { initialized } = useAppKitState();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const showSkeleton = !mounted || !initialized;
 
   // ── Modal tab state ────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"swap" | "track">("swap");
@@ -680,7 +734,13 @@ export function SwapContent() {
           </div>
 
           {activeTab === "track" ? (
-            <TrackPanel walletAddress={userAddress} />
+            showSkeleton ? (
+              <TrackPanelSkeleton />
+            ) : (
+              <TrackPanel walletAddress={userAddress} />
+            )
+          ) : showSkeleton ? (
+            <SwapFormSkeleton />
           ) : !isConnected ? (
             <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-4 py-12 text-center dark:border-[#1b1b1f] dark:bg-[#141417]">
               <p className="mb-6 text-base text-zinc-500 dark:text-zinc-400">
