@@ -22,7 +22,7 @@ export const metadata: Metadata = {
       "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
     images: [
       {
-        url: "/og-image.png",
+        url: "/vault-og-image.png",
       },
     ],
   },
