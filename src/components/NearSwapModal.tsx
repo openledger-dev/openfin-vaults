@@ -18,7 +18,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { formatUnits } from "viem";
 import type { Address } from "viem";
 import { useAccount, useBalance, useReadContract } from "wagmi";
-import { useAppKit } from "@reown/appkit/react";
+import { useAppKit, useAppKitState } from "@reown/appkit/react";
 import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClipboard, HiOutlineClock } from "react-icons/hi";
 import { useSwap, EVM_CHAINS, parseEvmAsset } from "@/hooks/useSwap";
 import type { SwapToken, SwapStatusResponse, ExplorerTransaction, ExplorerHistoryResponse } from "@/types/swap";
@@ -104,6 +104,16 @@ function TokenSelect({ label, tokens, value, onChange, disabled, filterFn }: Tok
           </option>
         ))}
       </select>
+    </div>
+  );
+}
+
+function TokenSelectSkeleton({ label }: { label: string }) {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
+  return (
+    <div aria-busy="true" aria-label={`Loading ${label}`}>
+      <div className={`mb-1.5 block h-3 w-28 max-w-[70%] ${bar}`} />
+      <div className={`h-11 w-full rounded-xl border border-zinc-300 dark:border-[#1b1b1f] ${bar}`} />
     </div>
   );
 }
@@ -438,10 +448,64 @@ function SwapStatusCard({ statusData, onRecheck, isChecking }: SwapStatusCardPro
   );
 }
 
+/** Shown while AppKit hydrates so we don’t flash “Connect Wallet” for connected users. */
+function SwapFormSkeleton() {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading swap form">
+      <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
+        <div className={`mb-3 h-3 w-24 ${bar}`} />
+        <div className={`h-12 w-full rounded-xl ${bar}`} />
+      </div>
+      <div className="flex justify-center">
+        <div className={`h-9 w-9 shrink-0 rounded-full ${bar}`} />
+      </div>
+      <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
+        <div className={`mb-3 h-3 w-28 ${bar}`} />
+        <div className={`h-12 w-full rounded-xl ${bar}`} />
+      </div>
+      <div>
+        <div className={`mb-1.5 h-3 w-20 ${bar}`} />
+        <div className={`h-11 w-full rounded-xl ${bar}`} />
+      </div>
+      <div className={`mt-5 h-12 w-full rounded-lg ${bar}`} />
+    </div>
+  );
+}
+
+function TrackPanelSkeleton() {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading track">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-3 dark:border-[#1b1b1f] dark:bg-[#0f1014]"
+        >
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 shrink-0 rounded-full ${bar}`} />
+            <div className={`h-4 flex-1 ${bar}`} />
+            <div className={`h-5 w-16 shrink-0 rounded-full ${bar}`} />
+          </div>
+          <div className={`mt-2.5 h-3 w-[85%] ${bar}`} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Swap content (used both as a page and can be embedded anywhere) ───────────
 export function SwapContent() {
   const { address: userAddress, isConnected } = useAccount();
   const { open: openWallet } = useAppKit();
+  const { initialized } = useAppKitState();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const showSkeleton = !mounted || !initialized;
 
   // ── Modal tab state ────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"swap" | "track">("swap");
@@ -680,7 +744,13 @@ export function SwapContent() {
           </div>
 
           {activeTab === "track" ? (
-            <TrackPanel walletAddress={userAddress} />
+            showSkeleton ? (
+              <TrackPanelSkeleton />
+            ) : (
+              <TrackPanel walletAddress={userAddress} />
+            )
+          ) : showSkeleton ? (
+            <SwapFormSkeleton />
           ) : !isConnected ? (
             <div className="rounded-xl border border-dashed border-[#e1e5e1] bg-[#f1f2f0] px-4 py-12 text-center dark:border-[#1b1b1f] dark:bg-[#141417]">
               <p className="mb-6 text-base text-zinc-500 dark:text-zinc-400">
@@ -696,10 +766,7 @@ export function SwapContent() {
             </div>
           ) : (
             <>
-              {/* ── Token loading / error ─────────────────────────────────────── */}
-              {tokensLoading && (
-                <p className="mb-4 text-sm text-zinc-400 dark:text-zinc-500">Loading tokens…</p>
-              )}
+              {/* ── Token fetch error ─────────────────────────────────────────── */}
               {tokensError && (
                 <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 dark:border-red-800 dark:bg-red-900/30">
                   <p className="text-xs text-red-700 dark:text-red-300">
@@ -829,14 +896,18 @@ export function SwapContent() {
               <div className="space-y-3">
                 {/* From */}
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
-                  <TokenSelect
-                    label="You send"
-                    tokens={tokens}
-                    value={fromToken}
-                    onChange={(t) => { setFromToken(t); reset(); }}
-                    disabled={isBusy || tokensLoading}
-                    filterFn={(t) => EVM_BLOCKCHAINS.has(t.blockchain)}
-                  />
+                  {tokensLoading ? (
+                    <TokenSelectSkeleton label="You send" />
+                  ) : (
+                    <TokenSelect
+                      label="You send"
+                      tokens={tokens}
+                      value={fromToken}
+                      onChange={(t) => { setFromToken(t); reset(); }}
+                      disabled={isBusy}
+                      filterFn={(t) => EVM_BLOCKCHAINS.has(t.blockchain)}
+                    />
+                  )}
                   {/* Balance row */}
                   {fromToken && (
                     <div className="mt-2 flex items-center justify-between">
@@ -918,20 +989,24 @@ export function SwapContent() {
 
                 {/* To */}
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
-                  <TokenSelect
-                    label="You receive"
-                    tokens={tokens}
-                    value={toToken}
-                    onChange={(t) => {
-                      setToToken(t);
-                      reset();
-                      // Clear recipient when switching to a non-EVM destination
-                      // so the user is prompted to enter the correct address format
-                      if (!EVM_BLOCKCHAINS.has(t.blockchain)) setRecipient("");
-                      else setRecipient(userAddress ?? "");
-                    }}
-                    disabled={isBusy || tokensLoading}
-                  />
+                  {tokensLoading ? (
+                    <TokenSelectSkeleton label="You receive" />
+                  ) : (
+                    <TokenSelect
+                      label="You receive"
+                      tokens={tokens}
+                      value={toToken}
+                      onChange={(t) => {
+                        setToToken(t);
+                        reset();
+                        // Clear recipient when switching to a non-EVM destination
+                        // so the user is prompted to enter the correct address format
+                        if (!EVM_BLOCKCHAINS.has(t.blockchain)) setRecipient("");
+                        else setRecipient(userAddress ?? "");
+                      }}
+                      disabled={isBusy}
+                    />
+                  )}
                   {formattedAmountOut && (
                     <div className="mt-3 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-2.5 shadow-sm dark:border-[#1b1b1f] dark:bg-[#0b0c10]">
                       <span className="flex-1 text-base font-medium text-zinc-900 dark:text-zinc-100">
