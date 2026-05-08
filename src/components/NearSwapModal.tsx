@@ -108,6 +108,16 @@ function TokenSelect({ label, tokens, value, onChange, disabled, filterFn }: Tok
   );
 }
 
+function TokenSelectSkeleton({ label }: { label: string }) {
+  const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
+  return (
+    <div aria-busy="true" aria-label={`Loading ${label}`}>
+      <div className={`mb-1.5 block h-3 w-28 max-w-[70%] ${bar}`} />
+      <div className={`h-11 w-full rounded-xl border border-zinc-300 dark:border-[#1b1b1f] ${bar}`} />
+    </div>
+  );
+}
+
 // ── Status colour for saved swaps ─────────────────────────────────────────────
 function savedStatusDot(status?: string) {
   if (status === "SUCCESS")  return "bg-emerald-500";
@@ -756,10 +766,7 @@ export function SwapContent() {
             </div>
           ) : (
             <>
-              {/* ── Token loading / error ─────────────────────────────────────── */}
-              {tokensLoading && (
-                <p className="mb-4 text-sm text-zinc-400 dark:text-zinc-500">Loading tokens…</p>
-              )}
+              {/* ── Token fetch error ─────────────────────────────────────────── */}
               {tokensError && (
                 <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 dark:border-red-800 dark:bg-red-900/30">
                   <p className="text-xs text-red-700 dark:text-red-300">
@@ -889,14 +896,18 @@ export function SwapContent() {
               <div className="space-y-3">
                 {/* From */}
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
-                  <TokenSelect
-                    label="You send"
-                    tokens={tokens}
-                    value={fromToken}
-                    onChange={(t) => { setFromToken(t); reset(); }}
-                    disabled={isBusy || tokensLoading}
-                    filterFn={(t) => EVM_BLOCKCHAINS.has(t.blockchain)}
-                  />
+                  {tokensLoading ? (
+                    <TokenSelectSkeleton label="You send" />
+                  ) : (
+                    <TokenSelect
+                      label="You send"
+                      tokens={tokens}
+                      value={fromToken}
+                      onChange={(t) => { setFromToken(t); reset(); }}
+                      disabled={isBusy}
+                      filterFn={(t) => EVM_BLOCKCHAINS.has(t.blockchain)}
+                    />
+                  )}
                   {/* Balance row */}
                   {fromToken && (
                     <div className="mt-2 flex items-center justify-between">
@@ -978,20 +989,24 @@ export function SwapContent() {
 
                 {/* To */}
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
-                  <TokenSelect
-                    label="You receive"
-                    tokens={tokens}
-                    value={toToken}
-                    onChange={(t) => {
-                      setToToken(t);
-                      reset();
-                      // Clear recipient when switching to a non-EVM destination
-                      // so the user is prompted to enter the correct address format
-                      if (!EVM_BLOCKCHAINS.has(t.blockchain)) setRecipient("");
-                      else setRecipient(userAddress ?? "");
-                    }}
-                    disabled={isBusy || tokensLoading}
-                  />
+                  {tokensLoading ? (
+                    <TokenSelectSkeleton label="You receive" />
+                  ) : (
+                    <TokenSelect
+                      label="You receive"
+                      tokens={tokens}
+                      value={toToken}
+                      onChange={(t) => {
+                        setToToken(t);
+                        reset();
+                        // Clear recipient when switching to a non-EVM destination
+                        // so the user is prompted to enter the correct address format
+                        if (!EVM_BLOCKCHAINS.has(t.blockchain)) setRecipient("");
+                        else setRecipient(userAddress ?? "");
+                      }}
+                      disabled={isBusy}
+                    />
+                  )}
                   {formattedAmountOut && (
                     <div className="mt-3 flex items-center rounded-xl border border-zinc-300 bg-white/95 px-3 py-2.5 shadow-sm dark:border-[#1b1b1f] dark:bg-[#0b0c10]">
                       <span className="flex-1 text-base font-medium text-zinc-900 dark:text-zinc-100">
