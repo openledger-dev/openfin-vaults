@@ -5,13 +5,26 @@
  * Returns all tokens supported for cross-chain swaps.
  * Cached for 5 minutes since the token list rarely changes.
  */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
 export const revalidate = 300; // 5-minute ISR cache
 
-export async function GET() {
+// Token list rarely changes; 10 calls per IP per minute is generous
+const RATE_LIMIT = 10;
+const WINDOW_SEC = 60;
+
+export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(ip, "swap:tokens", RATE_LIMIT, WINDOW_SEC);
+  if (rl.exceeded) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? WINDOW_SEC) } }
+    );
+  }
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

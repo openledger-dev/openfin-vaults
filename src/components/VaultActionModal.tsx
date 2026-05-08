@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useAccount, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseUnits, formatUnits, maxUint256, type Abi } from "viem";
+import { parseUnits, formatUnits, type Abi } from "viem";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import type { Vault } from "@/types/vault";
@@ -96,6 +96,8 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
       { address: vaultAddr!, abi: VAULT_READ_ABI as Abi, functionName: "getPendingRedeemForAsset", args: [assetAddr!, userAddress!] },
       // [5] claimable redeem for this asset
       { address: vaultAddr!, abi: VAULT_READ_ABI as Abi, functionName: "getClaimableRedeemForAsset", args: [assetAddr!, userAddress!] },
+      // [6] vault share token decimals
+      { address: vaultAddr!, abi: VAULT_READ_ABI as Abi, functionName: "decimals" },
     ],
     query: { enabled },
   });
@@ -121,6 +123,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   const claimableRedeem = reads?.[5]?.status === "success"
     ? reads[5].result as { assets: bigint; shares: bigint }
     : undefined;
+  const shareDecimals  = reads?.[6]?.status === "success" ? reads[6].result as number : 18;
 
   // ── Parsed deposit amount ─────────────────────────────────────────────────
   const depositAmountParsed = useMemo(() => {
@@ -129,9 +132,9 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   }, [depositAmount, decimals]);
 
   const requestSharesParsed = useMemo(() => {
-    try { return requestRedeemShares ? parseUnits(requestRedeemShares, 18) : BigInt(0); }
+    try { return requestRedeemShares ? parseUnits(requestRedeemShares, shareDecimals) : BigInt(0); }
     catch { return BigInt(0); }
-  }, [requestRedeemShares]);
+  }, [requestRedeemShares, shareDecimals]);
 
   const needsApprove = assetAllowance !== undefined && depositAmountParsed > BigInt(0) && assetAllowance < depositAmountParsed;
   const needsShareApprove = shareAllowance !== undefined && requestSharesParsed > BigInt(0) && shareAllowance < requestSharesParsed;
@@ -139,8 +142,9 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   function handleApproveAsset() {
-    if (!assetAddr || !vaultAddr) return;
-    writeContract({ address: assetAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, maxUint256] });
+    if (!assetAddr || !vaultAddr || depositAmountParsed <= BigInt(0)) return;
+    // Approve exactly the deposit amount — never unlimited allowance
+    writeContract({ address: assetAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, depositAmountParsed] });
   }
 
   function handleDeposit() {
@@ -154,9 +158,9 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
   }
 
   function handleApproveShares() {
-    if (!vaultAddr) return;
-    // Vault spends its own shares from owner (_spendAllowance in requestRedeemOfAsset)
-    writeContract({ address: vaultAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, maxUint256] });
+    if (!vaultAddr || requestSharesParsed <= BigInt(0)) return;
+    // Approve exactly the redeem amount — never unlimited allowance
+    writeContract({ address: vaultAddr, abi: ERC20_ABI, functionName: "approve", args: [vaultAddr, requestSharesParsed] });
   }
 
   function handleRequestRedeem() {
@@ -441,7 +445,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                         Pending redemption (≤72h)
                       </p>
                       <p className="mb-3 text-sm text-zinc-800 dark:text-zinc-100">
-                        {formatAsset(pendingRedeem.shares, 18, vault.symbol)} shares escrowed
+                        {formatAsset(pendingRedeem.shares, shareDecimals, vault.symbol)} shares escrowed
                       </p>
                       <button type="button" onClick={handleCancelRedeem} disabled={isBusy} className="w-full rounded-xl border border-amber-300 bg-white/80 px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-white dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/60">
                         {isBusy ? "Cancelling..." : "Cancel Request"}
@@ -453,7 +457,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                   <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
                     Share balance:{" "}
                     <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {shareBalance !== undefined ? formatAsset(shareBalance, 18, vault.symbol) : "—"}
+                      {shareBalance !== undefined ? formatAsset(shareBalance, shareDecimals, vault.symbol) : "—"}
                     </span>
                   </p>
                   <label htmlFor="redeem-shares" className="mb-2 block text-sm font-medium text-zinc-600 dark:text-zinc-300">
@@ -472,7 +476,7 @@ export function VaultActionModal({ vault, open, onClose, onTxCompleted }: VaultA
                     />
                     <button
                       type="button"
-                      onClick={() => shareBalance !== undefined && setRequestRedeemShares(formatUnits(shareBalance, 18))}
+                      onClick={() => shareBalance !== undefined && setRequestRedeemShares(formatUnits(shareBalance, shareDecimals))}
                       disabled={isBusy || !shareBalance || shareBalance <= BigInt(0)}
                       className="mr-1.5 shrink-0 rounded-md bg-zinc-200 px-2 py-1 text-[0.6875rem] font-bold uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-300 disabled:opacity-40 dark:border dark:border-[#1b1b1f] dark:bg-[#27272b] dark:text-[#ffffff] dark:hover:bg-[#afafb2]"
                     >

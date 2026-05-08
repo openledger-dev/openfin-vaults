@@ -8,12 +8,12 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasApys } from "@/lib/midasApi";
 
 export async function GET() {
   try {
-    const data = await cachedFetch("midas:apys", TTL.APY, fetchMidasApys);
+    const data = await cachedFetch(redisKey("midas:apys"), TTL.APY, fetchMidasApys);
     return NextResponse.json(data);
   } catch (err) {
     console.error("[/api/midas/apys]", err);

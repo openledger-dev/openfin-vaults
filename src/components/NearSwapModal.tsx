@@ -172,11 +172,15 @@ function TrackPanel({ walletAddress }: { walletAddress?: string }) {
     setError(null);
     try {
       const params = new URLSearchParams({
-        search: walletAddress,
+        address: walletAddress,
         page: String(pageNum),
         perPage: String(perPage),
       });
-      const res = await fetch(`/api/swap/history?${params.toString()}`);
+      const res = await fetch(`/api/swap/history?${params.toString()}`, {
+        // X-Wallet-Address lets the server verify we're only requesting
+        // history for the currently connected wallet (see history/route.ts)
+        headers: { "X-Wallet-Address": walletAddress },
+      });
       if (res.status === 401) { setNoJwt(true); return; }
       const data: ExplorerHistoryResponse = await res.json();
       if (!res.ok) { setError((data as { error?: string }).error ?? "Failed to load history"); return; }

@@ -381,13 +381,6 @@ function PlatformSection({
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            onClick={() => onView(v.address)}
-            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-5 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
-          >
-            View
-          </button>
-          <button
-            type="button"
             onClick={() => onDeposit(vault)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
@@ -536,18 +529,11 @@ function PlatformSection({
           )}
         </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => onView(v.address)}
-            className="rounded-lg border border-[#D7D9D5] bg-[#DCDDDA] px-4 py-2 text-sm font-semibold text-zinc-900 shadow-sm transition hover:bg-[#D1D4CF] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
-          >
-            View
-          </button>
+        <div className="mt-auto">
           <button
             type="button"
             onClick={() => onDeposit(vault)}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             <svg
               aria-hidden
@@ -721,10 +707,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
             vaults={platformVaults}
             isLoading={isLoading}
             searchQuery={searchQuery}
-            onDeposit={(vault) => {
-              setSelectedVault(vault);
-              setModalOpen(true);
-            }}
+            onDeposit={(vault) => router.push(`/vaults/${vault.address}`)}
             onView={(address) => router.push(`/vaults/${address}`)}
           />
         );

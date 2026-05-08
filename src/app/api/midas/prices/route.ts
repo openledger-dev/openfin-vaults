@@ -9,12 +9,12 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPrices } from "@/lib/midasApi";
 
 export async function GET() {
   try {
-    const data = await cachedFetch("midas:prices", TTL.PRICE, fetchMidasPrices);
+    const data = await cachedFetch(redisKey("midas:prices"), TTL.PRICE, fetchMidasPrices);
     return NextResponse.json(data);
   } catch (err) {
     console.error("[/api/midas/prices]", err);

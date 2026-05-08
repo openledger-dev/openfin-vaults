@@ -21,12 +21,34 @@
  * }
  */
 import { NextRequest, NextResponse } from "next/server";
+import { validateQuoteBody } from "@/lib/swapValidation";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
+// 20 quote requests per IP per minute
+const RATE_LIMIT = 20;
+const WINDOW_SEC = 60;
+
 export async function POST(req: NextRequest) {
+  // ── Rate limit ───────────────────────────────────────────────────────────
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(ip, "swap:quote", RATE_LIMIT, WINDOW_SEC);
+  if (rl.exceeded) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? WINDOW_SEC) } }
+    );
+  }
+
   try {
-    const body = await req.json();
+    const raw = await req.json().catch(() => null);
+
+    // ── Validate + sanitize body ─────────────────────────────────────────
+    const result = validateQuoteBody(raw);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -34,19 +56,18 @@ export async function POST(req: NextRequest) {
     const jwt = process.env.ONECLICK_JWT_TOKEN;
     if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
 
+    // Forward only the validated, sanitized body — never the raw input
     const res = await fetch(`${ONE_CLICK_BASE}/v0/quote`, {
       method: "POST",
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify(result.value),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      // Log upstream error details for debugging
       console.error("[swap/quote] 1Click API error", {
         status: res.status,
-        body: JSON.stringify(body),
         response: JSON.stringify(data),
       });
     }

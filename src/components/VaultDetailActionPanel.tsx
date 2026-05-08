@@ -68,6 +68,8 @@ interface VaultDetailActionPanelProps {
   handleApproveShares: () => void;
   handleRequestRedeem: () => void;
   openWalletConnect: () => void;
+  depositSharesOutFmt: string;
+  redeemAssetsOutFmt: string;
 }
 
 export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
@@ -116,6 +118,8 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
     handleApproveShares,
     handleRequestRedeem,
     openWalletConnect,
+    depositSharesOutFmt,
+    redeemAssetsOutFmt,
   } = props;
 
   return (
@@ -230,7 +234,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
                 <TxSummaryRow
                   label="You will receive"
-                  value={`${depositAmount || "0.00"} ${(vault.symbol || "shares").toUpperCase()}`}
+                  value={depositSharesOutFmt}
                 />
               </div>
 
@@ -399,7 +403,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
               <div className="mb-4 rounded-xl bg-white/70 px-1 dark:bg-[#141417]/70">
                 <TxSummaryRow
                   label="You will receive"
-                  value={`${redeemAmount || "0.00"} ${vaultKind === "ultrayield" ? withdrawAssetSym : assetSymForDisplay}`}
+                  value={redeemAssetsOutFmt}
                 />
               </div>
 

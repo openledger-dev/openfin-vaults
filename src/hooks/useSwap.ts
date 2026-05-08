@@ -136,6 +136,10 @@ export function useSwap() {
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Stores the exact raw amount the user entered (in token base units).
+  // Compared against quote.quote.amountIn before dispatching the tx to detect
+  // any server-side manipulation of the quoted amount.
+  const expectedAmountRef = useRef<string>("");
 
   // ── Stop polling ──────────────────────────────────────────────────────────────
   const stopPolling = useCallback(() => {
@@ -225,6 +229,8 @@ export function useSwap() {
       try {
         const { originAsset, destinationAsset, amount, recipient, refundTo, slippageBps } = params;
         const amountRaw = parseUnits(amount, originAsset.decimals).toString();
+        // Record the amount the user entered so we can verify the quote response
+        expectedAmountRef.current = amountRaw;
         // Give 10 min deadline — enough for slow networks to mine the deposit tx
         const deadline = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -281,6 +287,18 @@ export function useSwap() {
     const originAssetId = quote.quoteRequest.originAsset;
     const amountIn = quote.quote.amountIn;
     const { contractAddress, isNative, evmChainId } = parseEvmAsset(originAssetId);
+
+    // ── Amount integrity check ──────────────────────────────────────────────
+    // Verify the amount the API says to send matches what the user originally
+    // entered. A mismatch could indicate a tampered quote response.
+    const expected = expectedAmountRef.current;
+    if (expected && BigInt(amountIn) !== BigInt(expected)) {
+      setQuoteError(
+        `Quote amount mismatch: expected ${expected} but server returned ${amountIn}. Please request a new quote.`
+      );
+      setSwapStatus("error");
+      return;
+    }
 
     setSwapStatus("awaiting_wallet");
     setQuoteError(null);
@@ -349,6 +367,7 @@ export function useSwap() {
     setSwapDetails(null);
     setQuoteError(null);
     setStatusMessage("");
+    expectedAmountRef.current = "";
     resetNative();
     resetErc20();
   }, [stopPolling, resetNative, resetErc20]);

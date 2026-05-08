@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContracts } from "wagmi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { parseUnits, formatUnits, maxUint256 } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import {
   HiOutlineDocumentDuplicate,
   HiOutlineExternalLink,
@@ -19,7 +19,8 @@ import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
-import type { MidasApyMap, MidasPriceMap, MidasPendingRedemption } from "@/lib/midasApi";
+import { recordTermsAcceptance, hasAcceptedTerms } from "@/lib/termsAudit";
+import type { MidasApyMap, MidasPriceMap, MidasTvlMap, MidasPendingRedemption } from "@/lib/midasApi";
 import type { MorphoVaultApy } from "@/lib/morphoApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
 import { getChainShortName, getAddressExplorerLink, getTxExplorerLink } from "@/lib/chains";
@@ -87,7 +88,29 @@ const MIDAS_REDEEM_ABI = [
     type: "function",
     stateMutability: "view",
     inputs: [],
-    outputs: [{ type: "uint256" }], // 1e18 = 100%
+    // ONE_HUNDRED_PERCENT = 10_000 → 1% = 100
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    // Auto-generated getter for public mapping(address => TokenConfig)
+    // TokenConfig { dataFeed, fee (ONE_HUNDRED_PERCENT = 10_000), allowance, stable }
+    name: "tokensConfig",
+    type: "function",
+    stateMutability: "view",
+    inputs:  [{ name: "token", type: "address" }],
+    outputs: [
+      { name: "dataFeed",  type: "address" },
+      { name: "fee",       type: "uint256" },
+      { name: "allowance", type: "uint256" },
+      { name: "stable",    type: "bool"    },
+    ],
+  },
+  {
+    name: "getPaymentTokens",
+    type: "function",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address[]" }],
   },
 ] as const;
 
@@ -244,13 +267,15 @@ export default function VaultDetailPage() {
         midasApiKey:            entry.midasApiKey,
         depositVaultAddress:    entry.depositVaultAddress,
         redemptionVaultAddress: entry.redemptionVaultAddress,
+        assets:                 entry.assets,
       };
     }
     return null;
   }, [vaultAddress]);
 
-  const midasDepositVault    = vaultConfig?.depositVaultAddress;
-  const midasRedemptionVault = vaultConfig?.redemptionVaultAddress;
+  const midasDepositVault         = vaultConfig?.depositVaultAddress;
+  const midasRedemptionVault      = vaultConfig?.redemptionVaultAddress;
+  const midasPrimaryPaymentToken  = vaultConfig?.assets?.[0]?.address as `0x${string}` | undefined;
 
   const vaultKind    = vaultConfig?.kind    ?? "ultrayield";
   const vaultChainId = vaultConfig?.chainId ?? 1;
@@ -318,6 +343,18 @@ export default function VaultDetailPage() {
       }),
   });
 
+  const { data: midasTvlMap, isLoading: midasTvlLoading } = useQuery({
+    queryKey: ["midasDetailTvls"],
+    enabled: vaultKind === "midas",
+    staleTime: 10 * 60 * 1_000,
+    gcTime:    20 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/midas/tvl").then((r) => {
+        if (!r.ok) throw new Error(`Midas TVL API error: ${r.status}`);
+        return r.json() as Promise<MidasTvlMap>;
+      }),
+  });
+
   const { data: midasPendingRedemptions = [], isLoading: midasPendingLoading } = useQuery({
     queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
     enabled: vaultKind === "midas" && !!vaultAddress && !!userAddress,
@@ -343,26 +380,65 @@ export default function VaultDetailPage() {
     query: { enabled: !!midasRedemptionVault },
   });
   const midasInstantFeeRaw = midasFeeData?.[0]?.status === "success" ? (midasFeeData[0].result as bigint) : undefined;
-  const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 1e16 : undefined;
+  // ManageableVault: ONE_HUNDRED_PERCENT = 10_000 → divide by 100 to get a plain percentage
+  const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 100 : undefined;
+
+  // ── Discover payment tokens when vault has no static assets config ────────
+  // getPaymentTokens() returns the on-chain set; we use element [0] as the
+  // primary token for the tokensConfig fee lookup.
+  const { data: paymentTokensData } = useReadContracts({
+    contracts: midasRedemptionVault && !midasPrimaryPaymentToken
+      ? [{ address: midasRedemptionVault, abi: MIDAS_REDEEM_ABI, functionName: "getPaymentTokens" as const, chainId: vaultChainId }]
+      : [],
+    query: { enabled: vaultKind === "midas" && !!midasRedemptionVault && !midasPrimaryPaymentToken },
+  });
+  const discoveredPaymentToken = paymentTokensData?.[0]?.status === "success"
+    ? (paymentTokensData[0].result as `0x${string}`[])?.[0]
+    : undefined;
+  const effectivePaymentToken = midasPrimaryPaymentToken ?? discoveredPaymentToken;
+
+  // ── Midas per-token fee (tokensConfig mapping on redemption vault) ─────────
+  const { data: midasTokenFeeData } = useReadContracts({
+    contracts: midasRedemptionVault && effectivePaymentToken
+      ? [{ address: midasRedemptionVault, abi: MIDAS_REDEEM_ABI, functionName: "tokensConfig" as const, args: [effectivePaymentToken], chainId: vaultChainId }]
+      : [],
+    query: { enabled: vaultKind === "midas" && !!midasRedemptionVault && !!effectivePaymentToken },
+  });
+  const midasTokenFeeRaw = midasTokenFeeData?.[0]?.status === "success"
+    ? ((midasTokenFeeData[0].result as unknown as [string, bigint, bigint, boolean])?.[1])
+    : undefined;
+  // Same scale: ONE_HUNDRED_PERCENT = 10_000 → divide by 100
+  const midasTokenFeePct = midasTokenFeeRaw !== undefined
+    ? Number(midasTokenFeeRaw) / 100
+    : undefined;
 
   // ── Derived Midas values ──────────────────────────────────────────────────
-  const midasPrice = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
-  const midasApy   = midasApiKey && midasApyMap   ? (midasApyMap[midasApiKey]   ?? null) : null;
+  const midasPrice  = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
+  const midasApy    = midasApiKey && midasApyMap   ? (midasApyMap[midasApiKey]   ?? null) : null;
+  const midasTvlUsd = midasApiKey && midasTvlMap   ? (midasTvlMap[midasApiKey]   ?? null) : null;
   const USDC_DEC   = 6;
-  // totalSupply is in 18-decimal share units; price is USD per share
-  const midasTvlFormatted = useMemo(() => {
-    if (!vault.totalSupply || midasPrice === null) return "—";
-    const tvl = (Number(vault.totalSupply) / 1e18) * midasPrice;
+
+  function fmtUsd(tvl: number): string {
     if (tvl >= 1_000_000) return `${(tvl / 1_000_000).toFixed(2)}M USD`;
     if (tvl >= 1_000)     return `${(tvl / 1_000).toFixed(2)}K USD`;
     return `${tvl.toFixed(2)} USD`;
-  }, [vault.totalSupply, midasPrice]);
+  }
+
+  // Use the authoritative Midas TVL API value; fall back to totalSupply × price
+  const midasTvlFormatted = useMemo(() => {
+    if (midasTvlUsd !== null) return fmtUsd(midasTvlUsd);
+    if (!vault.totalSupply || midasPrice === null) return "—";
+    const vDec = vault.decimals ?? 18;
+    const tvl = (Number(vault.totalSupply) / 10 ** vDec) * midasPrice;
+    return fmtUsd(tvl);
+  }, [midasTvlUsd, vault.totalSupply, vault.decimals, midasPrice]);
   const midasSharePriceFormatted = midasPrice !== null ? `$${midasPrice.toFixed(6)}` : "—";
   const midasUserValueFormatted = useMemo(() => {
     if (!vault.userShares || midasPrice === null) return "—";
-    const val = (Number(vault.userShares) / 1e18) * midasPrice;
+    const vDec = vault.decimals ?? 18;
+    const val = (Number(vault.userShares) / 10 ** vDec) * midasPrice;
     return `${val.toFixed(4)} USD`;
-  }, [vault.userShares, midasPrice]);
+  }, [vault.userShares, vault.decimals, midasPrice]);
 
   // When the on-chain name() call fails it falls back to the raw address.
   // Use the Morpho API name as a secondary fallback so the page always shows
@@ -494,7 +570,12 @@ export default function VaultDetailPage() {
   // ── State + write contract ────────────────────────────────────────────────
   const [depositAmount, setDepositAmount] = useState("");
   const [redeemAmount, setRedeemAmount]   = useState("");
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(() => {
+    // Pre-check if this wallet+vault combo was already accepted in a prior session
+    if (typeof window === "undefined") return false;
+    try { return hasAcceptedTerms(userAddress ?? "", vaultAddress ?? ""); }
+    catch { return false; }
+  });
   /** 0 = Deposit, 1 = Withdraw/Redeem — local tabs (light UI, same as Carbon Tabs) */
   const [actionTabIdx, setActionTabIdx] = useState(0);
   useEffect(() => {
@@ -590,12 +671,51 @@ export default function VaultDetailPage() {
     return depositAmountParsed * BigInt(10 ** (18 - payDec));
   }, [vaultKind, depositAmountParsed, depositAsset]);
 
+  // ── "You will receive" conversion previews ────────────────────────────────
+  // sharePrice (from useVaultDetail) = (10^vDec * totalAssets) / totalSupply
+  // Units: assetDecimals per share (so it's the price of 1 share in asset terms)
+  // sharesOut = depositAmountParsed * 10^vDec / sharePrice
+  const depositSharesOutFmt = useMemo(() => {
+    const sym = vault.symbol || "shares";
+    if (!depositAmount || depositAmountParsed <= BigInt(0)) return `0.00 ${sym}`;
+    if (vaultKind === "midas") {
+      if (!midasPrice) return `— ${sym}`;
+      const shares = parseFloat(depositAmount) / midasPrice;
+      return `${shares.toFixed(6)} ${sym}`;
+    }
+    if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return `— ${sym}`;
+    const vDec = vault.decimals;
+    const sharesOut = (depositAmountParsed * BigInt(10 ** vDec)) / vault.sharePrice;
+    const sharesFloat = parseFloat(formatUnits(sharesOut, vDec));
+    if (sharesFloat === 0) return `0.00 ${sym}`;
+    return `${sharesFloat.toFixed(6)} ${sym}`;
+  }, [depositAmount, depositAmountParsed, vault.sharePrice, vault.decimals, vault.symbol, vaultKind, midasPrice]);
+
+  // assetsOut = redeemAmountParsed * sharePrice / 10^vDec
+  const redeemAssetsOutFmt = useMemo(() => {
+    if (!redeemAmount || redeemAmountParsed <= BigInt(0)) return `0.00 ${withdrawAssetSym}`;
+    if (vaultKind === "midas") {
+      if (!midasPrice) return `— ${assetSymForDisplay}`;
+      const assets = parseFloat(redeemAmount) * midasPrice;
+      return `${assets.toFixed(6)} ${assetSymForDisplay}`;
+    }
+    if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return `— ${withdrawAssetSym}`;
+    const vDec = vault.decimals;
+    const aDec = withdrawAssetDec;
+    const assetsOut = (redeemAmountParsed * vault.sharePrice) / BigInt(10 ** vDec);
+    const assetsFloat = parseFloat(formatUnits(assetsOut, aDec));
+    if (assetsFloat === 0) return `0.00 ${withdrawAssetSym}`;
+    const dp = aDec >= 6 ? 6 : 4;
+    return `${assetsFloat.toFixed(dp)} ${withdrawAssetSym}`;
+  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetSym, withdrawAssetDec, assetSymForDisplay]);
+
   // ── Write handlers ────────────────────────────────────────────────────────
 
   function handleApproveAsset() {
-    if (!depositAssetAddr || !depositSpenderAddr) return;
+    if (!depositAssetAddr || !depositSpenderAddr || depositAmountParsed <= BigInt(0)) return;
     lastActionRef.current = "approve"; resetWrite();
-    writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, maxUint256] });
+    // Approve exactly the deposit amount — never unlimited allowance
+    writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, depositAmountParsed] });
   }
 
   // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
@@ -685,9 +805,10 @@ export default function VaultDetailPage() {
 
   // UltraYield share approval + async redeem
   function handleApproveShares() {
-    if (!vaultAddress) return;
+    if (!vaultAddress || redeemAmountParsed <= BigInt(0)) return;
     lastActionRef.current = "approve"; resetWrite();
-    writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, maxUint256] });
+    // Approve exactly the redeem amount — never unlimited allowance
+    writeContract({ address: vaultAddress, abi: ERC20_ABI, functionName: "approve", args: [vaultAddress, redeemAmountParsed] });
   }
   function handleRequestRedeem() {
     if (!vaultAddress || !withdrawAssetAddr || !userAddress || redeemAmountParsed <= BigInt(0)) return;
@@ -910,9 +1031,9 @@ export default function VaultDetailPage() {
             <StatCard
               label="Total Value Locked"
               value={vaultKind === "midas" ? midasTvlFormatted : vault.tvlFormatted}
-              sub={vaultKind === "midas" ? "totalSupply × price (Midas API)" : "totalAssets() via contract"}
+              sub={vaultKind === "midas" ? "TVL from Midas API" : "totalAssets() via contract"}
               color="text-zinc-900 dark:text-zinc-100"
-              loading={vault.isLoading || (vaultKind === "midas" && midasPriceLoading)}
+              loading={vault.isLoading || (vaultKind === "midas" && (midasPriceLoading || midasTvlLoading))}
             />
             <StatCard label="Total Supply" value={vault.totalSupplyFormatted} sub="Vault shares outstanding" loading={vault.isLoading} />
             <StatCard
@@ -993,6 +1114,8 @@ export default function VaultDetailPage() {
                   handleApproveShares={handleApproveShares}
                   handleRequestRedeem={handleRequestRedeem}
                   openWalletConnect={openWalletConnect}
+                  depositSharesOutFmt={depositSharesOutFmt}
+                  redeemAssetsOutFmt={redeemAssetsOutFmt}
                 />
               </div>
 
@@ -1132,15 +1255,18 @@ export default function VaultDetailPage() {
                 </div>
                 {vaultKind === "midas" ? (
                   <>
-                    <FeeRow label="Instant Redemption Fee"
+                    <FeeRow label="Management Fees"
+                      pct={undefined}
+                      tooltip="Annual management fee on AUM. Refer to Midas documentation for the current rate." />
+                    <FeeRow label="Performance Fees"
+                      pct={undefined}
+                      tooltip="Performance fee on yield. Refer to Midas documentation for the current rate." />
+                    <FeeRow label="Instant Fees"
                       pct={midasInstantFeePct}
-                      tooltip="Fee charged for atomic (instant) redemptions. Read from the redemption vault's instantFee parameter." />
-                    <FeeRow label="Standard Redemption Fee"
-                      pct={0}
-                      tooltip="No fee for standard (async) redemptions — processed in order by the Midas team." />
-                    <FeeRow label="Deposit Fee"
-                      pct={0}
-                      tooltip="No fee for minting Midas tokens via depositInstant." />
+                      tooltip="Additional fee charged when redeeming instantly (atomic). Read from the Redemption Vault's instantFee parameter." />
+                    <FeeRow label="Token Fees"
+                      pct={midasTokenFeePct}
+                      tooltip="Per-payment-token fee applied on redemptions. Read from tokensConfig on the Redemption Vault for the primary configured payment token." />
                   </>
                 ) : vault.isLoading ? (
                   <LightSectionSkeleton rows={3} />
@@ -1150,10 +1276,13 @@ export default function VaultDetailPage() {
                       tooltip={vaultKind === "morpho"
                         ? "Fee on yield taken by the vault's fee recipient."
                         : "Charged on profits above the high-water mark. Max 30%."} />
+                    <FeeRow label="Management Fee"
+                      pct={vaultKind === "morpho" ? 0 : vault.managementFeePercent}
+                      tooltip={vaultKind === "morpho"
+                        ? "MetaMorpho vaults do not charge a management fee."
+                        : "Annual fee on total assets under management. Max 5%."} />
                     {vaultKind === "ultrayield" && (
                       <>
-                        <FeeRow label="Management Fee" pct={vault.managementFeePercent}
-                          tooltip="Annual fee on total assets under management. Max 5%." />
                         <FeeRow label="Withdrawal Fee" pct={vault.withdrawalFeePercent}
                           tooltip="One-time fee deducted at redemption fulfillment. Max 1%." />
                         <div className="flex items-center justify-between border-b border-zinc-100 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
@@ -1302,6 +1431,8 @@ export default function VaultDetailPage() {
                 handleApproveShares={handleApproveShares}
                 handleRequestRedeem={handleRequestRedeem}
                 openWalletConnect={openWalletConnect}
+                depositSharesOutFmt={depositSharesOutFmt}
+                redeemAssetsOutFmt={redeemAssetsOutFmt}
               />
             </aside>
           </div>

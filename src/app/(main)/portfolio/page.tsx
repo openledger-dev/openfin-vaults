@@ -18,10 +18,15 @@ function fmtAsset(raw: bigint | undefined, dec: number, sym?: string): string {
   if (raw === undefined) return "—";
   const n = parseFloat(formatUnits(raw, dec));
   const suffix = sym ? ` ${sym}` : "";
+  if (n === 0) return `0.00${suffix}`;
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(4)}B${suffix}`;
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(4)}M${suffix}`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(4)}K${suffix}`;
-  return `${n.toFixed(4)}${suffix}`;
+  if (n >= 0.01) return `${n.toFixed(4)}${suffix}`;
+  // For small values (BTC-denominated etc.) show 2 significant figures beyond the
+  // leading zeros so the amount is always visible rather than displaying as "0.0000".
+  const dp = Math.min(Math.max(6, Math.ceil(-Math.log10(n)) + 2), 12);
+  return `${n.toFixed(dp)}${suffix}`;
 }
 
 function fmtApy(apy: number | null): string | null {
