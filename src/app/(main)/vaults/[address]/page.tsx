@@ -268,6 +268,9 @@ export default function VaultDetailPage() {
         depositVaultAddress:    entry.depositVaultAddress,
         redemptionVaultAddress: entry.redemptionVaultAddress,
         assets:                 entry.assets,
+        // Fund-level fees (static config, not on-chain)
+        managementFeePct:       entry.managementFeePct,
+        performanceFeePct:      entry.performanceFeePct,
       };
     }
     return null;
@@ -1256,11 +1259,11 @@ export default function VaultDetailPage() {
                 {vaultKind === "midas" ? (
                   <>
                     <FeeRow label="Management Fees"
-                      pct={undefined}
-                      tooltip="Annual management fee on AUM. Refer to Midas documentation for the current rate." />
+                      pct={vaultConfig?.managementFeePct}
+                      tooltip="Annual management fee on AUM charged by the fund provider." />
                     <FeeRow label="Performance Fees"
-                      pct={undefined}
-                      tooltip="Performance fee on yield. Refer to Midas documentation for the current rate." />
+                      pct={vaultConfig?.performanceFeePct}
+                      tooltip="Performance fee on profits above the high-water mark, charged by the fund provider." />
                     <FeeRow label="Instant Fees"
                       pct={midasInstantFeePct}
                       tooltip="Additional fee charged when redeeming instantly (atomic). Read from the Redemption Vault's instantFee parameter." />

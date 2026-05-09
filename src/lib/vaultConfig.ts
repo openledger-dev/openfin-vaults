@@ -52,6 +52,16 @@ export type PlatformVaultEntry = {
    * e.g. "mmev", "mtbill", "mbasis"
    */
   midasApiKey?: string;
+  /**
+   * Fund-level management fee percentage (e.g. 2 = 2%).
+   * Not stored on-chain — sourced from the fund provider's documentation.
+   */
+  managementFeePct?: number;
+  /**
+   * Fund-level performance fee percentage (e.g. 25 = 25%).
+   * Not stored on-chain — sourced from the fund provider's documentation.
+   */
+  performanceFeePct?: number;
 };
 
 export type PlatformConfig = {
@@ -171,7 +181,7 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" 
  */
 const MIDAS_VAULT_CONFIG: Record<
   string,
-  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "displayName">
+  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "displayName" | "managementFeePct" | "performanceFeePct">
 > = {
   // ── mTBILL — Midas T-Bill token ───────────────────────────────────────────
   "0xdd629e5241cbc5919847783e6c96b2de4754e438": {
@@ -207,20 +217,26 @@ const MIDAS_VAULT_CONFIG: Record<
   //   ],
   // },
 
-  // ── mRe7YIELD — Re7 strategy token ────────────────────────────────────────
+  // ── mRe7YIELD — Re7 Capital yield strategy token ──────────────────────────
+  // Fund fees sourced from Re7 Capital documentation (not stored on-chain).
   "0x87c9053c819bb28e0d73d33059e1b3da80afb0cf": {
     displayName: "mRe7YIELD",
     depositVaultAddress:    "0xcE0A2953a5d46400Af601a9857235312d1924aC7",
     redemptionVaultAddress: "0x5356B8E06589DE894D86B24F4079c629E8565234",
     midasApiKey: "mre7",
+    managementFeePct:  2,
+    performanceFeePct: 25,
   },
 
-  // ── mRe7BTC — Re7 BTC strategy token ──────────────────────────────────────
+  // ── mRe7BTC — Re7 Capital BTC strategy token ──────────────────────────────
+  // Fund fees sourced from Re7 Capital documentation (not stored on-chain).
   "0x9fb442d6b612a6dcd2acc67bb53771ef1d9f661a": {
     displayName: "mRe7BTC",
     depositVaultAddress:    "0x5E154946561AEA4E750AAc6DeaD23D37e00E47f6",
     redemptionVaultAddress: "0x4Fd4DD7171D14e5bD93025ec35374d2b9b4321b0",
     midasApiKey: "mre7btc",
+    managementFeePct:  2,
+    performanceFeePct: 25,
   },
 };
 
