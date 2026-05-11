@@ -14,11 +14,14 @@ type VaultLike = {
   withdrawalFeePercent?: number;
 };
 
-function TxSummaryRow({ label, value }: { label: string; value: string }) {
+function TxSummaryRow({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-gray-200 py-2.5 last:border-b-0 dark:border-[#1b1b1f]">
       <span className="shrink-0 text-sm text-gray-500 dark:text-[#afafb2]">{label}</span>
-      <span className="min-w-0 text-right text-sm font-semibold tabular-nums text-black dark:text-zinc-100">{value}</span>
+      <div className="min-w-0 text-right">
+        <span className="block text-sm font-semibold tabular-nums text-black dark:text-zinc-100">{value}</span>
+        {sub && <span className="block text-xs tabular-nums text-gray-400 dark:text-zinc-500">{sub}</span>}
+      </div>
     </div>
   );
 }
@@ -70,6 +73,8 @@ interface VaultDetailActionPanelProps {
   openWalletConnect: () => void;
   depositSharesOutFmt: string;
   redeemAssetsOutFmt: string;
+  depositSharesOutUsd?: string;
+  redeemAssetsOutUsd?: string;
 }
 
 export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
@@ -120,6 +125,8 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
     openWalletConnect,
     depositSharesOutFmt,
     redeemAssetsOutFmt,
+    depositSharesOutUsd,
+    redeemAssetsOutUsd,
   } = props;
 
   return (
@@ -235,6 +242,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                 <TxSummaryRow
                   label="You will receive"
                   value={depositSharesOutFmt}
+                  sub={depositSharesOutUsd}
                 />
               </div>
 
@@ -404,6 +412,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                 <TxSummaryRow
                   label="You will receive"
                   value={redeemAssetsOutFmt}
+                  sub={redeemAssetsOutUsd}
                 />
               </div>
 

@@ -712,6 +712,36 @@ export default function VaultDetailPage() {
     return `${assetsFloat.toFixed(dp)} ${withdrawAssetSym}`;
   }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetSym, withdrawAssetDec, assetSymForDisplay]);
 
+  // USD values shown beneath "You will receive" in both deposit and redeem forms.
+  // For deposit: input is always a stablecoin so USD ≈ input amount.
+  // For redeem:  USD = assets received (stablecoin ≈ USD) or shares × midasPrice.
+  function fmtUsdSub(usd: number): string {
+    return `≈ $${usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+
+  const depositSharesOutUsd = useMemo(() => {
+    if (!depositAmount || depositAmountParsed <= BigInt(0)) return undefined;
+    const dec = assetDecForDisplay;
+    const usd = Number(depositAmountParsed) / 10 ** dec;
+    return usd > 0 ? fmtUsdSub(usd) : undefined;
+  }, [depositAmount, depositAmountParsed, assetDecForDisplay]);
+
+  const redeemAssetsOutUsd = useMemo(() => {
+    if (!redeemAmount || redeemAmountParsed <= BigInt(0)) return undefined;
+    let usd = 0;
+    if (vaultKind === "midas") {
+      if (!midasPrice) return undefined;
+      usd = parseFloat(redeemAmount) * midasPrice;
+    } else {
+      if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return undefined;
+      const vDec = vault.decimals;
+      const aDec = withdrawAssetDec;
+      const assetsOut = (redeemAmountParsed * vault.sharePrice) / BigInt(10 ** vDec);
+      usd = parseFloat(formatUnits(assetsOut, aDec));
+    }
+    return usd > 0 ? fmtUsdSub(usd) : undefined;
+  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetDec]);
+
   // ── Write handlers ────────────────────────────────────────────────────────
 
   function handleApproveAsset() {
@@ -1119,6 +1149,8 @@ export default function VaultDetailPage() {
                   openWalletConnect={openWalletConnect}
                   depositSharesOutFmt={depositSharesOutFmt}
                   redeemAssetsOutFmt={redeemAssetsOutFmt}
+                  depositSharesOutUsd={depositSharesOutUsd}
+                  redeemAssetsOutUsd={redeemAssetsOutUsd}
                 />
               </div>
 
@@ -1436,6 +1468,8 @@ export default function VaultDetailPage() {
                 openWalletConnect={openWalletConnect}
                 depositSharesOutFmt={depositSharesOutFmt}
                 redeemAssetsOutFmt={redeemAssetsOutFmt}
+                depositSharesOutUsd={depositSharesOutUsd}
+                redeemAssetsOutUsd={redeemAssetsOutUsd}
               />
             </aside>
           </div>
