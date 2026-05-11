@@ -13,13 +13,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Open Vault — Ethereum DeFi Vaults",
+  title: "Open Vault | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
   description:
-    "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
+    "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through Open Vault powered by OpenFin.",
   openGraph: {
-    title: "Open Vault — Ethereum DeFi Vaults",
+    title: "Open Vault | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
     description:
-      "Discover, deposit and manage Ethereum DeFi vaults across Aave, Compound, Morpho and more.",
+      "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through Open Vault powered by OpenFin.",
     images: [
       {
         url: "https://cdn.openledger.xyz/OPENfin/OpenVault/og-image.png",
