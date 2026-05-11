@@ -22,15 +22,21 @@ function formatBigIntAsset(
   symbol: string | undefined
 ): string {
   if (raw === undefined) return "—";
+  const sym = symbol ? ` ${symbol}` : "";
+  if (raw === BigInt(0)) return `0.00${sym}`;
+  // Build exact decimal string to avoid float precision loss for large bigints
   const divisor = BigInt(10 ** decimals);
   const whole = raw / divisor;
   const frac = raw % divisor;
-  const fracStr = frac.toString().padStart(decimals, "0").slice(0, 2);
-  const num = parseFloat(`${whole}.${fracStr}`);
-  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B${symbol ? ` ${symbol}` : ""}`;
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M${symbol ? ` ${symbol}` : ""}`;
-  if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K${symbol ? ` ${symbol}` : ""}`;
-  return `${num.toFixed(2)}${symbol ? ` ${symbol}` : ""}`;
+  const fracFull = frac.toString().padStart(decimals, "0");
+  const num = parseFloat(`${whole}.${fracFull}`);
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B${sym}`;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M${sym}`;
+  if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K${sym}`;
+  if (num >= 0.01) return `${num.toFixed(2)}${sym}`;
+  // Tiny values: show enough significant digits so the number is non-zero
+  const dp = Math.min(Math.max(2, Math.ceil(-Math.log10(num)) + 2), decimals);
+  return `${num.toFixed(dp)}${sym}`;
 }
 
 function feePercent(raw: bigint | undefined): string {
