@@ -251,16 +251,16 @@ const MIDAS_VAULT_CONFIG: Record<
  *   2. Optionally add static asset config below if getPaymentTokens is unavailable
  */
 const MORPHO_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "displayName">> = {
-  // ── Gauntlet USDC Core (0xbeEF...4931, Ethereum mainnet) ──────────────────
-  "0xbeeff75262b2ec16a3c62a807f02ee7627654931": {
+  // ── Gauntlet USDC Core (0x8eB6...d458, Ethereum mainnet) ──────────────────
+  "0x8eb67a509616cd6a7c1b3c8c21d48ff57df3d458": {
     displayName: "Gauntlet USDC Core",
   },
-  // ── Gauntlet USDC Prime (0xBEEF...4CB, Ethereum mainnet) ──────────────────
+  // ── Steakhouse USDC (0xBEEF...4CB, Ethereum mainnet) ─────────────────────
   "0xbeef01735c132ada46aa9aa4c54623caa92a64cb": {
-    displayName: "Gauntlet USDC Prime",
+    displayName: "Steakhouse USDC",
   },
-  // ── Moonwell Flagship USDC (0x050c...6f0, Base) ───────────────────────────
-  "0x050ce30b927da55177a4914ec73480238bad56f0": {
+  // ── Moonwell Flagship USDC (0xc125...2Ca, Base) ───────────────────────────
+  "0xc1256ae5ff1cf2719d4937adb3bbccab2e00a2ca": {
     displayName: "Moonwell Flagship USDC",
   },
 };

@@ -40,7 +40,9 @@ function fmtApy(apy: number | null): string | null {
 function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: () => void }) {
   const assetDec = vault.assetDecimals ?? 18;
   const kindLabel = vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Midas" : "UltraYield";
+  const apyPct = vault.apyPrefetched !== null ? vault.apyPrefetched * 100 : null;
   const apyStr = fmtApy(vault.apyPrefetched);
+  const apyPositive = apyPct === null || apyPct >= 0;
 
   return (
     <div
@@ -59,7 +61,11 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
             {vault.name}
           </p>
           {apyStr && (
-            <span className="rounded border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+            <span className={`rounded border px-2 py-0.5 text-xs font-bold ${
+              apyPositive
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300"
+            }`}>
               {apyStr} APY
             </span>
           )}

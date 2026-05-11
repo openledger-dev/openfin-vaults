@@ -465,7 +465,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                         disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
                         className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
                       >
-                        {isBusy && lastAction === "withdraw" ? "Requesting..." : "Async (free)"}
+                        {isBusy && lastAction === "withdraw" ? "Requesting..." : "Standard (free)"}
                       </button>
                     </div>
                   )}

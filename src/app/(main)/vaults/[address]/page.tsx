@@ -752,7 +752,7 @@ export default function VaultDetailPage() {
   // Midas standard (async) redeem (fee-free, no cancel)
   function handleMidasRedeemRequest() {
     if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
-    setConfirmMessage(`Confirm async redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
+    setConfirmMessage(`Confirm standard redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
       lastActionRef.current = "withdraw"; resetWrite();
       writeContract({
@@ -1315,7 +1315,7 @@ export default function VaultDetailPage() {
                           { title: "Token",          desc: "ERC-20 RWA token — NOT ERC-4626. Each token has a separate Deposit Vault and Redemption Vault." },
                           { title: "Deposit",        desc: "Call depositInstant(tokenIn, amount18, 0, referrerId) on the Deposit Vault. amountToken is always 18 decimals regardless of payment token decimals." },
                           { title: "Instant Redeem", desc: `Call redeemInstant on the Redemption Vault. Atomic — funds returned immediately. Fee: ${midasInstantFeePct !== undefined ? `${midasInstantFeePct.toFixed(2)}%` : "see instantFee"}.` },
-                          { title: "Async Redeem",   desc: "Call redeemRequest on the Redemption Vault. Token leaves wallet, processed first-come first-served. No fee. No cancellation possible." },
+                          { title: "Standard Redeem", desc: "Call redeemRequest on the Redemption Vault. Token leaves wallet, processed first-come first-served. No fee. No cancellation possible." },
                           { title: "Pricing",        desc: "Share price updated by Midas via NAV report → customFeed → dataFeed. Price reflects yield but not side rewards." },
                           { title: "Upgrades",       desc: "Contracts are upgradable (progressively tied to timelock). Midas communicates upgrades with notice and audits." },
                         ]
