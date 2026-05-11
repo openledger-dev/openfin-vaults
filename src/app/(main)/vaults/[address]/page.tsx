@@ -375,6 +375,18 @@ export default function VaultDetailPage() {
     },
   });
 
+  // ── Midas share allowance for redemption vault ───────────────────────────
+  // mRe7YIELD.allowance(user, midasRedemptionVault) — needed before any redeem call
+  const { data: midasShareAllowanceData } = useReadContracts({
+    contracts: vaultKind === "midas" && userAddress && vaultAddress && midasRedemptionVault
+      ? [{ address: vaultAddress as `0x${string}`, abi: ERC20_ABI, functionName: "allowance" as const, args: [userAddress, midasRedemptionVault as `0x${string}`], chainId: vaultChainId }]
+      : [],
+    query: { enabled: vaultKind === "midas" && !!userAddress && !!midasRedemptionVault },
+  });
+  const midasShareAllowance = midasShareAllowanceData?.[0]?.status === "success"
+    ? (midasShareAllowanceData[0].result as bigint)
+    : undefined;
+
   // ── Midas instantFee from redemption vault ────────────────────────────────
   const { data: midasFeeData } = useReadContracts({
     contracts: midasRedemptionVault
@@ -666,6 +678,12 @@ export default function VaultDetailPage() {
     redeemAmountParsed > BigInt(0) &&
     vault.userShareAllowance < redeemAmountParsed;
 
+  // For Midas: approve redemption vault as spender of share tokens before any redeem
+  const needsMidasShareApprove = vaultKind === "midas" &&
+    midasShareAllowance !== undefined &&
+    redeemAmountParsed > BigInt(0) &&
+    midasShareAllowance < redeemAmountParsed;
+
   // For Midas deposits: amount must be scaled to 18 decimals
   const midasDepositParsed18 = useMemo(() => {
     if (vaultKind !== "midas" || depositAmountParsed <= BigInt(0)) return BigInt(0);
@@ -749,6 +767,18 @@ export default function VaultDetailPage() {
     lastActionRef.current = "approve"; resetWrite();
     // Approve exactly the deposit amount — never unlimited allowance
     writeContract({ address: depositAssetAddr, abi: ERC20_ABI, functionName: "approve", args: [depositSpenderAddr, depositAmountParsed] });
+  }
+
+  // Midas share approval: approve redemption vault to pull share tokens (exact amount)
+  function handleApproveMidasShares() {
+    if (!vaultAddress || !midasRedemptionVault || redeemAmountParsed <= BigInt(0)) return;
+    lastActionRef.current = "approve"; resetWrite();
+    writeContract({
+      address: vaultAddress as `0x${string}`,
+      abi: ERC20_ABI,
+      functionName: "approve",
+      args: [midasRedemptionVault as `0x${string}`, redeemAmountParsed],
+    });
   }
 
   // Midas deposit (depositInstant on deposit vault, amount always 18 decimals)
@@ -1151,6 +1181,8 @@ export default function VaultDetailPage() {
                   redeemAssetsOutFmt={redeemAssetsOutFmt}
                   depositSharesOutUsd={depositSharesOutUsd}
                   redeemAssetsOutUsd={redeemAssetsOutUsd}
+                  needsMidasShareApprove={needsMidasShareApprove}
+                  handleApproveMidasShares={handleApproveMidasShares}
                 />
               </div>
 
@@ -1470,6 +1502,8 @@ export default function VaultDetailPage() {
                 redeemAssetsOutFmt={redeemAssetsOutFmt}
                 depositSharesOutUsd={depositSharesOutUsd}
                 redeemAssetsOutUsd={redeemAssetsOutUsd}
+                needsMidasShareApprove={needsMidasShareApprove}
+                handleApproveMidasShares={handleApproveMidasShares}
               />
             </aside>
           </div>

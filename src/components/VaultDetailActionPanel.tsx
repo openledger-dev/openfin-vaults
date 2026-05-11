@@ -75,6 +75,8 @@ interface VaultDetailActionPanelProps {
   redeemAssetsOutFmt: string;
   depositSharesOutUsd?: string;
   redeemAssetsOutUsd?: string;
+  needsMidasShareApprove?: boolean;
+  handleApproveMidasShares?: () => void;
 }
 
 export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
@@ -127,6 +129,8 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
     redeemAssetsOutFmt,
     depositSharesOutUsd,
     redeemAssetsOutUsd,
+    needsMidasShareApprove,
+    handleApproveMidasShares,
   } = props;
 
   return (
@@ -456,7 +460,22 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                       <p className="mt-0.5 text-base font-bold text-slate-600 dark:text-zinc-300">0%</p>
                     </div>
                   </div>
-                  {isConnected && (
+                  {isConnected && needsMidasShareApprove && (
+                    <>
+                      <p className="mb-3 text-xs text-gray-500 dark:text-zinc-400">
+                        Step 1 of 2: Approve redemption vault to spend {vault.symbol}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleApproveMidasShares}
+                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
+                        className={darkActionBtnClass}
+                      >
+                        {isBusy && lastAction === "approve" ? "Approving..." : `Approve ${vault.symbol}`}
+                      </button>
+                    </>
+                  )}
+                  {isConnected && !needsMidasShareApprove && (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <button
                         type="button"
