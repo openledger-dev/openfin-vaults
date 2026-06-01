@@ -39,6 +39,35 @@ function formatBigIntAsset(
   return `${num.toFixed(dp)}${sym}`;
 }
 
+/** Wallet shares or UltraYield pending / ready-to-claim exposure */
+function vaultHasOpenPosition(v: VaultOnChainData): boolean {
+  if (v.userShares !== undefined && v.userShares > BigInt(0)) return true;
+  if (v.kind === "ultrayield") {
+    const pend = v.pendingShares ?? BigInt(0);
+    const claim = v.claimableAssets ?? BigInt(0);
+    return pend > BigInt(0) || claim > BigInt(0);
+  }
+  return false;
+}
+
+/** Primary label for INVESTED pill — underlying value, pending shares, or claimable assets */
+function vaultPositionAmountLabel(v: VaultOnChainData): string {
+  if (v.userShares !== undefined && v.userShares > BigInt(0)) {
+    return formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol);
+  }
+  if (v.kind === "ultrayield") {
+    const pend = v.pendingShares ?? BigInt(0);
+    if (pend > BigInt(0)) {
+      return `${formatBigIntAsset(pend, v.decimals, v.symbol)} pending`;
+    }
+    const claim = v.claimableAssets ?? BigInt(0);
+    if (claim > BigInt(0)) {
+      return `${formatBigIntAsset(claim, v.assetDecimals ?? 18, v.assetSymbol)} claimable`;
+    }
+  }
+  return "—";
+}
+
 function feePercent(raw: bigint | undefined): string {
   if (raw === undefined) return "—";
   const pct = (Number(raw) / 1e16).toFixed(2);
@@ -358,14 +387,14 @@ function PlatformSection({
               {getChainShortName(v.chainId)}
             </span>
           </div>
-          {v.userShares !== undefined && v.userShares > BigInt(0) && (
+          {vaultHasOpenPosition(v) && (
             <div className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 dark:border-emerald-800 dark:bg-emerald-900/25">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.2)] dark:shadow-[0_0_0_2px_rgba(16,185,129,0.35)]" />
               <span className="text-[0.6875rem] font-bold uppercase tracking-[0.04em] text-emerald-700 dark:text-emerald-300">
                 Invested
               </span>
               <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-                {formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+                {vaultPositionAmountLabel(v)}
               </span>
             </div>
           )}
@@ -435,7 +464,7 @@ function PlatformSection({
 
   function renderVaultCard(v: VaultOnChainData): React.ReactNode {
     const vault = chainVaultToVault(v);
-    const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
+    const hasPosition = vaultHasOpenPosition(v);
     const isMorphoVault = v.kind === "morpho";
     const tvlDisplay = formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol);
     const [tvlValue, ...tvlSymbolParts] = tvlDisplay.split(" ");
@@ -479,7 +508,7 @@ function PlatformSection({
               Invested
             </span>
             <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-              {formatBigIntAsset(v.userAssetsRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+              {vaultPositionAmountLabel(v)}
             </span>
           </div>
         )}
@@ -602,7 +631,7 @@ function PlatformSection({
               <tbody>
                 {filtered.map((v) => {
                   const row = buildRow(v);
-                  const hasPosition = v.userShares !== undefined && v.userShares > BigInt(0);
+                  const hasPosition = vaultHasOpenPosition(v);
                   const cellTone = hasPosition
                     ? "bg-emerald-50/25 border-emerald-200/80 dark:bg-emerald-900/20 dark:border-emerald-800/70"
                     : "bg-[#F1F2F0] border-[#E1E5E1] dark:bg-[#141417] dark:border-[#1b1b1f]";

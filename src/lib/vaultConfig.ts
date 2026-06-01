@@ -237,6 +237,11 @@ const MIDAS_VAULT_CONFIG: Record<
     midasApiKey: "mre7btc",
     managementFeePct:  2,
     performanceFeePct: 25,
+    assets: [
+      { address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol: "WBTC",  decimals: 8,  isPegged: false },
+      { address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", symbol: "cbBTC", decimals: 8,  isPegged: false },
+      { address: "0x8dAEBADE922dF735c38C80C7eBD708Af50815fAa", symbol: "tBTC",  decimals: 18, isPegged: false },
+    ],
   },
 };
 

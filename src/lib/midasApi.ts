@@ -40,8 +40,18 @@ export type MidasPendingRedemption = {
   sender?: string;
 };
 
-export type MidasPendingRedemptionsResponse = {
-  data: MidasPendingRedemption[];
+/** Raw shape returned by GET /api/data/requests/pending */
+type RawMidasPendingItem = {
+  mToken:                    string;
+  amountMToken:              string;
+  tokenOut?:                 string;
+  createdAt?:                string; // Unix timestamp seconds
+  creationTransactionHash?:  string;
+  user?:                     string;
+};
+
+type RawMidasPendingResponse = {
+  redemptions: RawMidasPendingItem[];
 };
 
 type RawMidasTvlResponse = {
@@ -87,27 +97,43 @@ export async function fetchMidasTvls(): Promise<MidasTvlMap> {
 }
 
 /**
- * Returns pending (standard / async) redemption requests for a Midas token.
+ * Returns pending standard redemption requests for a Midas token.
  *
- * @param chainId     EVM chain ID (e.g. 1 for Ethereum mainnet)
- * @param tokenAddress Share token contract address
- * @param userAddress  Optional — filter to a specific wallet address
+ * Uses GET /api/data/requests/pending?address=...&networkId=...
+ * which returns all pending redemptions for the wallet, filtered here by mToken.
+ *
+ * @param chainId      EVM chain ID (e.g. 1 for Ethereum mainnet)
+ * @param tokenAddress Share token contract address — used to filter results
+ * @param userAddress  Wallet address (required; without it the endpoint returns nothing useful)
  */
 export async function fetchMidasPendingRedemptions(
   chainId: number,
   tokenAddress: string,
   userAddress?: string
 ): Promise<MidasPendingRedemption[]> {
-  let url = `${BASE}/requests/pending/redemptions/${chainId}/${tokenAddress}`;
-  if (userAddress) url += `?address=${userAddress}`;
+  if (!userAddress) return [];
 
+  const url = `${BASE}/requests/pending?address=${userAddress}&networkId=${chainId}`;
   const res = await fetch(url, { next: { revalidate: 60 } });
   if (!res.ok) {
     console.warn(`[midasApi] Pending redemptions fetch failed: ${res.status}`);
     return [];
   }
-  const json = (await res.json()) as MidasPendingRedemptionsResponse | MidasPendingRedemption[];
-  // API may return { data: [...] } or a bare array
-  if (Array.isArray(json)) return json;
-  return json.data ?? [];
+
+  const json = (await res.json()) as RawMidasPendingResponse;
+  const all: RawMidasPendingItem[] = json.redemptions ?? [];
+
+  return all
+    .filter((r) => r.mToken.toLowerCase() === tokenAddress.toLowerCase())
+    .map((r): MidasPendingRedemption => ({
+      tokenAddress:  r.mToken,
+      amount:        r.amountMToken,
+      paymentToken:  r.tokenOut,
+      // API returns Unix timestamp in seconds — convert to ISO for UI display
+      createdAt:     r.createdAt
+        ? new Date(parseInt(r.createdAt, 10) * 1_000).toISOString()
+        : undefined,
+      txHash:        r.creationTransactionHash,
+      sender:        r.user,
+    }));
 }

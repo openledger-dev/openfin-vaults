@@ -5,8 +5,8 @@
  *
  * Midas tokens are NOT ERC-4626. Each token has:
  *   • A Deposit Vault: depositInstant(tokenIn, amountToken, minReceiveAmount, referrerId)
- *   • A Redemption Vault: redeemInstant(tokenOut, amountMtokenIn, minReceiveAmount)
- *                      or redeemRequest(tokenOut, amountMtokenIn)  [async, no cancel]
+ *   • A Redemption Vault: redeemInstant(tokenOut, amountMtokenIn, minReceiveAmount, recipient?)
+ *                      or redeemRequest(tokenOut, amountMtokenIn, recipient?)  [standard queue redeem — Midas UI “request redeem”]
  *
  * IMPORTANT: amountToken in depositInstant always uses 18 decimals regardless
  * of the payment token's own decimals. We handle this conversion here.
@@ -57,12 +57,35 @@ const MIDAS_REDEEM_ABI = [
     outputs: [],
   },
   {
+    name: "redeemInstant",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenOut",         type: "address" },
+      { name: "amountMtokenIn",   type: "uint256" },
+      { name: "minReceiveAmount", type: "uint256" },
+      { name: "recipient",        type: "address" },
+    ],
+    outputs: [],
+  },
+  {
     name: "redeemRequest",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [
       { name: "tokenOut",       type: "address" },
       { name: "amountMtokenIn", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "redeemRequest",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenOut",         type: "address" },
+      { name: "amountMtokenIn", type: "uint256" },
+      { name: "recipient",      type: "address" },
     ],
     outputs: [],
   },
@@ -224,7 +247,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
   }
 
   function handleRedeemInstant() {
-    if (!redeemVault || !activePaymentToken || redeemParsed <= BigInt(0)) return;
+    if (!redeemVault || !activePaymentToken || !userAddress || redeemParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${shareSym} shares?`);
     setConfirmAction(() => () => {
       writeContract({
@@ -236,6 +259,7 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
           activePaymentToken as `0x${string}`,
           redeemParsed,
           BigInt(0),
+          userAddress,
         ],
       });
     });
@@ -243,15 +267,15 @@ export function MidasVaultActionModal({ vault, open, onClose, onTxCompleted }: P
   }
 
   function handleRedeemRequest() {
-    if (!redeemVault || !activePaymentToken || redeemParsed <= BigInt(0)) return;
-    setConfirmMessage(`Confirm async redeem request for ${redeemAmount || "0"} ${shareSym} shares?`);
+    if (!redeemVault || !activePaymentToken || !userAddress || redeemParsed <= BigInt(0)) return;
+    setConfirmMessage(`Confirm standard redeem request for ${redeemAmount || "0"} ${shareSym} shares?`);
     setConfirmAction(() => () => {
       writeContract({
         address: redeemVault,
         chainId,
         abi: MIDAS_REDEEM_ABI,
         functionName: "redeemRequest",
-        args: [activePaymentToken as `0x${string}`, redeemParsed],
+        args: [activePaymentToken as `0x${string}`, redeemParsed, userAddress],
       });
     });
     setConfirmOpen(true);

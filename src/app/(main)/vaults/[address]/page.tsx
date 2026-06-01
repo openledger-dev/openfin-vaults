@@ -74,12 +74,35 @@ const MIDAS_REDEEM_ABI = [
     outputs: [],
   },
   {
+    name: "redeemInstant",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenOut",         type: "address" },
+      { name: "amountMtokenIn",   type: "uint256" },
+      { name: "minReceiveAmount", type: "uint256" },
+      { name: "recipient",        type: "address" },
+    ],
+    outputs: [],
+  },
+  {
     name: "redeemRequest",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [
       { name: "tokenOut",       type: "address" },
       { name: "amountMtokenIn", type: "uint256" },
+    ],
+    outputs: [],
+  },
+  {
+    name: "redeemRequest",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "tokenOut",         type: "address" },
+      { name: "amountMtokenIn", type: "uint256" },
+      { name: "recipient",      type: "address" },
     ],
     outputs: [],
   },
@@ -613,12 +636,21 @@ export default function VaultDetailPage() {
 
   const queryClient = useQueryClient();
 
-  // When a Midas redeemRequest tx confirms, bust the server-side pending cache
-  // so the new request appears immediately instead of waiting up to 60 s.
+  // When a Midas redeemRequest tx confirms, bust the server-side Redis cache
+  // (bust=1 forces the API to skip Redis and fetch fresh from Midas), then
+  // invalidate the React Query cache so the component re-renders with new data.
   useEffect(() => {
     if (!isConfirmed || vaultKind !== "midas" || !vaultAddress || !userAddress) return;
-    void queryClient.invalidateQueries({
-      queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
+    const params = new URLSearchParams({
+      chainId: String(vaultChainId),
+      token: vaultAddress,
+      address: userAddress,
+      bust: "1",
+    });
+    void fetch(`/api/midas/pending?${params}`).then(() => {
+      void queryClient.invalidateQueries({
+        queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
+      });
     });
   }, [isConfirmed, vaultKind, vaultAddress, vaultChainId, userAddress, queryClient]);
 
@@ -793,9 +825,10 @@ export default function VaultDetailPage() {
     });
   }
 
-  // Midas instant redeem (with fee)
+  // Midas instant redeem (with fee). tokenOut must be from the redemption vault's payment tokens; include recipient like midas.app.
   function handleMidasRedeemInstant() {
-    if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
+    const tokenOut = (effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
+    if (!midasRedemptionVault || !tokenOut || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
       lastActionRef.current = "withdraw"; resetWrite();
@@ -803,15 +836,16 @@ export default function VaultDetailPage() {
         address: midasRedemptionVault,
         abi: MIDAS_REDEEM_ABI,
         functionName: "redeemInstant",
-        args: [depositAssetAddr as `0x${string}`, redeemAmountParsed, BigInt(0)],
+        args: [tokenOut, redeemAmountParsed, BigInt(0), userAddress],
       });
     });
     setConfirmOpen(true);
   }
 
-  // Midas standard (async) redeem (fee-free, no cancel)
+  // Midas standard redeem — on-chain name is redeemRequest(tokenOut, amount, recipient), not requestRedeem.
   function handleMidasRedeemRequest() {
-    if (!midasRedemptionVault || !depositAssetAddr || redeemAmountParsed <= BigInt(0)) return;
+    const tokenOut = (effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
+    if (!midasRedemptionVault || !tokenOut || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm standard redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
       lastActionRef.current = "withdraw"; resetWrite();
@@ -819,7 +853,7 @@ export default function VaultDetailPage() {
         address: midasRedemptionVault,
         abi: MIDAS_REDEEM_ABI,
         functionName: "redeemRequest",
-        args: [depositAssetAddr as `0x${string}`, redeemAmountParsed],
+        args: [tokenOut, redeemAmountParsed, userAddress],
       });
     });
     setConfirmOpen(true);
@@ -1183,6 +1217,7 @@ export default function VaultDetailPage() {
                   redeemAssetsOutUsd={redeemAssetsOutUsd}
                   needsMidasShareApprove={needsMidasShareApprove}
                   handleApproveMidasShares={handleApproveMidasShares}
+                  midasRedeemTokenOut={effectivePaymentToken ?? depositAssetAddr}
                 />
               </div>
 
@@ -1280,7 +1315,7 @@ export default function VaultDetailPage() {
                             <div key={idx} className="rounded-lg border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-800 dark:bg-amber-900/20">
                               <div className="flex flex-wrap justify-between gap-2">
                                 <div>
-                                  <p className="text-xs font-semibold text-amber-900">Async redemption pending</p>
+                                  <p className="text-xs font-semibold text-amber-900">Standard redemption pending</p>
                                   <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
                                     Amount: {r.amount ? `${parseFloat(formatUnits(BigInt(r.amount), 18)).toFixed(6)} ${vault.symbol}` : "—"}
                                   </p>
@@ -1379,7 +1414,7 @@ export default function VaultDetailPage() {
                           { title: "Token",          desc: "ERC-20 RWA token — NOT ERC-4626. Each token has a separate Deposit Vault and Redemption Vault." },
                           { title: "Deposit",        desc: "Call depositInstant(tokenIn, amount18, 0, referrerId) on the Deposit Vault. amountToken is always 18 decimals regardless of payment token decimals." },
                           { title: "Instant Redeem", desc: `Call redeemInstant on the Redemption Vault. Atomic — funds returned immediately. Fee: ${midasInstantFeePct !== undefined ? `${midasInstantFeePct.toFixed(2)}%` : "see instantFee"}.` },
-                          { title: "Standard Redeem", desc: "Call redeemRequest on the Redemption Vault. Token leaves wallet, processed first-come first-served. No fee. No cancellation possible." },
+                          { title: "Standard Redeem", desc: "On-chain: redeemRequest(tokenOut, amount, recipient) on the Redemption Vault (the Midas UI calls this “request redeem”). Token leaves your wallet; processed in order. No fee. Cannot be cancelled." },
                           { title: "Pricing",        desc: "Share price updated by Midas via NAV report → customFeed → dataFeed. Price reflects yield but not side rewards." },
                           { title: "Upgrades",       desc: "Contracts are upgradable (progressively tied to timelock). Midas communicates upgrades with notice and audits." },
                         ]
@@ -1504,6 +1539,7 @@ export default function VaultDetailPage() {
                 redeemAssetsOutUsd={redeemAssetsOutUsd}
                 needsMidasShareApprove={needsMidasShareApprove}
                 handleApproveMidasShares={handleApproveMidasShares}
+                midasRedeemTokenOut={effectivePaymentToken ?? depositAssetAddr}
               />
             </aside>
           </div>

@@ -16,7 +16,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { cachedFetch, TTL, redisKey } from "@/lib/redis";
+import { cachedFetch, invalidate, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
 
 export async function GET(request: Request) {
@@ -24,6 +24,7 @@ export async function GET(request: Request) {
   const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
   const token   = searchParams.get("token");
   const address = searchParams.get("address") ?? undefined;
+  const bust    = searchParams.get("bust") === "1";
 
   if (!token || !/^0x[0-9a-fA-F]{40}$/.test(token)) {
     return NextResponse.json(
@@ -36,6 +37,10 @@ export async function GET(request: Request) {
   const cacheKey = redisKey(`midas:pending:${chainId}:${token.toLowerCase()}:${wallet}`);
 
   try {
+    if (bust) {
+      // Skip Redis read — fetch fresh from Midas and repopulate the cache.
+      await invalidate(cacheKey);
+    }
     const data = await cachedFetch(cacheKey, TTL.PENDING, () =>
       fetchMidasPendingRedemptions(chainId, token, address)
     );

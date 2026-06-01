@@ -35,6 +35,16 @@ function fmtApy(apy: number | null): string | null {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
 }
 
+function vaultHasPortfolioExposure(v: VaultOnChainData): boolean {
+  if (v.userShares !== undefined && v.userShares > BigInt(0)) return true;
+  if (v.kind === "ultrayield") {
+    const pend = v.pendingShares ?? BigInt(0);
+    const claim = v.claimableAssets ?? BigInt(0);
+    return pend > BigInt(0) || claim > BigInt(0);
+  }
+  return false;
+}
+
 // ── Position card ─────────────────────────────────────────────────────────────
 
 function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: () => void }) {
@@ -102,6 +112,16 @@ function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: ()
           <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
             {fmtAsset(vault.userShares, vault.decimals, vault.symbol)}
           </p>
+          {vault.kind === "ultrayield" && vault.pendingShares !== undefined && vault.pendingShares > BigInt(0) && (
+            <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+              {fmtAsset(vault.pendingShares, vault.decimals, vault.symbol)} pending redemption
+            </p>
+          )}
+          {vault.kind === "ultrayield" && vault.claimableAssets !== undefined && vault.claimableAssets > BigInt(0) && (
+            <p className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              {fmtAsset(vault.claimableAssets, assetDec, vault.assetSymbol)} ready to claim
+            </p>
+          )}
         </div>
         <div className="text-left md:text-right">
           <p className="mb-1 text-[0.65rem] uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
@@ -175,7 +195,7 @@ function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void
     amountLabel = `${parseFloat(formatUnits(item.assets, assetDec)).toFixed(6)} ${item.vault.assetSymbol ?? ""}`;
     subLabel = "Operator has fulfilled your request — visit the vault to claim";
   } else {
-    statusLabel = "Async Pending";
+    statusLabel = "Standard Pending";
     const raw = item.redemption.amount ? BigInt(item.redemption.amount) : undefined;
     amountLabel = raw !== undefined
       ? `${parseFloat(formatUnits(raw, 18)).toFixed(6)} ${item.vault.symbol}`
@@ -245,9 +265,7 @@ export default function PortfolioPage() {
 
   const walletPending = !mounted || isReconnecting || isConnecting;
 
-  const positions = vaults.filter(
-    (v) => v.userShares !== undefined && v.userShares > BigInt(0)
-  );
+  const positions = vaults.filter(vaultHasPortfolioExposure);
 
   // ── Midas async pending redemptions (one API call per Midas position) ──────
   const midasPositions = vaults.filter((v) => v.kind === "midas");
