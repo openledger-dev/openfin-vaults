@@ -46,14 +46,16 @@ docker compose --env-file .env.compose up --build
 **Step 1 — Build and push using `.env.compose`** (no `--build-arg` needed):
 
 ```bash
-# Build the image — all NEXT_PUBLIC_* vars are read from .env.compose
-APP_VERSION=v1.0.0 docker compose --env-file .env.compose build
+# First-time only: create a multi-platform builder
+docker buildx create --name multibuilder --use && docker buildx inspect --bootstrap
 
-# Push to Docker Hub (openledgerhub/openfin-vault:v1.0.0)
-APP_VERSION=v1.0.0 docker compose --env-file .env.compose push
+# Build for linux/amd64 and push to Docker Hub in one step
+./scripts/build-push.sh v1.0.0
 ```
 
-`APP_VERSION` controls the image tag. Omit it to tag as `latest`.
+The script reads all `NEXT_PUBLIC_*` vars from `.env.compose` automatically and targets `linux/amd64` (required when building on Apple Silicon for a Linux server).
+
+> **Note:** plain `docker compose build` / `docker compose push` produces an ARM64 image on Apple Silicon which will fail with `exec format error` on AMD64 servers. Always use `./scripts/build-push.sh` to push production images.
 
 
 **Step 2 — Deploy on the server:**
