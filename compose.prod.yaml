@@ -56,7 +56,7 @@ services:
     image: openledgerhub/openfin-vault:v1.0.0
     restart: unless-stopped
     ports:
-      - "3032:3032"
+      - "80:80"
     environment:
       # Redis — authenticated, internal only
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
