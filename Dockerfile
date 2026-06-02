@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# Multi-stage Dockerfile for OpenVault (Next.js 16, pnpm, Node 20 LTS)
+# Multi-stage Dockerfile for OpenVault (Next.js 16, pnpm, Node 24 LTS)
 #
 # Stages:
 #   base    — Node 20 Alpine + pnpm
@@ -21,7 +21,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: base ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 # Enable corepack and pin pnpm to the same version used in development
 RUN corepack enable && corepack prepare pnpm@11.1.3 --activate
 
@@ -30,9 +30,8 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package manifests and pnpm config first (layer cache for installs)
-COPY package.json pnpm.json ./
-# Copy lockfile if present; pnpm will generate one otherwise
-COPY pnpm-lock.yaml* ./
+# pnpm.json is optional (only present when onlyBuiltDependencies is configured)
+COPY package.json pnpm-lock.yaml* pnpm.json* pnpm-workspace.yaml* ./
 
 # Install all dependencies (dev deps needed for the build step)
 RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
@@ -68,7 +67,7 @@ COPY . .
 RUN pnpm build
 
 # ── Stage 4: runner ───────────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
