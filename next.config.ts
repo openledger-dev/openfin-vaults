@@ -14,6 +14,13 @@ const STUB_PACKAGES = [
   "pino-pretty",
   "lokijs",
   "encoding",
+  // @wagmi/core "tempo" experimental connector — requires a Cloudflare
+  // "accounts" peer dep that is not installed. Stubbing prevents a
+  // webpack "module not found" build error (app does not use Tempo connectors).
+  "accounts",
+  // @wagmi/connectors@8.0.15 MetaMask connector peer dep — not needed since
+  // MetaMask is handled via WalletConnect / Reown AppKit, not the direct SDK.
+  "@metamask/connect-evm",
 ];
 
 const nextConfig: NextConfig = {

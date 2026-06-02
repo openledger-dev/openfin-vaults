@@ -209,6 +209,7 @@ export function useMorphoVaultData(
       depositVaultAddress: undefined,
       redemptionVaultAddress: undefined,
       midasApiKey: undefined,
+      ultrayieldApiSlug: undefined,
       isLoading: s1Loading || s2Loading || s3Loading || apyLoading,
       isError: nameRes?.status === "failure" || assetRes?.status === "failure",
     };

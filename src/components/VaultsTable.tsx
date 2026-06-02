@@ -175,7 +175,13 @@ function VaultAvatar({ chainId }: { chainId: number }) {
 // ── APY cells ─────────────────────────────────────────────────────────────────
 
 function UltraYieldApyCell({ v }: { v: VaultOnChainData }) {
-  const { apy, label, isLoading } = use7dApy(v.oracleAddress, v.address, v.assetAddress);
+  const { apy, label, isLoading } = use7dApy(
+    v.oracleAddress,
+    v.address,
+    v.assetAddress,
+    v.chainId,
+    v.ultrayieldApiSlug,
+  );
 
   if (isLoading) return <div className="h-4 w-14 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />;
   if (apy === null) return <span className="text-sm text-zinc-400 dark:text-zinc-500">—</span>;

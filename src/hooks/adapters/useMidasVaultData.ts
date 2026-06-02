@@ -187,6 +187,7 @@ export function useMidasVaultData(
       depositVaultAddress: vault.depositVaultAddress,
       redemptionVaultAddress: vault.redemptionVaultAddress,
       midasApiKey: vault.midasApiKey,
+      ultrayieldApiSlug: undefined,
       isLoading: s1Loading || s2Loading || apyLoading || priceLoading || tvlLoading,
       isError: nameRes?.status === "failure",
     };

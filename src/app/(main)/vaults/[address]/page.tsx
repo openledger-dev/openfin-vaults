@@ -313,12 +313,14 @@ export default function VaultDetailPage() {
     return vault.symbol ? vault.symbol.toLowerCase() : undefined;
   }, [vaultConfig?.midasApiKey, vault.symbol]);
 
-  // ── APY: event-log for UltraYield; Morpho API otherwise ──────────────────
+  // ── APY: REST API (when slug available) or event-log scan for UltraYield ──
+  const ultrayieldSlug = vaultKind === "ultrayield" ? vault.ultrayieldApiSlug : undefined;
   const { apy: ultrayieldApy, label: apyLabel, isLoading: apyLoading } = use7dApy(
     vaultKind === "ultrayield" ? vault.oracle : undefined,
     vaultKind === "ultrayield" ? vaultAddress : undefined,
     vaultKind === "ultrayield" ? vault.assetAddress : undefined,
     vaultChainId,
+    ultrayieldSlug,
   );
 
   const { data: morphoApyData, isLoading: morphoApyLoading } = useQuery({
