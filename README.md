@@ -26,27 +26,58 @@ Open [http://localhost:3032](http://localhost:3032) in your browser.
 
 ## Production Build (Docker)
 
-The recommended way to run in production is via Docker Compose, which bundles the Next.js app and Redis together.
+Two compose files are provided:
+
+| File | Purpose |
+|---|---|
+| `compose.yaml` | Local testing — builds the image on the fly |
+| `compose.prod.yaml` | Production — pulls a pre-built tagged image, Redis auth, resource limits, structured logging |
+
+### Local testing
 
 ```bash
-# 1. Create your environment file
 cp .env.local.example .env.compose
-# Edit .env.compose — fill in NEXT_PUBLIC_REOWN_PROJECT_ID, RPC_URL_1, vault addresses, etc.
-
-# 2. Build and start
+# Edit .env.compose with your values
 docker compose --env-file .env.compose up --build
+```
 
-# 3. Open http://localhost:3032
+### Production deployment
+
+**Step 1 — Build and push using `.env.compose`** (no `--build-arg` needed):
+
+```bash
+# Build the image — all NEXT_PUBLIC_* vars are read from .env.compose
+APP_VERSION=v1.0.0 docker compose --env-file .env.compose build
+
+# Push to Docker Hub (openledgerhub/openfin-vault:v1.0.0)
+APP_VERSION=v1.0.0 docker compose --env-file .env.compose push
+```
+
+`APP_VERSION` controls the image tag. Omit it to tag as `latest`.
+
+
+**Step 2 — Deploy on the server:**
+
+```bash
+# Create .env.prod with runtime secrets
+APP_IMAGE=openledgerhub/openfin-vault:v1.0.0
+REDIS_PASSWORD=<strong-random-password>
+RPC_URL_1=https://eth-mainnet.g.alchemy.com/v2/<key>
+RPC_URL_8453=https://base-mainnet.g.alchemy.com/v2/<key>
+ONEINCH_API_KEY=...
+ONECLICK_JWT_TOKEN=...
+
+docker compose -f compose.prod.yaml --env-file .env.prod up -d
 ```
 
 > **Note:** `NEXT_PUBLIC_*` variables are baked into the JS bundle at build time.
-> Rebuild with `--build` whenever they change.
+> Changing them requires a new image build and push.
 
-To stop and remove containers:
+To stop:
 
 ```bash
-docker compose down          # keep Redis data
-docker compose down -v       # also wipe Redis volume
+docker compose -f compose.prod.yaml down        # keep Redis data
+docker compose -f compose.prod.yaml down -v     # also wipe Redis volume
 ```
 
 ## Production Build (Manual)

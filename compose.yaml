@@ -28,7 +28,7 @@ services:
       dockerfile: Dockerfile
       args:
         # ── Build-time vars (baked into the client JS bundle) ──────────────────
-        # Copy these from your .env.local or override here
+        # All values are read automatically from --env-file .env.compose
         NEXT_PUBLIC_REOWN_PROJECT_ID:      ${NEXT_PUBLIC_REOWN_PROJECT_ID}
         NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR: ${NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR:-}
         NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID:   ${NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID:-1}
@@ -37,6 +37,8 @@ services:
         NEXT_PUBLIC_MIDAS_CHAIN_ID:        ${NEXT_PUBLIC_MIDAS_CHAIN_ID:-1}
         NEXT_PUBLIC_SWAP_MIN_USD:          ${NEXT_PUBLIC_SWAP_MIN_USD:-5}
         NEXT_PUBLIC_APP_URL:               ${NEXT_PUBLIC_APP_URL:-http://localhost:3032}
+    # Tag the image for Docker Hub so `docker compose push` works
+    image: openledgerhub/openfin-vault:${APP_VERSION:-latest}
     restart: unless-stopped
     ports:
       - "3032:3032"

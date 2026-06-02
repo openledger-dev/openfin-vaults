@@ -1,0 +1,99 @@
+# Docker Compose for PRODUCTION deployment
+#
+# Prerequisites:
+#   - A tagged image already built and pushed to your registry:
+#       docker build \
+#         --build-arg NEXT_PUBLIC_REOWN_PROJECT_ID=... \
+#         --build-arg NEXT_PUBLIC_APP_URL=https://your-domain.com \
+#         --build-arg NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR=... \
+#         --build-arg NEXT_PUBLIC_MORPHO_VAULT_ADDR=... \
+#         --build-arg NEXT_PUBLIC_MIDAS_VAULT_ADDR=... \
+#         -t openledgerhub/openfin-vault:v1.0.0 .
+#       docker push openledgerhub/openfin-vault:v1.0.0
+#
+# Usage on the server:
+#   docker compose -f compose.prod.yaml --env-file .env.prod up -d
+#
+# Required variables in .env.prod:
+#   APP_IMAGE            — full image ref, e.g. yourrepo/openfin-vault:v1.0.0
+#   REDIS_PASSWORD       — strong random password for Redis auth
+#   RPC_URL_1            — Ethereum mainnet RPC
+#   RPC_URL_8453         — Base RPC
+#   ONEINCH_API_KEY      — (optional)
+#   ONECLICK_JWT_TOKEN   — (optional)
+
+services:
+  redis:
+    image: redis:7-alpine
+    # Require a password for all Redis connections
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    restart: unless-stopped
+    # Redis is NOT exposed to the host — only the app container needs it
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 64m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    # Pull a pre-built, tagged image — never build on the production server
+    image: ${APP_IMAGE}
+    restart: unless-stopped
+    ports:
+      - "3032:3032"
+    environment:
+      # Redis — authenticated, internal only
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+      # RPC endpoints
+      RPC_URL_1:    ${RPC_URL_1}
+      RPC_URL_8453: ${RPC_URL_8453:-}
+
+      # API keys
+      ONEINCH_API_KEY:    ${ONEINCH_API_KEY:-}
+      ONECLICK_JWT_TOKEN: ${ONECLICK_JWT_TOKEN:-}
+
+      # Rate limiting — recommended enabled in production
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+
+      # Cache TTLs (override if needed)
+      REDIS_TTL_META:    ${REDIS_TTL_META:-3600}
+      REDIS_TTL_STATE:   ${REDIS_TTL_STATE:-30}
+      REDIS_TTL_APY:     ${REDIS_TTL_APY:-300}
+      REDIS_TTL_APY_7D:  ${REDIS_TTL_APY_7D:-86400}
+      REDIS_TTL_PRICE:   ${REDIS_TTL_PRICE:-600}
+      REDIS_TTL_PENDING: ${REDIS_TTL_PENDING:-60}
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  redis_data:
+    driver: local
