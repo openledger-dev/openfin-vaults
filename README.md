@@ -70,6 +70,15 @@ ONECLICK_JWT_TOKEN=...
 docker compose -f compose.prod.yaml --env-file .env.prod up -d
 ```
 
+
+```
+APP_IMAGE=openledgerhub/openfin-vault:v1.0.0 \
+REDIS_PASSWORD=0fcf9a47f2d07c4e \
+RPC_URL_1=https://mainnet.infura.io/v3/2dcbe335114c4927a5cd5ab9c1fc7490 \
+RPC_URL_8453=https://base-mainnet.infura.io/v3/2dcbe335114c4927a5cd5ab9c1fc7490 \
+docker compose -f compose.prod.yaml up -d
+```
+
 > **Note:** `NEXT_PUBLIC_*` variables are baked into the JS bundle at build time.
 > Changing them requires a new image build and push.
 
