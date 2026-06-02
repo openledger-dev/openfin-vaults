@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenVault
 
-## Getting Started
+A multi-platform DeFi vault dashboard built with Next.js, supporting UltraYield, Morpho, and Midas vaults.
 
-First, run the development server:
+## Requirements
+
+- Node.js 24+
+- pnpm 11+
+- Redis (local or remote — see `.env.local.example`)
+
+## Local Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Install dependencies
+pnpm install
+
+# Copy and configure environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your RPC URLs, vault addresses, etc.
+
+# Start the development server (port 3032)
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3032](http://localhost:3032) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production Build (Docker)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The recommended way to run in production is via Docker Compose, which bundles the Next.js app and Redis together.
 
-## Learn More
+```bash
+# 1. Create your environment file
+cp .env.local.example .env.compose
+# Edit .env.compose — fill in NEXT_PUBLIC_REOWN_PROJECT_ID, RPC_URL_1, vault addresses, etc.
 
-To learn more about Next.js, take a look at the following resources:
+# 2. Build and start
+docker compose --env-file .env.compose up --build
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 3. Open http://localhost:3032
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+> **Note:** `NEXT_PUBLIC_*` variables are baked into the JS bundle at build time.
+> Rebuild with `--build` whenever they change.
 
-## Deploy on Vercel
+To stop and remove containers:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+docker compose down          # keep Redis data
+docker compose down -v       # also wipe Redis volume
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Production Build (Manual)
+
+```bash
+pnpm install
+pnpm build
+pnpm start   # listens on port 3032
+```
+
+Runtime environment variables (`REDIS_URL`, `RPC_URL_*`, etc.) must be set before starting the server.
+
+## Security
+
+Run `pnpm audit` to check for vulnerabilities. The `pnpm-workspace.yaml` contains dependency overrides to keep transitive deps patched.
+
+## Environment Variables
+
+See `.env.local.example` for the full reference — vault addresses, Redis URL, RPC endpoints, API keys, and cache TTL overrides.
