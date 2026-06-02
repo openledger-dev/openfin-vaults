@@ -14,9 +14,20 @@ const STUB_PACKAGES = [
   "pino-pretty",
   "lokijs",
   "encoding",
+  // @wagmi/core "tempo" experimental connector — requires a Cloudflare
+  // "accounts" peer dep that is not installed. Stubbing prevents a
+  // webpack "module not found" build error (app does not use Tempo connectors).
+  "accounts",
+  // @wagmi/connectors@8.0.15 MetaMask connector peer dep — not needed since
+  // MetaMask is handled via WalletConnect / Reown AppKit, not the direct SDK.
+  "@metamask/connect-evm",
 ];
 
 const nextConfig: NextConfig = {
+  // Produce a self-contained server bundle under .next/standalone/.
+  // The runner stage copies only that folder + static assets, keeping the
+  // final Docker image free of node_modules (~60-80% smaller).
+  output: "standalone",
   outputFileTracingRoot: process.cwd(),
 
   // ── HTTP security headers ────────────────────────────────────────────────

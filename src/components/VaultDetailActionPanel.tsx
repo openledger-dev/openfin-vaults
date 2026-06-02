@@ -77,6 +77,8 @@ interface VaultDetailActionPanelProps {
   redeemAssetsOutUsd?: string;
   needsMidasShareApprove?: boolean;
   handleApproveMidasShares?: () => void;
+  /** Redemption vault payment token (USDC); required before redeem calls */
+  midasRedeemTokenOut?: string;
 }
 
 export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
@@ -131,6 +133,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
     redeemAssetsOutUsd,
     needsMidasShareApprove,
     handleApproveMidasShares,
+    midasRedeemTokenOut,
   } = props;
 
   return (
@@ -480,7 +483,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                       <button
                         type="button"
                         onClick={handleMidasRedeemInstant}
-                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
+                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0) || !midasRedeemTokenOut}
                         className={darkActionBtnClass}
                       >
                         {isBusy && lastAction === "withdraw" ? "Redeeming..." : (
@@ -490,7 +493,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                       <button
                         type="button"
                         onClick={handleMidasRedeemRequest}
-                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0)}
+                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0) || !midasRedeemTokenOut}
                         className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
                       >
                         {isBusy && lastAction === "withdraw" ? "Requesting..." : "Standard (free)"}

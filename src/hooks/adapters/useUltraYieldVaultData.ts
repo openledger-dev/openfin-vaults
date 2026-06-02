@@ -9,10 +9,13 @@
  *   2. Underlying asset ERC-20 (symbol, decimals)
  *   3. User share balanceOf (only when wallet connected)
  *
- * APY is NOT fetched here — use7dApy derives it from PriceUpdated event logs.
+ * APY is fetched from the UltraYield REST API via /api/ultrayield/apys
+ * (cached in Redis for 5 min). On-chain PriceUpdated event-log scan is
+ * used as fallback in the detail page via use7dApy.
  */
 
 import { useReadContracts } from "wagmi";
+import { useQuery } from "@tanstack/react-query";
 import { VAULT_READ_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
@@ -113,6 +116,24 @@ export function useUltraYieldVaultData(
     query: { enabled: !!userAddress && hasAllAssets },
   });
 
+  // ── UltraYield REST API APYs ──────────────────────────────────────────────
+  const slugs = allVaults
+    .map((v) => v.ultrayieldApiSlug)
+    .filter((s): s is string => !!s);
+
+  const { data: apyMap } = useQuery<Record<string, number | null>>({
+    queryKey: ["ultrayieldApys", slugs.join(",")],
+    enabled: slugs.length > 0,
+    staleTime: 5 * 60 * 1_000,
+    gcTime:    15 * 60 * 1_000,
+    queryFn: async () => {
+      const params = new URLSearchParams({ slugs: slugs.join(",") });
+      const res = await fetch(`/api/ultrayield/apys?${params}`);
+      if (!res.ok) throw new Error(`UltraYield APYs API error: ${res.status}`);
+      return res.json() as Promise<Record<string, number | null>>;
+    },
+  });
+
   // ── Assemble ──────────────────────────────────────────────────────────────
   const vaults: VaultOnChainData[] = allVaults.map((vault, i) => {
     const base = i * VAULT_FIELD_COUNT;
@@ -188,7 +209,10 @@ export function useUltraYieldVaultData(
           : undefined,
       userShares,
       userAssetsRaw,
-      apyPrefetched: null,
+      apyPrefetched: vault.ultrayieldApiSlug
+        ? (apyMap?.[vault.ultrayieldApiSlug] ?? null)
+        : null,
+      ultrayieldApiSlug: vault.ultrayieldApiSlug,
       pendingShares:      pendingRedeem?.shares,
       pendingRequestTime: pendingRedeem?.requestTime,
       claimableAssets:    claimableRedeem?.assets,

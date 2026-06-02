@@ -70,9 +70,14 @@ export type VaultOnChainData = {
   userAssetsRaw: bigint | undefined;
   /**
    * Pre-fetched APY as a decimal fraction (0.05 = 5%).
-   * Populated by Midas and Morpho adapters. Null for UltraYield (event-derived).
+   * Populated by all adapters (UltraYield via REST API, Morpho/Midas via their APIs).
    */
   apyPrefetched: number | null;
+  /**
+   * UltraYield REST API slug for this vault (e.g. "ultrayield-usd").
+   * Undefined for non-UltraYield vaults.
+   */
+  ultrayieldApiSlug: string | undefined;
   // ── UltraYield async redeem state ─────────────────────────────────────────
   /** Shares currently escrowed in a pending (unfulfilled) redeem request */
   pendingShares: bigint | undefined;

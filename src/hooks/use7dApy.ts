@@ -1,17 +1,13 @@
 "use client";
 
 /**
- * Derives 7-day APY for UltraYield vaults by calling the server-side
- * /api/ultrayield/apy route, which caches the result in Redis for 24 hours.
+ * Returns the 7-day APY for a single UltraYield vault.
  *
- * WHY server-side + 24h cache?
- *   The APY requires an eth_getLogs scan over ~50,000 blocks (~7 days on
- *   Ethereum mainnet). This is slow on any RPC and pointless to repeat on
- *   every page load — the figure barely moves within a day.
- *
- * WHY not useChainId() anymore?
- *   We accept an explicit `chainId` prop so the correct chain is always used
- *   regardless of which network the user's wallet is connected to.
+ * Source priority:
+ *   1. UltraYield REST API (/api/ultrayield/apys?slugs=…) when `slug` is
+ *      provided — fast, 5-min Redis cache, no RPC cost.
+ *   2. On-chain PriceUpdated event-log scan (/api/ultrayield/apy) when no
+ *      slug is available — slow eth_getLogs scan, 24-hour Redis cache.
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -20,7 +16,7 @@ import { useChainId } from "wagmi";
 export type ApyResult = {
   /** Annualised percentage return (e.g. 5.23 means 5.23%) */
   apy: number | null;
-  /** Actual number of days covered by the calculation */
+  /** Actual number of days covered by the calculation (null when from REST API) */
   daysBack: number | null;
   /** Human-readable label: "7D APY", "3D APY", etc. */
   label: string;
@@ -34,48 +30,71 @@ export function use7dApy(
   assetAddress:  `0x${string}` | undefined,
   /** Explicit chain ID for the vault. Falls back to the connected wallet's chain. */
   vaultChainId?: number,
+  /** UltraYield REST API slug (e.g. "ultrayield-usd"). When provided, the REST
+   *  API is used instead of the on-chain event-log scan. */
+  slug?: string,
 ): ApyResult {
   const connectedChainId = useChainId();
   const chainId = vaultChainId ?? connectedChainId;
 
-  const enabled = !!oracleAddress && !!vaultAddress && !!assetAddress;
+  // ── Path A: REST API (fast, preferred when slug is available) ─────────────
+  const restEnabled = !!slug;
 
-  const { data, isLoading, isError } = useQuery({
+  const { data: restData, isLoading: restLoading, isError: restError } = useQuery({
+    queryKey: ["7dApyRest", slug],
+    enabled: restEnabled,
+    staleTime: 5 * 60 * 1_000,
+    gcTime:    15 * 60 * 1_000,
+    queryFn: async (): Promise<number | null> => {
+      const params = new URLSearchParams({ slugs: slug! });
+      const res = await fetch(`/api/ultrayield/apys?${params}`);
+      if (!res.ok) throw new Error(`UltraYield APYs API error: ${res.status}`);
+      const map = (await res.json()) as Record<string, number | null>;
+      return map[slug!] ?? null;
+    },
+  });
+
+  // ── Path B: On-chain event-log scan (fallback when no slug) ───────────────
+  const onchainEnabled = !restEnabled && !!oracleAddress && !!vaultAddress && !!assetAddress;
+
+  const { data: onchainData, isLoading: onchainLoading, isError: onchainError } = useQuery({
     queryKey: ["7dApy", chainId, oracleAddress, vaultAddress, assetAddress],
-    enabled,
-    // Align with the server cache TTL — no point re-fetching before the server
-    // cache expires. The API route itself handles the 24h Redis expiry.
+    enabled: onchainEnabled,
     staleTime: 24 * 60 * 60 * 1_000,
     gcTime:    25 * 60 * 60 * 1_000,
     queryFn: async (): Promise<{ apy: number; daysBack: number } | null> => {
       if (!oracleAddress || !vaultAddress || !assetAddress) return null;
-
       const params = new URLSearchParams({
         chainId: String(chainId),
         oracle:  oracleAddress,
         vault:   vaultAddress,
         asset:   assetAddress,
       });
-
       const res = await fetch(`/api/ultrayield/apy?${params}`);
-
-      if (res.status === 204) return null; // insufficient oracle history
+      if (res.status === 204) return null;
       if (!res.ok) throw new Error(`UltraYield APY API error: ${res.status}`);
-
       return res.json() as Promise<{ apy: number; daysBack: number }>;
     },
   });
 
-  if (!enabled || isLoading) {
-    return { apy: null, daysBack: null, label: "7D APY", isLoading: true,  isError: false };
-  }
-  if (isError || data === null || data === undefined) {
-    return { apy: null, daysBack: null, label: "7D APY", isLoading: false, isError: !!isError };
+  // ── Resolve ───────────────────────────────────────────────────────────────
+  if (restEnabled) {
+    if (restLoading) return { apy: null, daysBack: null, label: "7D APY", isLoading: true,  isError: false };
+    if (restError || restData === undefined) return { apy: null, daysBack: null, label: "7D APY", isLoading: false, isError: !!restError };
+    const apy = restData !== null ? restData * 100 : null;
+    return { apy, daysBack: 7, label: "7D APY", isLoading: false, isError: false };
   }
 
-  const days        = data.daysBack ?? 7;
+  if (!onchainEnabled || onchainLoading) {
+    return { apy: null, daysBack: null, label: "7D APY", isLoading: onchainLoading, isError: false };
+  }
+  if (onchainError || onchainData === null || onchainData === undefined) {
+    return { apy: null, daysBack: null, label: "7D APY", isLoading: false, isError: !!onchainError };
+  }
+
+  const days        = onchainData.daysBack ?? 7;
   const roundedDays = Math.round(days);
   const label       = roundedDays >= 6 ? "7D APY" : `${roundedDays}D APY`;
 
-  return { apy: data.apy, daysBack: data.daysBack, label, isLoading: false, isError: false };
+  return { apy: onchainData.apy, daysBack: onchainData.daysBack, label, isLoading: false, isError: false };
 }

@@ -39,6 +39,13 @@ export type PlatformVaultEntry = {
   assets?: AssetConfig[];
   /** Optional UI fallback display name when on-chain name() is unavailable */
   displayName?: string;
+  /**
+   * UltraYield REST API slug for this vault.
+   * Used to fetch 7D APY from:
+   *   https://api.ultrayield.app/api/v2/vaults/{slug}/apy_history?limit=1
+   * e.g. "ultrayield-usd", "ultrayield-btc"
+   */
+  ultrayieldApiSlug?: string;
 
   // ── Midas-only fields ──────────────────────────────────────────────────────
   /** Midas Deposit Vault contract address */
@@ -126,10 +133,11 @@ function parseAddressesWithOptionalChain(
  *   1. Set NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR in .env.local
  *   2. Add a matching entry here
  */
-const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "displayName">> = {
+const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "displayName" | "ultrayieldApiSlug">> = {
   // ── UltraYield USD (0x5463...bca1) ────────────────────────────────────────
   "0x546329a16dcedc46e93f7b03a65f49a84700bca1": {
     displayName: "UltraYield USD",
+    ultrayieldApiSlug: "ultrayield-usd",
     assets: [
       {
         address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
@@ -146,9 +154,16 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" 
     ],
   },
 
+  // ── UltraYield ETH (0xc46e...7908) ────────────────────────────────────────
+  "0xc46efcc8e39c8f02425e367423871cd4633b7908": {
+    displayName: "UltraYield ETH",
+    ultrayieldApiSlug: "ultrayield-eth",
+  },
+
   // ── UltraYield BTC (0x4724...914F) ────────────────────────────────────────
   "0x472425cc95be779126afa4aa17980210d299914f": {
     displayName: "UltraYield BTC",
+    ultrayieldApiSlug: "ultrayield-btc",
     assets: [
       {
         address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
@@ -237,6 +252,11 @@ const MIDAS_VAULT_CONFIG: Record<
     midasApiKey: "mre7btc",
     managementFeePct:  2,
     performanceFeePct: 25,
+    assets: [
+      { address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol: "WBTC",  decimals: 8,  isPegged: false },
+      { address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", symbol: "cbBTC", decimals: 8,  isPegged: false },
+      { address: "0x8dAEBADE922dF735c38C80C7eBD708Af50815fAa", symbol: "tBTC",  decimals: 18, isPegged: false },
+    ],
   },
 };
 

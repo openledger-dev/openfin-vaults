@@ -1,0 +1,73 @@
+# Docker Compose for local testing of the production image + Redis
+#
+# Usage:
+#   1. Copy .env.local.example to .env.compose and fill in your values.
+#   2. docker compose up --build
+#   3. Open http://localhost:3032
+#
+# The app is rebuilt from scratch on every `--build`. Omit --build to reuse
+# the last built image (faster iteration when only runtime vars change).
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # ── Build-time vars (baked into the client JS bundle) ──────────────────
+        # All values are read automatically from --env-file .env.compose
+        NEXT_PUBLIC_REOWN_PROJECT_ID:      ${NEXT_PUBLIC_REOWN_PROJECT_ID}
+        NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR: ${NEXT_PUBLIC_ULTRAYIELD_VAULT_ADDR:-}
+        NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID:   ${NEXT_PUBLIC_ULTRAYIELD_CHAIN_ID:-1}
+        NEXT_PUBLIC_MORPHO_VAULT_ADDR:     ${NEXT_PUBLIC_MORPHO_VAULT_ADDR:-}
+        NEXT_PUBLIC_MIDAS_VAULT_ADDR:      ${NEXT_PUBLIC_MIDAS_VAULT_ADDR:-}
+        NEXT_PUBLIC_MIDAS_CHAIN_ID:        ${NEXT_PUBLIC_MIDAS_CHAIN_ID:-1}
+        NEXT_PUBLIC_SWAP_MIN_USD:          ${NEXT_PUBLIC_SWAP_MIN_USD:-5}
+        NEXT_PUBLIC_APP_URL:               ${NEXT_PUBLIC_APP_URL:-http://localhost:3032}
+    # Tag the image for Docker Hub so `docker compose push` works
+    image: openledgerhub/openfin-vault:${APP_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "3032:3032"
+    environment:
+      # ── Runtime vars (server-side only, not baked into the bundle) ──────────
+      # Redis: point to the compose service, not localhost
+      REDIS_URL: redis://redis:6379
+
+      # RPC endpoints — override via .env.compose or shell env
+      RPC_URL_1:     ${RPC_URL_1:-}
+      RPC_URL_8453:  ${RPC_URL_8453:-}
+
+      # Optional API keys
+      ONEINCH_API_KEY:     ${ONEINCH_API_KEY:-}
+      ONECLICK_JWT_TOKEN:  ${ONECLICK_JWT_TOKEN:-}
+
+      # Rate limiting (set to "true" to enable)
+      RATE_LIMIT_ENABLED:  ${RATE_LIMIT_ENABLED:-false}
+
+      # Cache TTL overrides (all optional)
+      REDIS_TTL_META:    ${REDIS_TTL_META:-3600}
+      REDIS_TTL_STATE:   ${REDIS_TTL_STATE:-30}
+      REDIS_TTL_APY:     ${REDIS_TTL_APY:-300}
+      REDIS_TTL_APY_7D:  ${REDIS_TTL_APY_7D:-86400}
+      REDIS_TTL_PRICE:   ${REDIS_TTL_PRICE:-600}
+      REDIS_TTL_PENDING: ${REDIS_TTL_PENDING:-60}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  redis_data:
