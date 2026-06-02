@@ -294,6 +294,8 @@ export default function VaultDetailPage() {
         // Fund-level fees (static config, not on-chain)
         managementFeePct:       entry.managementFeePct,
         performanceFeePct:      entry.performanceFeePct,
+        // UltraYield REST API slug for APY
+        ultrayieldApiSlug:      entry.ultrayieldApiSlug,
       };
     }
     return null;
@@ -314,7 +316,7 @@ export default function VaultDetailPage() {
   }, [vaultConfig?.midasApiKey, vault.symbol]);
 
   // ── APY: REST API (when slug available) or event-log scan for UltraYield ──
-  const ultrayieldSlug = vaultKind === "ultrayield" ? vault.ultrayieldApiSlug : undefined;
+  const ultrayieldSlug = vaultKind === "ultrayield" ? vaultConfig?.ultrayieldApiSlug : undefined;
   const { apy: ultrayieldApy, label: apyLabel, isLoading: apyLoading } = use7dApy(
     vaultKind === "ultrayield" ? vault.oracle : undefined,
     vaultKind === "ultrayield" ? vaultAddress : undefined,

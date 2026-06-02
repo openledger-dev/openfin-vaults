@@ -24,6 +24,10 @@ const STUB_PACKAGES = [
 ];
 
 const nextConfig: NextConfig = {
+  // Produce a self-contained server bundle under .next/standalone/.
+  // The runner stage copies only that folder + static assets, keeping the
+  // final Docker image free of node_modules (~60-80% smaller).
+  output: "standalone",
   outputFileTracingRoot: process.cwd(),
 
   // ── HTTP security headers ────────────────────────────────────────────────
