@@ -49,7 +49,7 @@ function vaultHasPortfolioExposure(v: VaultOnChainData): boolean {
 
 function PositionCard({ vault, onClick }: { vault: VaultOnChainData; onClick: () => void }) {
   const assetDec = vault.assetDecimals ?? 18;
-  const kindLabel = vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Midas" : "UltraYield";
+  const kindLabel = vault.kind === "morpho" ? "Morpho" : vault.kind === "midas" ? "Re7" : "UltraYield";
   const apyPct = vault.apyPrefetched !== null ? vault.apyPrefetched * 100 : null;
   const apyStr = fmtApy(vault.apyPrefetched);
   const apyPositive = apyPct === null || apyPct >= 0;
@@ -176,7 +176,7 @@ type PendingItem =
   | { type: "midas";                vault: VaultOnChainData; redemption: MidasPendingRedemption };
 
 function PendingCard({ item, onClick }: { item: PendingItem; onClick: () => void }) {
-  const kindLabel    = item.vault.kind === "midas" ? "Midas" : "UltraYield";
+  const kindLabel    = item.vault.kind === "midas" ? "Re7" : "UltraYield";
   const isClaimable  = item.type === "ultrayield-claimable";
 
   let statusLabel: string;

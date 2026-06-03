@@ -28,7 +28,7 @@ import "server-only";
  * ── fetchPending ──────────────────────────────────────────────────────────────
  *   Reads UltraYield pending/claimable redeem positions for a specific user.
  *   User-specific — use a short TTL (60 seconds).
- *   Note: Midas pending redemptions come from the REST API, not on-chain.
+ *   Note: Re7 pending redemptions come from the REST API, not on-chain.
  */
 
 import { createPublicClient, http, parseAbi, type Address } from "viem";

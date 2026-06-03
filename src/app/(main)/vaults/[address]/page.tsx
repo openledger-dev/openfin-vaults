@@ -356,7 +356,7 @@ export default function VaultDetailPage() {
     gcTime:    15 * 60 * 1_000,
     queryFn: () =>
       fetch("/api/midas/apys").then((r) => {
-        if (!r.ok) throw new Error(`Midas APY API error: ${r.status}`);
+        if (!r.ok) throw new Error(`Re7 APY API error: ${r.status}`);
         return r.json() as Promise<MidasApyMap>;
       }),
   });

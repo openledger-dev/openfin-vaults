@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           // CSP: tightened for a DeFi app that only talks to known origins.
           // - script-src: Next.js needs 'self' + inline scripts for hydration
-          // - connect-src: wallet RPCs, 1Click API, NEAR intents explorer, Morpho GraphQL, Midas API, WalletConnect relay
+          // - connect-src: wallet RPCs, 1Click API, NEAR intents explorer, Morpho GraphQL, API, WalletConnect relay
           // - frame-src: WalletConnect QR modal uses an iframe
           { key: "Content-Security-Policy", value: [
             "default-src 'self'",

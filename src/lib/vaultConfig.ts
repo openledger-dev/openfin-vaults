@@ -334,7 +334,7 @@ export const VAULT_PLATFORMS: PlatformConfig[] = [
   // Set NEXT_PUBLIC_MIDAS_CHAIN_ID (default: 1 = Ethereum mainnet)
   {
     id: "midas",
-    label: "Midas Vaults",
+    label: "Re7 Vaults",
     description: "Real-world asset tokens with instant and async redemptions",
     kind: "midas",
     chainId: parseChainId(process.env.NEXT_PUBLIC_MIDAS_CHAIN_ID, 1),
@@ -351,7 +351,7 @@ export const VAULT_PLATFORMS: PlatformConfig[] = [
   {
     id: "re7",
     label: "Re7 Vaults",
-    description: "Midas Re7 strategy vaults with instant and async redemption flows",
+    description: "Re7 strategy vaults with instant and async redemption flows",
     kind: "midas",
     chainId: parseChainId(process.env.NEXT_PUBLIC_MIDAS_CHAIN_ID, 1),
     vaults: [
