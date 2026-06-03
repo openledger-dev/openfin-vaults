@@ -33,10 +33,16 @@ export type PlatformVaultEntry = {
    */
   chainId?: number;
   /**
-   * Supported deposit/redeem assets for this vault.
+   * Supported deposit assets for this vault.
    * Configured statically — avoids expensive event-log discovery.
    */
   assets?: AssetConfig[];
+  /**
+   * Assets available for redemption/withdrawal.
+   * When set, the redeem tab only shows these tokens.
+   * Falls back to `assets` when omitted.
+   */
+  redeemAssets?: AssetConfig[];
   /** Optional UI fallback display name when on-chain name() is unavailable */
   displayName?: string;
   /**
@@ -204,7 +210,7 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" 
  */
 const MIDAS_VAULT_CONFIG: Record<
   string,
-  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "displayName" | "managementFeePct" | "performanceFeePct">
+  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "redeemAssets" | "displayName" | "managementFeePct" | "performanceFeePct">
 > = {
   // ── mTBILL — Midas T-Bill token ───────────────────────────────────────────
   "0xdd629e5241cbc5919847783e6c96b2de4754e438": {
@@ -249,6 +255,12 @@ const MIDAS_VAULT_CONFIG: Record<
     midasApiKey: "mre7",
     managementFeePct:  2,
     performanceFeePct: 25,
+    assets: [
+      { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
+    ],
+    redeemAssets: [
+      { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
+    ],
   },
 
   // ── mRe7BTC — Re7 Capital BTC strategy token ──────────────────────────────
@@ -264,6 +276,9 @@ const MIDAS_VAULT_CONFIG: Record<
       { address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol: "WBTC",  decimals: 8,  isPegged: false },
       { address: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", symbol: "cbBTC", decimals: 8,  isPegged: false },
       { address: "0x8dAEBADE922dF735c38C80C7eBD708Af50815fAa", symbol: "tBTC",  decimals: 18, isPegged: false },
+    ],
+    redeemAssets: [
+      { address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol: "WBTC", decimals: 8, isPegged: false },
     ],
   },
 };

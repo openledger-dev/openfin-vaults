@@ -291,6 +291,7 @@ export default function VaultDetailPage() {
         depositVaultAddress:    entry.depositVaultAddress,
         redemptionVaultAddress: entry.redemptionVaultAddress,
         assets:                 entry.assets,
+        redeemAssets:           entry.redeemAssets,
         // Fund-level fees (static config, not on-chain)
         managementFeePct:       entry.managementFeePct,
         performanceFeePct:      entry.performanceFeePct,
@@ -301,9 +302,11 @@ export default function VaultDetailPage() {
     return null;
   }, [vaultAddress]);
 
-  const midasDepositVault         = vaultConfig?.depositVaultAddress;
-  const midasRedemptionVault      = vaultConfig?.redemptionVaultAddress;
-  const midasPrimaryPaymentToken  = vaultConfig?.assets?.[0]?.address as `0x${string}` | undefined;
+  const midasDepositVault          = vaultConfig?.depositVaultAddress;
+  const midasRedemptionVault       = vaultConfig?.redemptionVaultAddress;
+  const midasPrimaryPaymentToken   = vaultConfig?.assets?.[0]?.address as `0x${string}` | undefined;
+  // Redeem-specific token list: use redeemAssets when defined, else fall back to deposit assets
+  const midasPrimaryRedeemToken    = (vaultConfig?.redeemAssets?.[0]?.address ?? midasPrimaryPaymentToken) as `0x${string}` | undefined;
 
   const vaultKind    = vaultConfig?.kind    ?? "ultrayield";
   const vaultChainId = vaultConfig?.chainId ?? 1;
@@ -479,7 +482,15 @@ export default function VaultDetailPage() {
     if (!vault.userShares || midasPrice === null) return "—";
     const vDec = vault.decimals ?? 18;
     const val = (Number(vault.userShares) / 10 ** vDec) * midasPrice;
-    return `${val.toFixed(4)} USD`;
+    if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(4)}M USD`;
+    if (val >= 1_000)     return `${(val / 1_000).toFixed(4)}K USD`;
+    if (val === 0)        return `0 USD`;
+    const fixed = val.toFixed(4);
+    if (parseFloat(fixed) === 0) {
+      const sigPos = -Math.floor(Math.log10(val)) + 1;
+      return `${val.toFixed(sigPos)} USD`;
+    }
+    return `${fixed} USD`;
   }, [vault.userShares, vault.decimals, midasPrice]);
 
   // When the on-chain name() call fails it falls back to the raw address.
@@ -507,6 +518,13 @@ export default function VaultDetailPage() {
 
   const { assets: supportedAssets } = useSupportedAssets(vaultAddress);
 
+  // For Midas vaults with a redeemAssets override, use that list for the redeem tab;
+  // otherwise fall back to the full deposit-asset list.
+  const redeemSupportedAssets = useMemo(
+    () => vaultConfig?.redeemAssets ?? supportedAssets,
+    [vaultConfig?.redeemAssets, supportedAssets]
+  );
+
   // ── Deposit asset selection ───────────────────────────────────────────────
   const [selectedAssetAddr, setSelectedAssetAddr] = useState<`0x${string}` | undefined>(undefined);
   useEffect(() => {
@@ -520,17 +538,17 @@ export default function VaultDetailPage() {
     [supportedAssets, selectedAssetAddr]
   );
 
-  // ── Withdrawal asset selection (UltraYield only, mirrors deposit selector) ─
+  // ── Withdrawal asset selection (Midas + UltraYield) ───────────────────────
   const [selectedWithdrawAssetAddr, setSelectedWithdrawAssetAddr] = useState<`0x${string}` | undefined>(undefined);
   useEffect(() => {
-    if (supportedAssets.length > 0 && !selectedWithdrawAssetAddr) {
-      setSelectedWithdrawAssetAddr(supportedAssets[0].address);
+    if (redeemSupportedAssets.length > 0 && !selectedWithdrawAssetAddr) {
+      setSelectedWithdrawAssetAddr(redeemSupportedAssets[0].address);
     }
-  }, [supportedAssets, selectedWithdrawAssetAddr]);
+  }, [redeemSupportedAssets, selectedWithdrawAssetAddr]);
 
   const withdrawAsset = useMemo(
-    () => supportedAssets.find((a) => a.address === selectedWithdrawAssetAddr) ?? supportedAssets[0] ?? null,
-    [supportedAssets, selectedWithdrawAssetAddr]
+    () => redeemSupportedAssets.find((a) => a.address === selectedWithdrawAssetAddr) ?? redeemSupportedAssets[0] ?? null,
+    [redeemSupportedAssets, selectedWithdrawAssetAddr]
   );
 
   const withdrawAssetAddr = vaultKind === "ultrayield"
@@ -831,7 +849,7 @@ export default function VaultDetailPage() {
 
   // Midas instant redeem (with fee). tokenOut must be from the redemption vault's payment tokens; include recipient like midas.app.
   function handleMidasRedeemInstant() {
-    const tokenOut = (effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
+    const tokenOut = (midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
     if (!midasRedemptionVault || !tokenOut || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
@@ -848,7 +866,7 @@ export default function VaultDetailPage() {
 
   // Midas standard redeem — on-chain name is redeemRequest(tokenOut, amount, recipient), not requestRedeem.
   function handleMidasRedeemRequest() {
-    const tokenOut = (effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
+    const tokenOut = (midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
     if (!midasRedemptionVault || !tokenOut || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm standard redeem request for ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
     setConfirmAction(() => () => {
@@ -1179,6 +1197,7 @@ export default function VaultDetailPage() {
                   setActionTabIdx={setActionTabIdx}
                   vaultKind={vaultKind}
                   supportedAssets={supportedAssets}
+                  redeemAssets={redeemSupportedAssets}
                   depositAsset={depositAsset}
                   withdrawAsset={withdrawAsset}
                   setSelectedAssetAddr={setSelectedAssetAddr}
@@ -1221,7 +1240,7 @@ export default function VaultDetailPage() {
                   redeemAssetsOutUsd={redeemAssetsOutUsd}
                   needsMidasShareApprove={needsMidasShareApprove}
                   handleApproveMidasShares={handleApproveMidasShares}
-                  midasRedeemTokenOut={effectivePaymentToken ?? depositAssetAddr}
+                  midasRedeemTokenOut={midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr}
                 />
               </div>
 
@@ -1243,7 +1262,7 @@ export default function VaultDetailPage() {
                         color: "text-blue-700",
                         isLoading: vault.isLoading },
                       { label: "Wallet Balance",
-                        value: vaultKind === "midas" ? (depositAssetBalance !== undefined ? `${parseFloat(formatUnits(depositAssetBalance, assetDecForDisplay)).toFixed(4)} ${assetSymForDisplay}` : "—") : vault.userAssetBalanceFormatted,
+                        value: vaultKind === "midas" ? depositAssetBalanceFmt : vault.userAssetBalanceFormatted,
                         color: "text-zinc-800 dark:text-zinc-100",
                         isLoading: vault.isLoading },
                     ].map((s) => (
@@ -1501,6 +1520,7 @@ export default function VaultDetailPage() {
                 setActionTabIdx={setActionTabIdx}
                 vaultKind={vaultKind}
                 supportedAssets={supportedAssets}
+                redeemAssets={redeemSupportedAssets}
                 depositAsset={depositAsset}
                 withdrawAsset={withdrawAsset}
                 setSelectedAssetAddr={setSelectedAssetAddr}
@@ -1543,7 +1563,7 @@ export default function VaultDetailPage() {
                 redeemAssetsOutUsd={redeemAssetsOutUsd}
                 needsMidasShareApprove={needsMidasShareApprove}
                 handleApproveMidasShares={handleApproveMidasShares}
-                midasRedeemTokenOut={effectivePaymentToken ?? depositAssetAddr}
+                midasRedeemTokenOut={midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr}
               />
             </aside>
           </div>

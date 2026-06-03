@@ -35,6 +35,8 @@ interface VaultDetailActionPanelProps {
   setActionTabIdx: (idx: number) => void;
   vaultKind: VaultKind;
   supportedAssets: SupportedAsset[];
+  /** Restricted asset list for the redeem tab. Falls back to supportedAssets when omitted. */
+  redeemAssets?: SupportedAsset[];
   depositAsset: SupportedAsset | null;
   withdrawAsset: SupportedAsset | null;
   setSelectedAssetAddr: (addr: `0x${string}`) => void;
@@ -91,6 +93,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
     setActionTabIdx,
     vaultKind,
     supportedAssets,
+    redeemAssets,
     depositAsset,
     withdrawAsset,
     setSelectedAssetAddr,
@@ -326,21 +329,21 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
 
           {actionTabIdx === 1 && (
             <div>
-              {vaultKind === "midas" && supportedAssets.length > 1 && (
+              {vaultKind === "midas" && (redeemAssets ?? supportedAssets).length > 1 && (
                 <div className="mb-4">
                   <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-zinc-400">
                     Receive as
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {supportedAssets.map((a) => (
+                    {(redeemAssets ?? supportedAssets).map((a) => (
                       <button
                         key={a.address}
                         type="button"
                         disabled={!isConnected}
-                        onClick={() => setSelectedAssetAddr(a.address)}
+                        onClick={() => setSelectedWithdrawAssetAddr(a.address)}
                         className={
                           "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 " +
-                          (depositAsset?.address === a.address
+                          (withdrawAsset?.address === a.address
                             ? "border-black bg-black text-white dark:border-[#2a2a2e] dark:bg-zinc-100 dark:text-zinc-900"
                             : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:border-[#afafb2]")
                         }
