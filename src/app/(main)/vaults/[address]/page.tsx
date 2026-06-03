@@ -474,14 +474,30 @@ export default function VaultDetailPage() {
     if (midasTvlUsd !== null) return fmtUsd(midasTvlUsd);
     if (!vault.totalSupply || midasPrice === null) return "—";
     const vDec = vault.decimals ?? 18;
-    const tvl = (Number(vault.totalSupply) / 10 ** vDec) * midasPrice;
+    const totalSupplyFloat = parseFloat(formatUnits(vault.totalSupply, vDec));
+    const tvl = totalSupplyFloat * midasPrice;
     return fmtUsd(tvl);
   }, [midasTvlUsd, vault.totalSupply, vault.decimals, midasPrice]);
+  // For Midas vaults the API price is in the vault's native token unit
+  // (USDC for yield vaults, WBTC for BTC vaults) — NOT always in USD.
+  // Derive a reliable USD-per-share from TVL ÷ totalSupply when available;
+  // fall back to midasPrice (which equals USD/share for stablecoin vaults).
+  const midasSharePriceUsd = useMemo(() => {
+    if (midasTvlUsd !== null && vault.totalSupply && vault.totalSupply > BigInt(0)) {
+      const vDec = vault.decimals ?? 18;
+      // Use formatUnits for safe BigInt→float conversion (Number() loses precision
+      // for values above Number.MAX_SAFE_INTEGER, which 18-decimal share tokens easily hit).
+      const totalSupplyFloat = parseFloat(formatUnits(vault.totalSupply, vDec));
+      if (totalSupplyFloat > 0) return midasTvlUsd / totalSupplyFloat;
+    }
+    return midasPrice; // stablecoin-vault fallback: midasPrice ≈ USD/share
+  }, [midasTvlUsd, vault.totalSupply, vault.decimals, midasPrice]);
+
   const midasSharePriceFormatted = midasPrice !== null ? `$${midasPrice.toFixed(6)}` : "—";
   const midasUserValueFormatted = useMemo(() => {
-    if (!vault.userShares || midasPrice === null) return "—";
+    if (!vault.userShares || midasSharePriceUsd === null) return "—";
     const vDec = vault.decimals ?? 18;
-    const val = (Number(vault.userShares) / 10 ** vDec) * midasPrice;
+    const val = parseFloat(formatUnits(vault.userShares, vDec)) * midasSharePriceUsd;
     if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(4)}M USD`;
     if (val >= 1_000)     return `${(val / 1_000).toFixed(4)}K USD`;
     if (val === 0)        return `0 USD`;
@@ -491,7 +507,7 @@ export default function VaultDetailPage() {
       return `${val.toFixed(sigPos)} USD`;
     }
     return `${fixed} USD`;
-  }, [vault.userShares, vault.decimals, midasPrice]);
+  }, [vault.userShares, vault.decimals, midasSharePriceUsd]);
 
   // When the on-chain name() call fails it falls back to the raw address.
   // Use the Morpho API name as a secondary fallback so the page always shows
@@ -553,9 +569,13 @@ export default function VaultDetailPage() {
 
   const withdrawAssetAddr = vaultKind === "ultrayield"
     ? (withdrawAsset?.address ?? vault.assetAddress)
-    : vault.assetAddress;
+    : vaultKind === "midas"
+      ? (withdrawAsset?.address ?? vault.assetAddress)
+      : vault.assetAddress;
   const withdrawAssetDec = withdrawAsset?.decimals ?? vault.assetDecimals ?? 18;
-  const withdrawAssetSym = vaultKind === "ultrayield"
+  // For Midas: use the redeemAssets symbol (e.g. WBTC for Re7BTC) when configured;
+  // this ensures the symbol reflects the actual tokenOut, not the deposit token.
+  const withdrawAssetSym = vaultKind === "ultrayield" || vaultKind === "midas"
     ? (withdrawAsset?.symbol ?? vault.assetSymbol ?? "—")
     : (vault.assetSymbol ?? "—");
 
@@ -770,9 +790,9 @@ export default function VaultDetailPage() {
   const redeemAssetsOutFmt = useMemo(() => {
     if (!redeemAmount || redeemAmountParsed <= BigInt(0)) return `0.00 ${withdrawAssetSym}`;
     if (vaultKind === "midas") {
-      if (!midasPrice) return `— ${assetSymForDisplay}`;
+      if (!midasPrice) return `— ${withdrawAssetSym}`;
       const assets = parseFloat(redeemAmount) * midasPrice;
-      return `${assets.toFixed(6)} ${assetSymForDisplay}`;
+      return `${assets.toFixed(6)} ${withdrawAssetSym}`;
     }
     if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return `— ${withdrawAssetSym}`;
     const vDec = vault.decimals;
@@ -782,28 +802,35 @@ export default function VaultDetailPage() {
     if (assetsFloat === 0) return `0.00 ${withdrawAssetSym}`;
     const dp = aDec >= 6 ? 6 : 4;
     return `${assetsFloat.toFixed(dp)} ${withdrawAssetSym}`;
-  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetSym, withdrawAssetDec, assetSymForDisplay]);
+  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetSym, withdrawAssetDec]);
 
   // USD values shown beneath "You will receive" in both deposit and redeem forms.
-  // For deposit: input is always a stablecoin so USD ≈ input amount.
-  // For redeem:  USD = assets received (stablecoin ≈ USD) or shares × midasPrice.
   function fmtUsdSub(usd: number): string {
     return `≈ $${usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 
   const depositSharesOutUsd = useMemo(() => {
     if (!depositAmount || depositAmountParsed <= BigInt(0)) return undefined;
+    if (vaultKind === "midas") {
+      if (!midasPrice || midasSharePriceUsd === null) return undefined;
+      // shares × USD-per-share — correct for both stablecoin and BTC vaults
+      const shares = parseFloat(depositAmount) / midasPrice;
+      const usd = shares * midasSharePriceUsd;
+      return usd > 0 ? fmtUsdSub(usd) : undefined;
+    }
+    // Non-Midas: deposit token is the vault's base asset (stablecoin or ERC-4626 asset)
     const dec = assetDecForDisplay;
     const usd = Number(depositAmountParsed) / 10 ** dec;
     return usd > 0 ? fmtUsdSub(usd) : undefined;
-  }, [depositAmount, depositAmountParsed, assetDecForDisplay]);
+  }, [depositAmount, depositAmountParsed, assetDecForDisplay, vaultKind, midasPrice, midasSharePriceUsd]);
 
   const redeemAssetsOutUsd = useMemo(() => {
     if (!redeemAmount || redeemAmountParsed <= BigInt(0)) return undefined;
     let usd = 0;
     if (vaultKind === "midas") {
-      if (!midasPrice) return undefined;
-      usd = parseFloat(redeemAmount) * midasPrice;
+      if (!midasPrice || midasSharePriceUsd === null) return undefined;
+      // redeemAmount is in share units; convert to USD via TVL-based price
+      usd = parseFloat(redeemAmount) * midasSharePriceUsd;
     } else {
       if (!vault.sharePrice || vault.sharePrice === BigInt(0)) return undefined;
       const vDec = vault.decimals;
@@ -812,7 +839,7 @@ export default function VaultDetailPage() {
       usd = parseFloat(formatUnits(assetsOut, aDec));
     }
     return usd > 0 ? fmtUsdSub(usd) : undefined;
-  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, withdrawAssetDec]);
+  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, midasSharePriceUsd, withdrawAssetDec]);
 
   // ── Write handlers ────────────────────────────────────────────────────────
 

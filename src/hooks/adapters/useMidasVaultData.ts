@@ -126,28 +126,27 @@ export function useMidasVaultData(
     const price  = apiKey && midasPrices ? (midasPrices[apiKey] ?? null) : null;
     const tvlUsd = apiKey && midasTvls ? (midasTvls[apiKey] ?? null) : null;
 
-    // Derive totalAssets in the primary payment token's unit.
-    // price is USD per share (18-decimal token) → scale to 6-decimal USDC units.
-    // totalAssets ≈ totalSupply × price × 10^(USDC_decimals) / 10^(share_decimals)
-    const totalAssets = totalSupply !== undefined && price !== null
-      ? BigInt(
-          Math.round(
-            (Number(totalSupply) / 10 ** vaultDec) * price * 10 ** USDC_DECIMALS
-          )
-        )
+    // Primary display asset = first configured payment token (or USDC fallback)
+    const primaryAsset = vault.assets?.[0];
+    const assetDec = primaryAsset?.decimals ?? USDC_DECIMALS;
+
+    // Derive totalAssets in the primary payment token's decimals.
+    // e.g. USDC vaults → 6-decimal units; WBTC vaults → 8-decimal units.
+    const totalSupplyFloat = totalSupply !== undefined
+      ? Number(totalSupply) / 10 ** vaultDec
+      : undefined;
+    const totalAssets = totalSupplyFloat !== undefined && price !== null
+      ? BigInt(Math.round(totalSupplyFloat * price * 10 ** assetDec))
       : tvlUsd !== null
-        ? BigInt(Math.round(tvlUsd * 10 ** USDC_DECIMALS))
+        ? BigInt(Math.round(tvlUsd * 10 ** assetDec))
         : undefined;
 
     const userAssetsRaw =
       userShares !== undefined && price !== null
         ? BigInt(Math.round(
-            (Number(userShares) / 10 ** vaultDec) * price * 10 ** USDC_DECIMALS
+            (Number(userShares) / 10 ** vaultDec) * price * 10 ** assetDec
           ))
         : undefined;
-
-    // Primary display asset = first configured payment token (or USDC fallback)
-    const primaryAsset = vault.assets?.[0];
 
     return {
       address: vault.address,
@@ -175,8 +174,9 @@ export function useMidasVaultData(
       liquidityRaw: undefined,
       sharePrice:
         price !== null
-          ? BigInt(Math.round(price * 10 ** USDC_DECIMALS))
+          ? BigInt(Math.round(price * 10 ** assetDec))
           : undefined,
+      tvlUsd: tvlUsd !== null ? tvlUsd : undefined,
       userShares,
       userAssetsRaw,
       apyPrefetched: apy,

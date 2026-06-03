@@ -91,6 +91,12 @@ export type VaultOnChainData = {
   depositVaultAddress: `0x${string}` | undefined;
   redemptionVaultAddress: `0x${string}` | undefined;
   midasApiKey: string | undefined;
+  /**
+   * TVL in USD from an off-chain price API (e.g. Midas TVL endpoint).
+   * Undefined for vaults whose underlying asset is already USD-denominated.
+   * Used to show a USD sub-line alongside native-token TVL in the table.
+   */
+  tvlUsd: number | undefined;
   /** True while any data is still loading */
   isLoading: boolean;
   /** True if a critical on-chain read failed */

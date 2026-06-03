@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { HiOutlineSearch } from "react-icons/hi";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import type { PlatformKind } from "@/lib/vaultConfig";
@@ -37,6 +38,84 @@ function formatBigIntAsset(
   // Tiny values: show enough significant digits so the number is non-zero
   const dp = Math.min(Math.max(2, Math.ceil(-Math.log10(num)) + 2), decimals);
   return `${num.toFixed(dp)}${sym}`;
+}
+
+/** Symbols we treat as USD-pegged — no USD sub-line needed for these. */
+const STABLECOIN_SYMBOLS = new Set(["USDC", "USDT", "DAI", "USDS", "FRAX", "USD"]);
+
+/** CoinGecko IDs for non-stablecoin asset symbols. */
+const COINGECKO_ID: Record<string, string> = {
+  WBTC: "bitcoin",
+  CBBTC: "bitcoin",
+  TBTC: "bitcoin",
+  BTC: "bitcoin",
+  WETH: "ethereum",
+  ETH: "ethereum",
+};
+
+function fmtUsdCompact(usd: number): string {
+  if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(2)}B`;
+  if (usd >= 1_000_000)     return `$${(usd / 1_000_000).toFixed(2)}M`;
+  if (usd >= 1_000)         return `$${(usd / 1_000).toFixed(2)}K`;
+  return `$${usd.toFixed(2)}`;
+}
+
+function fmtFloatAsset(num: number, sym: string | undefined): string {
+  const s = sym ? ` ${sym}` : "";
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B${s}`;
+  if (num >= 1_000_000)     return `${(num / 1_000_000).toFixed(2)}M${s}`;
+  if (num >= 1_000)         return `${(num / 1_000).toFixed(2)}K${s}`;
+  if (num >= 0.0001)        return `${num.toFixed(4)}${s}`;
+  const dp = Math.min(Math.max(4, Math.ceil(-Math.log10(num)) + 2), 18);
+  return `${num.toFixed(dp)}${s}`;
+}
+
+/**
+ * Returns the TVL display string and optional USD amount for a vault.
+ *
+ * Midas non-stablecoin vaults (e.g. mRe7BTC):
+ *   The Midas price API returns USD/share, so totalAssets in the adapter is
+ *   computed as USD × 10^assetDec — NOT a real native-token amount.
+ *   We derive the true native amount as tvlUsd ÷ spotPrice instead.
+ *
+ * UltraYield / Morpho vaults:
+ *   totalAssets comes directly from the contract (real native units).
+ *   We estimate USD from totalAssets × spotPrice.
+ */
+function getTvlInfo(
+  v: VaultOnChainData,
+  tokenPrices: Record<string, number> | undefined
+): { nativeStr: string; usdAmt: number | null } {
+  const sym = v.assetSymbol?.toUpperCase() ?? "";
+  const geckoId = COINGECKO_ID[sym];
+
+  if (!STABLECOIN_SYMBOLS.has(sym) && geckoId) {
+    // Midas: totalAssets is unreliable for non-stablecoin; derive from tvlUsd ÷ spot
+    if (v.kind === "midas" && v.tvlUsd !== undefined) {
+      const spotPrice = tokenPrices?.[geckoId];
+      const nativeAmt = spotPrice ? v.tvlUsd / spotPrice : undefined;
+      const nativeStr = nativeAmt !== undefined
+        ? fmtFloatAsset(nativeAmt, v.assetSymbol)
+        : v.tvlUsd !== undefined ? fmtUsdCompact(v.tvlUsd) : "—";
+      return { nativeStr, usdAmt: v.tvlUsd };
+    }
+
+    // UltraYield / Morpho: totalAssets is on-chain native amount; compute USD from spot
+    const spotPrice = tokenPrices?.[geckoId];
+    if (spotPrice && v.totalAssets !== undefined) {
+      const assetDec = v.assetDecimals ?? 18;
+      const nativeFloat = Number(v.totalAssets) / 10 ** assetDec;
+      const usdAmt = nativeFloat * spotPrice;
+      const nativeStr = formatBigIntAsset(v.totalAssets, assetDec, v.assetSymbol);
+      return { nativeStr, usdAmt };
+    }
+  }
+
+  // Stablecoin or no price data — native amount already USD-denominated, no sub-line
+  return {
+    nativeStr: formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol),
+    usdAmt: null,
+  };
 }
 
 /** Wallet shares or UltraYield pending / ready-to-claim exposure */
@@ -334,6 +413,7 @@ interface PlatformSectionProps {
   vaults: VaultOnChainData[];
   isLoading: boolean;
   searchQuery: string;
+  tokenPrices: Record<string, number> | undefined;
   onDeposit: (vault: Vault) => void;
   onView: (address: string) => void;
 }
@@ -346,6 +426,7 @@ function PlatformSection({
   vaults,
   isLoading,
   searchQuery,
+  tokenPrices,
   onDeposit,
   onView,
 }: PlatformSectionProps) {
@@ -402,12 +483,21 @@ function PlatformSection({
       </div>
     );
 
+    const { nativeStr: tvlNative, usdAmt: tvlUsdAmt } = getTvlInfo(v, tokenPrices);
+
     const base: Record<string, React.ReactNode> = {
       vault: vaultCell,
       asset: <SupportedAssetsCell v={v} />,
       tvl: (
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          {formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol)}
+        <span className="flex flex-col">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {tvlNative}
+          </span>
+          {tvlUsdAmt !== null && (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              ≈ {fmtUsdCompact(tvlUsdAmt)}
+            </span>
+          )}
         </span>
       ),
       apy: <ApyCell v={v} />,
@@ -466,8 +556,8 @@ function PlatformSection({
     const vault = chainVaultToVault(v);
     const hasPosition = vaultHasOpenPosition(v);
     const isMorphoVault = v.kind === "morpho";
-    const tvlDisplay = formatBigIntAsset(v.totalAssets, v.assetDecimals ?? 18, v.assetSymbol);
-    const [tvlValue, ...tvlSymbolParts] = tvlDisplay.split(" ");
+    const { nativeStr: tvlNativeCard, usdAmt: cardTvlUsd } = getTvlInfo(v, tokenPrices);
+    const [tvlValue, ...tvlSymbolParts] = tvlNativeCard.split(" ");
     const tvlSymbol = tvlSymbolParts.join(" ");
 
     return (
@@ -525,6 +615,9 @@ function PlatformSection({
               {tvlValue}
               {tvlSymbol ? ` ${tvlSymbol}` : ""}
             </p>
+            {cardTvlUsd !== null && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">≈ {fmtUsdCompact(cardTvlUsd)}</p>
+            )}
           </div>
           <div>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -679,6 +772,17 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
   const [searchQuery, setSearchQuery] = useState("");
   const [txCompletedNotice, setTxCompletedNotice] = useState(false);
 
+  const { data: tokenPrices } = useQuery<Record<string, number>>({
+    queryKey: ["tokenPrices"],
+    staleTime: 5 * 60 * 1_000,
+    gcTime:   15 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/token-prices").then((r) => {
+        if (!r.ok) throw new Error(`token-prices error: ${r.status}`);
+        return r.json() as Promise<Record<string, number>>;
+      }),
+  });
+
   const activePlatforms = VAULT_PLATFORMS.filter((p) => p.vaults.length > 0);
 
   if (activePlatforms.length === 0) {
@@ -742,6 +846,7 @@ export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) 
             vaults={platformVaults}
             isLoading={isLoading}
             searchQuery={searchQuery}
+            tokenPrices={tokenPrices}
             onDeposit={(vault) => router.push(`/vaults/${vault.address}`)}
             onView={(address) => router.push(`/vaults/${address}`)}
           />

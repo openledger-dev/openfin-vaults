@@ -220,6 +220,7 @@ export function useUltraYieldVaultData(
       depositVaultAddress: undefined,
       redemptionVaultAddress: undefined,
       midasApiKey: undefined,
+      tvlUsd: undefined,
       isLoading: s1Loading || s2Loading || s3Loading || s4Loading,
       isError: nameRes?.status === "failure" || assetRes?.status === "failure",
     };
