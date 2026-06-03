@@ -232,13 +232,7 @@ function SupportedAssetsCell({ v }: { v: VaultOnChainData }) {
           key={a.address}
           title={a.address}
           className={
-            "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold " +
-            (a.isPegged
-              ? "border-zinc-200 bg-zinc-50 text-zinc-600"
-              : "border-blue-100 bg-blue-50 text-blue-800") +
-            (a.isPegged
-              ? " dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff]"
-              : " dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200")
+            "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold " + "border-blue-100 bg-blue-50 text-blue-800 " + " dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-200"
           }
         >
           {a.symbol}

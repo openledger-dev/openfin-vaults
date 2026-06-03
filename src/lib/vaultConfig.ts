@@ -158,6 +158,14 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" 
   "0xc46efcc8e39c8f02425e367423871cd4633b7908": {
     displayName: "UltraYield ETH",
     ultrayieldApiSlug: "ultrayield-eth",
+    assets: [
+      {
+        address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        symbol: "WETH",
+        decimals: 18,
+        isPegged: false,
+      },
+    ],
   },
 
   // ── UltraYield BTC (0x4724...914F) ────────────────────────────────────────
