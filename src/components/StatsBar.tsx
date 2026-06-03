@@ -40,8 +40,8 @@ export function StatsBar({ vaults, isLoading }: StatsBarProps) {
     },
     {
       label: "Supported networks",
-      value: "2",
-      subtext: "ETH · Base",
+      value: "1",
+      subtext: "Ethereum",
       icon: HiOutlineGlobeAlt,
     },
   ];

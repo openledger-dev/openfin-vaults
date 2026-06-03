@@ -388,6 +388,32 @@ export default function VaultDetailPage() {
       }),
   });
 
+  // Spot prices for non-stablecoin vault assets (BTC, ETH) used to convert
+  // native amounts to USD in the "You will receive" preview.
+  const { data: tokenSpotPrices } = useQuery<Record<string, number>>({
+    queryKey: ["tokenPrices"],
+    enabled: vaultKind !== "midas",
+    staleTime: 5 * 60 * 1_000,
+    gcTime:   15 * 60 * 1_000,
+    queryFn: () =>
+      fetch("/api/token-prices").then((r) => {
+        if (!r.ok) throw new Error(`token-prices error: ${r.status}`);
+        return r.json() as Promise<Record<string, number>>;
+      }),
+  });
+
+  /** Maps vault asset symbol → CoinGecko USD spot price (undefined for stablecoins). */
+  const assetSpotPriceUsd: number | undefined = (() => {
+    const sym = (vault.assetSymbol ?? "").toUpperCase();
+    if (!tokenSpotPrices) return undefined;
+    const COINGECKO_ID: Record<string, string> = {
+      WBTC: "bitcoin", CBBTC: "bitcoin", TBTC: "bitcoin", BTC: "bitcoin",
+      WETH: "ethereum", ETH: "ethereum",
+    };
+    const id = COINGECKO_ID[sym];
+    return id ? tokenSpotPrices[id] : undefined;
+  })();
+
   const { data: midasPendingRedemptions = [], isLoading: midasPendingLoading } = useQuery({
     queryKey: ["midasPending", vaultChainId, vaultAddress, userAddress],
     enabled: vaultKind === "midas" && !!vaultAddress && !!userAddress,
@@ -818,11 +844,13 @@ export default function VaultDetailPage() {
       const usd = shares * midasSharePriceUsd;
       return usd > 0 ? fmtUsdSub(usd) : undefined;
     }
-    // Non-Midas: deposit token is the vault's base asset (stablecoin or ERC-4626 asset)
+    // Non-Midas: convert native asset amount to USD
     const dec = assetDecForDisplay;
-    const usd = Number(depositAmountParsed) / 10 ** dec;
+    const nativeAmt = Number(depositAmountParsed) / 10 ** dec;
+    // Multiply by spot price for non-stablecoin assets (WETH, WBTC, etc.)
+    const usd = assetSpotPriceUsd !== undefined ? nativeAmt * assetSpotPriceUsd : nativeAmt;
     return usd > 0 ? fmtUsdSub(usd) : undefined;
-  }, [depositAmount, depositAmountParsed, assetDecForDisplay, vaultKind, midasPrice, midasSharePriceUsd]);
+  }, [depositAmount, depositAmountParsed, assetDecForDisplay, vaultKind, midasPrice, midasSharePriceUsd, assetSpotPriceUsd]);
 
   const redeemAssetsOutUsd = useMemo(() => {
     if (!redeemAmount || redeemAmountParsed <= BigInt(0)) return undefined;
@@ -836,10 +864,12 @@ export default function VaultDetailPage() {
       const vDec = vault.decimals;
       const aDec = withdrawAssetDec;
       const assetsOut = (redeemAmountParsed * vault.sharePrice) / BigInt(10 ** vDec);
-      usd = parseFloat(formatUnits(assetsOut, aDec));
+      const nativeAmt = parseFloat(formatUnits(assetsOut, aDec));
+      // Multiply by spot price for non-stablecoin assets (WETH, WBTC, etc.)
+      usd = assetSpotPriceUsd !== undefined ? nativeAmt * assetSpotPriceUsd : nativeAmt;
     }
     return usd > 0 ? fmtUsdSub(usd) : undefined;
-  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, midasSharePriceUsd, withdrawAssetDec]);
+  }, [redeemAmount, redeemAmountParsed, vault.sharePrice, vault.decimals, vaultKind, midasPrice, midasSharePriceUsd, withdrawAssetDec, assetSpotPriceUsd]);
 
   // ── Write handlers ────────────────────────────────────────────────────────
 

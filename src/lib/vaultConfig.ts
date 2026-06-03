@@ -306,6 +306,22 @@ const MORPHO_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "d
   "0xc1256ae5ff1cf2719d4937adb3bbccab2e00a2ca": {
     displayName: "Moonwell Flagship USDC",
   },
+
+  "0xbeef088055857739C12CD3765F20b7679Def0f51": {
+    displayName: "Steakhouse Prime USDC",
+  },
+
+  "0xb576765fb15505433af24fee2c0325895c559fb2": {
+    displayName: "Paypal USD Main",
+  },
+
+  "0x6dc58a0fdfc8d694e571dc59b9a52eeea780e6bf": {
+    displayName: "Gauntlet USDC Core",
+  },
+
+  "0xE15fcC81118895b67b6647BBd393182dF44E11E0": {
+    displayName: "sky.money USDS Flagship",
+  },
 };
 
 // ── Central platform + vault registry ────────────────────────────────────────
