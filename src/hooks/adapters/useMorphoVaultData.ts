@@ -155,18 +155,25 @@ export function useMorphoVaultData(
     const assetDecimalsRes = stage2Data?.[i * 2 + 1];
     const userSharesRaw    = stage3Data?.[i];
 
-    const totalAssets  = totalAssetsRes?.status === "success" ? (totalAssetsRes.result as bigint) : undefined;
-    const totalSupply  = totalSupplyRes?.status === "success" ? (totalSupplyRes.result as bigint) : undefined;
-    const liquidityRaw = totalIdleRes?.status   === "success" ? (totalIdleRes.result   as bigint) : undefined;
-    const userShares   = userSharesRaw?.status  === "success" ? (userSharesRaw.result  as bigint) : undefined;
+    const totalAssets = totalAssetsRes?.status === "success" ? (totalAssetsRes.result as bigint) : undefined;
+    const totalSupply = totalSupplyRes?.status === "success" ? (totalSupplyRes.result as bigint) : undefined;
+    const userShares  = userSharesRaw?.status  === "success" ? (userSharesRaw.result  as bigint) : undefined;
+
+    const apiEntry = apyMap?.[vault.address.toLowerCase()];
+
+    // liquidityRaw: prefer on-chain totalIdle() (V1); fall back to API liquidity (V2)
+    const liquidityRaw: bigint | undefined =
+      totalIdleRes?.status === "success"
+        ? (totalIdleRes.result as bigint)
+        : apiEntry?.liquidity != null
+          ? BigInt(apiEntry.liquidity)
+          : undefined;
 
     const userAssetsRaw =
       userShares !== undefined && totalAssets !== undefined &&
       totalSupply !== undefined && totalSupply > BigInt(0)
         ? (userShares * totalAssets) / totalSupply
         : undefined;
-
-    const apiEntry = apyMap?.[vault.address.toLowerCase()];
 
     return {
       address: vault.address,
@@ -191,7 +198,9 @@ export function useMorphoVaultData(
         : apiEntry?.fee != null
           ? BigInt(Math.round(apiEntry.fee * 1e18))
           : undefined,
-      managementFee: undefined,
+      managementFee: apiEntry?.managementFee != null
+        ? BigInt(Math.round(apiEntry.managementFee * 1e18))
+        : undefined,
       withdrawalFee: undefined,
       oracleAddress: undefined,
       rateProviderAddress: undefined,
