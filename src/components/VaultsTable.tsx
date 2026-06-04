@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { HiOutlineSearch } from "react-icons/hi";
@@ -452,9 +453,8 @@ function PlatformSection({
     const vaultCell = (
       <div className="flex min-w-0 items-start gap-3">
         <VaultAvatar chainId={v.chainId} />
-        <button
-          type="button"
-          onClick={() => onView(v.address)}
+        <Link
+          href={`/vaults/${v.address}`}
           className="min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-900"
         >
           <p className="text-sm font-semibold text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-100">
@@ -479,7 +479,7 @@ function PlatformSection({
               </span>
             </div>
           )}
-        </button>
+        </Link>
       </div>
     );
 
@@ -504,9 +504,8 @@ function PlatformSection({
       status: <StatusPill paused={v.isPaused} />,
       action: (
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() => onDeposit(vault)}
+          <Link
+            href={`/vaults/${vault.address}`}
             className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-7 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             <svg
@@ -523,7 +522,7 @@ function PlatformSection({
               <path d="m5 12 7 7 7-7" />
             </svg>
             Deposit
-          </button>
+          </Link>
         </div>
       ),
     };
@@ -569,15 +568,14 @@ function PlatformSection({
           <div className="flex min-w-0 items-start gap-2">
             <VaultAvatar chainId={v.chainId} />
             <div className="min-w-0">
-              <button
-                type="button"
-                onClick={() => onView(v.address)}
+              <Link
+                href={`/vaults/${v.address}`}
                 className="min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-900"
               >
                 <p className="truncate text-sm font-semibold text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-100">
                   {v.name}
                 </p>
-              </button>
+              </Link>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 <span className="font-mono text-[0.6875rem] text-zinc-500 dark:text-zinc-400">
                   {v.address.slice(0, 6)}…{v.address.slice(-4)}
@@ -658,9 +656,8 @@ function PlatformSection({
         </div>
 
         <div className="mt-auto">
-          <button
-            type="button"
-            onClick={() => onDeposit(vault)}
+          <Link
+            href={`/vaults/${vault.address}`}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:border dark:border-[#1b1b1f] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             <svg
@@ -677,7 +674,7 @@ function PlatformSection({
               <path d="m5 12 7 7 7-7" />
             </svg>
             Deposit
-          </button>
+          </Link>
         </div>
       </article>
     );

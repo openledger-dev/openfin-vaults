@@ -46,6 +46,14 @@ export type PlatformVaultEntry = {
   /** Optional UI fallback display name when on-chain name() is unavailable */
   displayName?: string;
   /**
+   * Direct link to this vault on the originating platform's web app.
+   * Shown as "View on <Platform>" in the vault detail header.
+   * - Morpho: derived automatically from chainId + address (no need to set)
+   * - UltraYield: derived automatically from ultrayieldApiSlug (no need to set)
+   * - Midas: must be set explicitly (e.g. "https://midas.app/mre7eth")
+   */
+  platformUrl?: string;
+  /**
    * UltraYield REST API slug for this vault.
    * Used to fetch 7D APY from:
    *   https://api.ultrayield.app/api/v2/vaults/{slug}/apy_history?limit=1
@@ -210,13 +218,14 @@ const ULTRAYIELD_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" 
  */
 const MIDAS_VAULT_CONFIG: Record<
   string,
-  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "redeemAssets" | "displayName" | "managementFeePct" | "performanceFeePct">
+  Pick<PlatformVaultEntry, "depositVaultAddress" | "redemptionVaultAddress" | "midasApiKey" | "assets" | "redeemAssets" | "displayName" | "managementFeePct" | "performanceFeePct" | "platformUrl">
 > = {
   // ── mTBILL — Midas T-Bill token ───────────────────────────────────────────
   "0xdd629e5241cbc5919847783e6c96b2de4754e438": {
     depositVaultAddress:    "0x99361435420711723aF805F08187c9E6bF796683",
     redemptionVaultAddress: "0x0312A9D1Ff2372DDEdCBB21e4B6389aFc919aC4b",
     midasApiKey: "mtbill",
+    platformUrl: "https://midas.app/mtbill",
     assets: [
       { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
       { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true  },
@@ -228,6 +237,7 @@ const MIDAS_VAULT_CONFIG: Record<
     depositVaultAddress:    "0x986C7d0fF6D54AC87BDdb5EdeF53C5B0c3Aa6045",
     redemptionVaultAddress: "0x7bd3C30dDEbB17F9C5DfCa2fB3f5AB7bB56CD3F",
     midasApiKey: "mbasis",
+    platformUrl: "https://midas.app/mbasis",
     assets: [
       { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", symbol: "USDC", decimals: 6, isPegged: false },
       { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol: "USDT", decimals: 6, isPegged: true  },
@@ -253,6 +263,7 @@ const MIDAS_VAULT_CONFIG: Record<
     depositVaultAddress:    "0xcE0A2953a5d46400Af601a9857235312d1924aC7",
     redemptionVaultAddress: "0x5356B8E06589DE894D86B24F4079c629E8565234",
     midasApiKey: "mre7",
+    platformUrl: "https://midas.app/mre7yield",
     managementFeePct:  2,
     performanceFeePct: 25,
     assets: [
@@ -270,6 +281,7 @@ const MIDAS_VAULT_CONFIG: Record<
     depositVaultAddress:    "0x5E154946561AEA4E750AAc6DeaD23D37e00E47f6",
     redemptionVaultAddress: "0x4Fd4DD7171D14e5bD93025ec35374d2b9b4321b0",
     midasApiKey: "mre7btc",
+    platformUrl: "https://midas.app/mre7btc",
     managementFeePct:  2,
     performanceFeePct: 25,
     assets: [

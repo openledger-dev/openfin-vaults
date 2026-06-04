@@ -21,6 +21,7 @@ import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useAppKit, useAppKitState } from "@reown/appkit/react";
 import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClipboard, HiOutlineClock } from "react-icons/hi";
 import { useSwap, EVM_CHAINS, parseEvmAsset } from "@/hooks/useSwap";
+import { useChainId } from "wagmi";
 import type { SwapToken, SwapStatusResponse, ExplorerTransaction, ExplorerHistoryResponse } from "@/types/swap";
 import { getTxExplorerLink } from "@/lib/chains";
 
@@ -28,6 +29,36 @@ const NEAR_INTENTS_EXPLORER = "https://explorer.near-intents.org";
 
 // ── EVM blockchains supported as origin ──────────────────────────────────────
 const EVM_BLOCKCHAINS = new Set(Object.keys(EVM_CHAINS));
+
+// ── Reverse map: EVM chainId → 1Click blockchain label ────────────────────────
+const BLOCKCHAIN_BY_CHAIN_ID: Record<number, string> = Object.fromEntries(
+  Object.entries(EVM_CHAINS).map(([bc, cid]) => [cid, bc])
+);
+
+// ── Human-readable network names ──────────────────────────────────────────────
+const CHAIN_LABELS: Record<string, string> = {
+  eth:     "Ethereum",
+  arb:     "Arbitrum",
+  base:    "Base",
+  op:      "Optimism",
+  polygon: "Polygon",
+  bnb:     "BNB",
+  avax:    "Avalanche",
+  zksync:  "zkSync",
+  linea:   "Linea",
+  scroll:  "Scroll",
+  mantle:  "Mantle",
+  gnosis:  "Gnosis",
+  aurora:  "Aurora",
+  near:    "NEAR",
+  sol:     "Solana",
+  btc:     "Bitcoin",
+  stellar: "Stellar",
+  ton:     "TON",
+  xrp:     "XRP",
+  doge:    "Dogecoin",
+  trx:     "Tron",
+};
 
 // ── CSS helpers (matches rest of app) ────────────────────────────────────────
 const INPUT_CLASS =
@@ -69,37 +100,88 @@ function statusLabel(status: string) {
   return map[status] ?? status;
 }
 
-// ── Token select component ────────────────────────────────────────────────────
-interface TokenSelectProps {
+// ── Chain + Token select component ───────────────────────────────────────────
+interface ChainTokenSelectProps {
   label: string;
   tokens: SwapToken[];
   value: SwapToken | null;
   onChange: (t: SwapToken) => void;
   disabled?: boolean;
-  filterFn?: (t: SwapToken) => boolean;
+  /** Chains to show as options in the network picker */
+  availableChains: string[];
+  /** Currently active chains; tokens are filtered to these */
+  selectedChains: Set<string>;
+  onChainToggle: (chain: string) => void;
 }
 
-function TokenSelect({ label, tokens, value, onChange, disabled, filterFn }: TokenSelectProps) {
-  const filtered = filterFn ? tokens.filter(filterFn) : tokens;
+function ChainTokenSelect({
+  label, tokens, value, onChange, disabled,
+  availableChains, selectedChains, onChainToggle,
+}: ChainTokenSelectProps) {
+  const options = useMemo(
+    () => selectedChains.size === 0
+      ? tokens
+      : tokens.filter((t) => selectedChains.has(t.blockchain)),
+    [tokens, selectedChains]
+  );
 
   return (
     <div>
       <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-[#afafb2]">
         {label}
       </label>
+
+      {/* Network chips */}
+      <div className="mb-2.5 flex flex-wrap gap-1.5">
+        {/* All chip */}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChainToggle("__all__")}
+          className={
+            "rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold transition disabled:opacity-50 " +
+            (selectedChains.size === 0
+              ? "border-zinc-800 bg-zinc-900 text-white dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-900"
+              : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 dark:border-[#2a2a32] dark:bg-[#1a1a21] dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:bg-[#252530]")
+          }
+        >
+          All
+        </button>
+        {availableChains.map((chain) => {
+          const active = selectedChains.size > 0 && selectedChains.has(chain);
+          return (
+            <button
+              key={chain}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChainToggle(chain)}
+              className={
+                "rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold transition disabled:opacity-50 " +
+                (active
+                  ? "border-zinc-800 bg-zinc-900 text-white dark:border-zinc-300 dark:bg-zinc-100 dark:text-zinc-900"
+                  : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 dark:border-[#2a2a32] dark:bg-[#1a1a21] dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:bg-[#252530]")
+              }
+            >
+              {CHAIN_LABELS[chain] ?? chain.toUpperCase()}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Token dropdown */}
       <select
-        disabled={disabled || filtered.length === 0}
+        disabled={disabled || options.length === 0}
         value={value?.assetId ?? ""}
         onChange={(e) => {
-          const t = filtered.find((x) => x.assetId === e.target.value);
+          const t = options.find((x) => x.assetId === e.target.value);
           if (t) onChange(t);
         }}
         className={SELECT_CLASS}
       >
         <option value="">Select token…</option>
-        {filtered.map((t) => (
+        {options.map((t) => (
           <option key={t.assetId} value={t.assetId}>
-            {t.symbol} — {t.blockchain.toUpperCase()}
+            {t.symbol} — {CHAIN_LABELS[t.blockchain] ?? t.blockchain.toUpperCase()}
             {t.price ? ` ($${t.price.toFixed(2)})` : ""}
           </option>
         ))}
@@ -108,11 +190,16 @@ function TokenSelect({ label, tokens, value, onChange, disabled, filterFn }: Tok
   );
 }
 
-function TokenSelectSkeleton({ label }: { label: string }) {
+function ChainTokenSelectSkeleton({ label }: { label: string }) {
   const bar = "animate-pulse rounded bg-zinc-200 dark:bg-zinc-700";
   return (
     <div aria-busy="true" aria-label={`Loading ${label}`}>
-      <div className={`mb-1.5 block h-3 w-28 max-w-[70%] ${bar}`} />
+      <div className={`mb-1.5 h-3 w-28 max-w-[70%] ${bar}`} />
+      <div className="mb-2.5 flex gap-1.5">
+        {[60, 52, 68, 56].map((w) => (
+          <div key={w} className={`h-5 rounded-full ${bar}`} style={{ width: w }} />
+        ))}
+      </div>
       <div className={`h-11 w-full rounded-xl border border-zinc-300 dark:border-[#1b1b1f] ${bar}`} />
     </div>
   );
@@ -458,15 +545,25 @@ function SwapFormSkeleton() {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Loading swap form">
       <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
-        <div className={`mb-3 h-3 w-24 ${bar}`} />
-        <div className={`h-12 w-full rounded-xl ${bar}`} />
+        <div className={`mb-1.5 h-3 w-24 ${bar}`} />
+        <div className="mb-2.5 flex gap-1.5">
+          {[60, 52, 68, 56].map((w) => (
+            <div key={w} className={`h-5 rounded-full ${bar}`} style={{ width: w }} />
+          ))}
+        </div>
+        <div className={`h-11 w-full rounded-xl ${bar}`} />
       </div>
       <div className="flex justify-center">
         <div className={`h-9 w-9 shrink-0 rounded-full ${bar}`} />
       </div>
       <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
-        <div className={`mb-3 h-3 w-28 ${bar}`} />
-        <div className={`h-12 w-full rounded-xl ${bar}`} />
+        <div className={`mb-1.5 h-3 w-28 ${bar}`} />
+        <div className="mb-2.5 flex gap-1.5">
+          {[60, 52, 68, 56].map((w) => (
+            <div key={w} className={`h-5 rounded-full ${bar}`} style={{ width: w }} />
+          ))}
+        </div>
+        <div className={`h-11 w-full rounded-xl ${bar}`} />
       </div>
       <div>
         <div className={`mb-1.5 h-3 w-20 ${bar}`} />
@@ -501,6 +598,7 @@ function TrackPanelSkeleton() {
 // ── Swap content (used both as a page and can be embedded anywhere) ───────────
 export function SwapContent() {
   const { address: userAddress, isConnected } = useAccount();
+  const connectedChainId = useChainId();
   const { open: openWallet } = useAppKit();
   const { initialized } = useAppKitState();
   const [mounted, setMounted] = useState(false);
@@ -537,6 +635,81 @@ export function SwapContent() {
   useEffect(() => {
     if (tokens.length === 0) void fetchTokens();
   }, [tokens.length, fetchTokens]);
+
+  // ── Network filter state ───────────────────────────────────────────────────
+  const [fromNetworks, setFromNetworks] = useState<Set<string>>(() => {
+    const bc = BLOCKCHAIN_BY_CHAIN_ID[connectedChainId];
+    return bc ? new Set([bc]) : new Set(["eth"]);
+  });
+  const [toNetworks, setToNetworks] = useState<Set<string>>(() => {
+    const bc = BLOCKCHAIN_BY_CHAIN_ID[connectedChainId];
+    return bc ? new Set([bc]) : new Set(["eth"]);
+  });
+
+  // Sync fromNetworks when connected wallet chain changes
+  useEffect(() => {
+    if (!connectedChainId) return;
+    const bc = BLOCKCHAIN_BY_CHAIN_ID[connectedChainId];
+    if (bc) setFromNetworks(new Set([bc]));
+  }, [connectedChainId]);
+
+  // Clear fromToken when its network is no longer selected (skip when "All" active)
+  useEffect(() => {
+    if (fromNetworks.size === 0) return; // "All" — keep any token
+    if (fromToken && !fromNetworks.has(fromToken.blockchain)) {
+      setFromToken(null);
+      reset();
+    }
+  }, [fromNetworks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear toToken when its network is no longer selected (skip when "All" active)
+  useEffect(() => {
+    if (toNetworks.size === 0) return; // "All" — keep any token
+    if (toToken && !toNetworks.has(toToken.blockchain)) {
+      setToToken(null);
+      reset();
+    }
+  }, [toNetworks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Available chains for each side (derived from loaded tokens)
+  const fromAvailableChains = useMemo(
+    () => [...new Set(tokens.filter((t) => EVM_BLOCKCHAINS.has(t.blockchain)).map((t) => t.blockchain))].sort(),
+    [tokens]
+  );
+  const toAvailableChains = useMemo(
+    () => [...new Set(tokens.map((t) => t.blockchain))].sort(),
+    [tokens]
+  );
+
+  function toggleFromNetwork(chain: string) {
+    if (chain === "__all__") { setFromNetworks(new Set()); return; }
+    setFromNetworks((prev) => {
+      if (prev.size === 0) return new Set([chain]); // was "All" → select just this
+      const next = new Set(prev);
+      if (next.has(chain)) {
+        next.delete(chain);
+        if (next.size === 0) return new Set(); // last deselected → back to "All"
+      } else {
+        next.add(chain);
+      }
+      return next;
+    });
+  }
+
+  function toggleToNetwork(chain: string) {
+    if (chain === "__all__") { setToNetworks(new Set()); return; }
+    setToNetworks((prev) => {
+      if (prev.size === 0) return new Set([chain]); // was "All" → select just this
+      const next = new Set(prev);
+      if (next.has(chain)) {
+        next.delete(chain);
+        if (next.size === 0) return new Set(); // last deselected → back to "All"
+      } else {
+        next.add(chain);
+      }
+      return next;
+    });
+  }
 
   // ── Swap form state ────────────────────────────────────────────────────────
   const [fromToken, setFromToken] = useState<SwapToken | null>(null);
@@ -901,15 +1074,17 @@ export function SwapContent() {
                 {/* From */}
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
                   {tokensLoading ? (
-                    <TokenSelectSkeleton label="You send" />
+                    <ChainTokenSelectSkeleton label="You send" />
                   ) : (
-                    <TokenSelect
+                    <ChainTokenSelect
                       label="You send"
-                      tokens={tokens}
+                      tokens={tokens.filter((t) => EVM_BLOCKCHAINS.has(t.blockchain))}
                       value={fromToken}
                       onChange={(t) => { setFromToken(t); reset(); }}
                       disabled={isBusy}
-                      filterFn={(t) => EVM_BLOCKCHAINS.has(t.blockchain)}
+                      availableChains={fromAvailableChains}
+                      selectedChains={fromNetworks}
+                      onChainToggle={toggleFromNetwork}
                     />
                   )}
                   {/* Balance row */}
@@ -994,21 +1169,22 @@ export function SwapContent() {
                 {/* To */}
                 <div className="rounded-2xl border border-[#E1E5E1] bg-[#F1F2F0] p-4 dark:border-[#1b1b1f] dark:bg-[#0f1014]">
                   {tokensLoading ? (
-                    <TokenSelectSkeleton label="You receive" />
+                    <ChainTokenSelectSkeleton label="You receive" />
                   ) : (
-                    <TokenSelect
+                    <ChainTokenSelect
                       label="You receive"
                       tokens={tokens}
                       value={toToken}
                       onChange={(t) => {
                         setToToken(t);
                         reset();
-                        // Clear recipient when switching to a non-EVM destination
-                        // so the user is prompted to enter the correct address format
                         if (!EVM_BLOCKCHAINS.has(t.blockchain)) setRecipient("");
                         else setRecipient(userAddress ?? "");
                       }}
                       disabled={isBusy}
+                      availableChains={toAvailableChains}
+                      selectedChains={toNetworks}
+                      onChainToggle={toggleToNetwork}
                     />
                   )}
                   {formattedAmountOut && (

@@ -297,6 +297,8 @@ export default function VaultDetailPage() {
         performanceFeePct:      entry.performanceFeePct,
         // UltraYield REST API slug for APY
         ultrayieldApiSlug:      entry.ultrayieldApiSlug,
+        // Explicit platform URL (Midas); UltraYield + Morpho are derived on render
+        platformUrl:            entry.platformUrl,
       };
     }
     return null;
@@ -310,6 +312,25 @@ export default function VaultDetailPage() {
 
   const vaultKind    = vaultConfig?.kind    ?? "ultrayield";
   const vaultChainId = vaultConfig?.chainId ?? 1;
+
+  // ── Platform link (for vault header) ─────────────────────────────────────
+  const MORPHO_CHAIN_SLUG: Record<number, string> = { 1: "ethereum", 8453: "base" };
+  const platformLink = useMemo((): { url: string; label: string } | null => {
+    if (vaultKind === "midas") {
+      const url = vaultConfig?.platformUrl;
+      return url ? { url, label: "Midas" } : null;
+    }
+    if (vaultKind === "ultrayield") {
+      const slug = vaultConfig?.ultrayieldApiSlug;
+      return slug ? { url: `https://ultrayield.app/vaults/${slug}`, label: "UltraYield" } : null;
+    }
+    if (vaultKind === "morpho" && vaultAddress) {
+      const chainSlug = MORPHO_CHAIN_SLUG[vaultChainId] ?? "ethereum";
+      return { url: `https://app.morpho.org/${chainSlug}/vault/${vaultAddress}`, label: "Morpho" };
+    }
+    return null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vaultKind, vaultConfig?.platformUrl, vaultConfig?.ultrayieldApiSlug, vaultAddress, vaultChainId]);
 
   // ── On-chain detail ───────────────────────────────────────────────────────
   const vault = useVaultDetail(vaultAddress, userAddress, vaultChainId, vaultKind);
@@ -1141,6 +1162,17 @@ export default function VaultDetailPage() {
                 <span className="mr-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
                 {vault.isPaused ? "PAUSED" : "ACTIVE"}
               </span>
+              {platformLink && (
+                <a
+                  href={platformLink.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1 text-[0.6875rem] font-semibold text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50 dark:border-[#2a2a32] dark:bg-[#141417] dark:text-zinc-300 dark:hover:border-zinc-500 dark:hover:bg-[#1a1a21]"
+                >
+                  View on {platformLink.label}
+                  <HiOutlineExternalLink className="h-3 w-3" aria-hidden />
+                </a>
+              )}
             </div>
           </header>
 
