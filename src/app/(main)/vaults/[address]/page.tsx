@@ -137,6 +137,26 @@ const MIDAS_REDEEM_ABI = [
   },
 ] as const;
 
+// fnPause ABI — used to check whether a specific function selector is paused
+// on Re7 redemption vault contracts.
+// Public mapping getter: fnPaused(bytes4) → bool
+// Exposed by the Midas Pausable contract as an auto-generated mapping getter.
+const FN_PAUSED_ABI = [
+  {
+    name: "fnPaused",
+    type: "function",
+    stateMutability: "view",
+    inputs: [{ name: "fn4ByteCode", type: "bytes4" }],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+// Re7 redemption vault contract addresses (checksummed lowercase comparison)
+const RE7_REDEEM_VAULT_ADDRESSES: string[] = [
+  "0x5356b8e06589de894d86b24f4079c629e8565234", // Re7Yield
+  "0x4fd4dd7171d14e5bd93025ec35374d2b9b4321b0", // Re7Eth
+];
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function shortAddr(addr: string | undefined): string {
@@ -474,6 +494,51 @@ export default function VaultDetailPage() {
   const midasInstantFeeRaw = midasFeeData?.[0]?.status === "success" ? (midasFeeData[0].result as bigint) : undefined;
   // ManageableVault: ONE_HUNDRED_PERCENT = 10_000 → divide by 100 to get a plain percentage
   const midasInstantFeePct = midasInstantFeeRaw !== undefined ? Number(midasInstantFeeRaw) / 100 : undefined;
+
+  // ── Re7 instant-redeem pause check ───────────────────────────────────────
+  // For Re7 vaults only: call fnPause(bytes) with both redeemInstant selectors.
+  // If either selector is paused the instant path must be blocked.
+  const isRe7Vault =
+    vaultKind === "midas" &&
+    !!midasRedemptionVault &&
+    RE7_REDEEM_VAULT_ADDRESSES.includes(midasRedemptionVault.toLowerCase());
+
+  const { data: fnPausedData } = useReadContracts({
+    contracts: isRe7Vault && midasRedemptionVault
+      ? [
+          // redeemInstant(tokenOut, amountMTokenIn, minReceiveAmount) selector
+          { address: midasRedemptionVault as `0x${string}`, abi: FN_PAUSED_ABI, functionName: "fnPaused" as const, args: ["0x8b53f75e"], chainId: vaultChainId },
+          // redeemInstant(tokenOut, amountMTokenIn, minReceiveAmount, recipient) selector
+          { address: midasRedemptionVault as `0x${string}`, abi: FN_PAUSED_ABI, functionName: "fnPaused" as const, args: ["0x85ab2c13"], chainId: vaultChainId },
+        ]
+      : [],
+    query: { enabled: isRe7Vault && !!midasRedemptionVault },
+  });
+
+  useEffect(() => {
+    if (!isRe7Vault || !fnPausedData) return;
+    console.log("[Re7 fnPaused] contract:", midasRedemptionVault);
+    console.log("[Re7 fnPaused] 0x8b53f75e (redeemInstant 3-arg):", fnPausedData[0]);
+    console.log("[Re7 fnPaused] 0x85ab2c13 (redeemInstant 4-arg):", fnPausedData[1]);
+  }, [fnPausedData, isRe7Vault, midasRedemptionVault]);
+
+  /**
+   * Returns whether instant redemption is currently allowed for the given
+   * redemption vault address. For non-Re7 vaults this always returns true.
+   * For Re7 vaults it returns false if either redeemInstant selector is paused.
+   */
+  function isInstantRedeemAllowed(redeemVaultAddress: string): boolean {
+    if (!RE7_REDEEM_VAULT_ADDRESSES.includes(redeemVaultAddress.toLowerCase())) {
+      return true;
+    }
+    const paused3arg = fnPausedData?.[0]?.status === "success" ? (fnPausedData[0].result as boolean) : false;
+    const paused4arg = fnPausedData?.[1]?.status === "success" ? (fnPausedData[1].result as boolean) : false;
+    return !paused3arg && !paused4arg;
+  }
+
+  const instantRedeemAllowed = midasRedemptionVault
+    ? isInstantRedeemAllowed(midasRedemptionVault)
+    : true;
 
   // ── Discover payment tokens when vault has no static assets config ────────
   // getPaymentTokens() returns the on-chain set; we use element [0] as the
@@ -927,6 +992,7 @@ export default function VaultDetailPage() {
 
   // Midas instant redeem (with fee). tokenOut must be from the redemption vault's payment tokens; include recipient like midas.app.
   function handleMidasRedeemInstant() {
+    console.log("[Re7 fnPaused] fnPausedData:", fnPausedData);
     const tokenOut = (midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr) as `0x${string}` | undefined;
     if (!midasRedemptionVault || !tokenOut || !userAddress || redeemAmountParsed <= BigInt(0)) return;
     setConfirmMessage(`Confirm instant redeem ${redeemAmount || "0"} ${vault.symbol || "shares"}?`);
@@ -1330,6 +1396,7 @@ export default function VaultDetailPage() {
                   needsMidasShareApprove={needsMidasShareApprove}
                   handleApproveMidasShares={handleApproveMidasShares}
                   midasRedeemTokenOut={midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr}
+                  instantRedeemAllowed={instantRedeemAllowed}
                 />
               </div>
 
@@ -1653,6 +1720,7 @@ export default function VaultDetailPage() {
                 needsMidasShareApprove={needsMidasShareApprove}
                 handleApproveMidasShares={handleApproveMidasShares}
                 midasRedeemTokenOut={midasPrimaryRedeemToken ?? effectivePaymentToken ?? depositAssetAddr}
+                instantRedeemAllowed={instantRedeemAllowed}
               />
             </aside>
           </div>
