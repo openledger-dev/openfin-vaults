@@ -81,6 +81,12 @@ interface VaultDetailActionPanelProps {
   handleApproveMidasShares?: () => void;
   /** Redemption vault payment token (USDC); required before redeem calls */
   midasRedeemTokenOut?: string;
+  /**
+   * Whether instant redemption is currently allowed.
+   * For Re7 vaults this is derived from on-chain fnPause() checks;
+   * for all other vaults it is always true.
+   */
+  instantRedeemAllowed?: boolean;
 }
 
 export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
@@ -137,6 +143,7 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
     needsMidasShareApprove,
     handleApproveMidasShares,
     midasRedeemTokenOut,
+    instantRedeemAllowed = true,
   } = props;
 
   return (
@@ -482,26 +489,33 @@ export function VaultDetailActionPanel(props: VaultDetailActionPanelProps) {
                     </>
                   )}
                   {isConnected && !needsMidasShareApprove && (
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={handleMidasRedeemInstant}
-                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0) || !midasRedeemTokenOut}
-                        className={darkActionBtnClass}
-                      >
-                        {isBusy && lastAction === "withdraw" ? "Redeeming..." : (
-                          `Instant${midasInstantFeePct !== undefined ? ` (${midasInstantFeePct.toFixed(2)}%)` : ""}`
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleMidasRedeemRequest}
-                        disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0) || !midasRedeemTokenOut}
-                        className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-base font-semibold text-gray-900 transition hover:bg-gray-50 disabled:opacity-60 dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#27272b]"
-                      >
-                        {isBusy && lastAction === "withdraw" ? "Requesting..." : "Standard (free)"}
-                      </button>
-                    </div>
+                    <>
+                      {!instantRedeemAllowed && (
+                        <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-900/25 dark:text-amber-300">
+                          Instant redemption is currently paused by the vault manager. Use Standard redemption instead.
+                        </p>
+                      )}
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={handleMidasRedeemInstant}
+                          disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0) || !midasRedeemTokenOut || !instantRedeemAllowed}
+                          className={darkActionBtnClass}
+                        >
+                          {isBusy && lastAction === "withdraw" ? "Redeeming..." : (
+                            `Instant${midasInstantFeePct !== undefined ? ` (${midasInstantFeePct.toFixed(2)}%)` : ""}`
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleMidasRedeemRequest}
+                          disabled={isBusy || !termsAccepted || redeemAmountParsed <= BigInt(0) || !midasRedeemTokenOut}
+                          className="w-full rounded-xl border-2 border-zinc-400 bg-white px-5 py-3.5 text-base font-semibold text-zinc-800 shadow-sm transition hover:border-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-500 dark:bg-[#27272b] dark:text-zinc-100 dark:hover:border-zinc-300 dark:hover:bg-[#2f3037]"
+                        >
+                          {isBusy && lastAction === "withdraw" ? "Requesting..." : "Standard (free)"}
+                        </button>
+                      </div>
+                    </>
                   )}
                   <p className="mt-3 text-[0.6875rem] leading-relaxed text-gray-500 dark:text-zinc-400">
                     Standard redemptions are processed in order. Once submitted, they cannot be cancelled.
