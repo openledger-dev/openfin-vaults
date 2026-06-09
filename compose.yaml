@@ -37,6 +37,7 @@ services:
         NEXT_PUBLIC_MIDAS_CHAIN_ID:        ${NEXT_PUBLIC_MIDAS_CHAIN_ID:-1}
         NEXT_PUBLIC_SWAP_MIN_USD:          ${NEXT_PUBLIC_SWAP_MIN_USD:-5}
         NEXT_PUBLIC_APP_URL:               ${NEXT_PUBLIC_APP_URL:-http://localhost:3032}
+        SHOW_ALLOCATION:                   ${SHOW_ALLOCATION:-false}
     # Tag the image for Docker Hub so `docker compose push` works
     image: openledgerhub/openfin-vault:${APP_VERSION:-latest}
     restart: unless-stopped
@@ -65,6 +66,9 @@ services:
       REDIS_TTL_APY_7D:  ${REDIS_TTL_APY_7D:-86400}
       REDIS_TTL_PRICE:   ${REDIS_TTL_PRICE:-600}
       REDIS_TTL_PENDING: ${REDIS_TTL_PENDING:-60}
+
+      # Allocation panels (UltraYield + Morpho) — also set at build via SHOW_ALLOCATION
+      SHOW_ALLOCATION:   ${SHOW_ALLOCATION:-false}
     depends_on:
       redis:
         condition: service_healthy

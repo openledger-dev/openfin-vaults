@@ -298,12 +298,15 @@ const MIDAS_VAULT_CONFIG: Record<
 // ── Morpho static vault config ────────────────────────────────────────────────
 
 /**
- * Morpho MetaMorpho vaults are pure ERC-4626 — no extra fields needed.
- * APY is pulled from the Morpho GraphQL API using the vault address as key.
+ * Morpho Vaults V2 — pure ERC-4626 share tokens.
+ * APY and fees (performanceFee, managementFee) come from the Morpho V2 GraphQL API.
  *
  * To add a Morpho vault:
- *   1. Add its address to NEXT_PUBLIC_MORPHO_VAULT_ADDR in .env.local
- *   2. Optionally add static asset config below if getPaymentTokens is unavailable
+ *   1. Add its V2 vault share address to NEXT_PUBLIC_MORPHO_VAULT_ADDR in .env.local
+ *   2. Optionally add static asset config below (displayName, assets)
+ *
+ * Note: V1 MetaMorpho addresses (e.g. 0xBEEF…) are NOT indexed in vaultV2s and will
+ * not return fee data from the API.
  */
 const MORPHO_ASSET_CONFIG: Record<string, Pick<PlatformVaultEntry, "assets" | "displayName">> = {
   // ── Gauntlet USDC Core (0x8eB6...d458, Ethereum mainnet) ──────────────────

@@ -21,9 +21,13 @@ import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import { recordTermsAcceptance, hasAcceptedTerms } from "@/lib/termsAudit";
 import type { MidasApyMap, MidasPriceMap, MidasTvlMap, MidasPendingRedemption } from "@/lib/midasApi";
-import type { MorphoVaultApy } from "@/lib/morphoApi";
+import type { MorphoVaultApy, MorphoV2Allocation } from "@/lib/morphoApi";
+import type { UltraYieldAllocation } from "@/lib/ultrayieldApi";
 import type { PlatformKind } from "@/lib/vaultConfig";
 import { getChainShortName, getAddressExplorerLink, getTxExplorerLink } from "@/lib/chains";
+import { UltraYieldAllocation as UltraYieldAllocationPanel } from "@/components/allocation/UltraYieldAllocation";
+import { MorphoAllocation as MorphoAllocationPanel } from "@/components/allocation/MorphoAllocation";
+import { SHOW_ALLOCATION } from "@/lib/featureFlags";
 
 // Minimal ERC-4626 write ABI for Morpho (standard sync deposit/redeem)
 const ERC4626_WRITE_ABI = [
@@ -352,23 +356,7 @@ export default function VaultDetailPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vaultKind, vaultConfig?.platformUrl, vaultConfig?.ultrayieldApiSlug, vaultAddress, vaultChainId]);
 
-  // ── On-chain detail ───────────────────────────────────────────────────────
-  const vault = useVaultDetail(vaultAddress, userAddress, vaultChainId, vaultKind);
-  const midasApiKey = useMemo(() => {
-    if (vaultConfig?.midasApiKey) return vaultConfig.midasApiKey.toLowerCase();
-    return vault.symbol ? vault.symbol.toLowerCase() : undefined;
-  }, [vaultConfig?.midasApiKey, vault.symbol]);
-
-  // ── APY: REST API (when slug available) or event-log scan for UltraYield ──
-  const ultrayieldSlug = vaultKind === "ultrayield" ? vaultConfig?.ultrayieldApiSlug : undefined;
-  const { apy: ultrayieldApy, label: apyLabel, isLoading: apyLoading } = use7dApy(
-    vaultKind === "ultrayield" ? vault.oracle : undefined,
-    vaultKind === "ultrayield" ? vaultAddress : undefined,
-    vaultKind === "ultrayield" ? vault.assetAddress : undefined,
-    vaultChainId,
-    ultrayieldSlug,
-  );
-
+  // ── Morpho GraphQL (APY + fees fallback for V2 vaults) ───────────────────
   const { data: morphoApyData, isLoading: morphoApyLoading } = useQuery({
     queryKey: ["morphoDetailApy", vaultChainId, vaultAddress],
     enabled: vaultKind === "morpho" && !!vaultAddress,
@@ -386,6 +374,23 @@ export default function VaultDetailPage() {
   });
 
   const morphoApiEntry = morphoApyData?.[vaultAddress?.toLowerCase() ?? ""];
+
+  // ── On-chain detail (Morpho fees fall back to morphoApiEntry) ─────────────
+  const vault = useVaultDetail(vaultAddress, userAddress, vaultChainId, vaultKind, morphoApiEntry);
+  const midasApiKey = useMemo(() => {
+    if (vaultConfig?.midasApiKey) return vaultConfig.midasApiKey.toLowerCase();
+    return vault.symbol ? vault.symbol.toLowerCase() : undefined;
+  }, [vaultConfig?.midasApiKey, vault.symbol]);
+
+  // ── APY: REST API (when slug available) or event-log scan for UltraYield ──
+  const ultrayieldSlug = vaultKind === "ultrayield" ? vaultConfig?.ultrayieldApiSlug : undefined;
+  const { apy: ultrayieldApy, label: apyLabel, isLoading: apyLoading } = use7dApy(
+    vaultKind === "ultrayield" ? vault.oracle : undefined,
+    vaultKind === "ultrayield" ? vaultAddress : undefined,
+    vaultKind === "ultrayield" ? vault.assetAddress : undefined,
+    vaultChainId,
+    ultrayieldSlug,
+  );
 
   const morphoApy = useMemo(
     () => morphoApiEntry?.weeklyNetApy ?? null,
@@ -470,6 +475,44 @@ export default function VaultDetailPage() {
       if (!res.ok) return [] as MidasPendingRedemption[];
       return res.json() as Promise<MidasPendingRedemption[]>;
     },
+  });
+
+  // ── UltraYield allocation breakdown ──────────────────────────────────────
+  const ultrayieldApiSlug = vaultKind === "ultrayield" ? vaultConfig?.ultrayieldApiSlug : undefined;
+  const {
+    data: ultrayieldAllocationData,
+    isLoading: ultrayieldAllocationLoading,
+    isError: ultrayieldAllocationError,
+  } = useQuery({
+    queryKey: ["ultrayieldAllocation", ultrayieldApiSlug],
+    enabled: SHOW_ALLOCATION && vaultKind === "ultrayield" && !!ultrayieldApiSlug,
+    staleTime: 10 * 60 * 1_000,
+    gcTime:    20 * 60 * 1_000,
+    queryFn: () =>
+      fetch(`/api/ultrayield/allocation?slug=${encodeURIComponent(ultrayieldApiSlug!)}`)
+        .then((r) => {
+          if (!r.ok) throw new Error(`Allocation API error: ${r.status}`);
+          return r.json() as Promise<UltraYieldAllocation>;
+        }),
+  });
+
+  // ── Morpho V2 allocation breakdown ───────────────────────────────────────
+  const {
+    data: morphoAllocationData,
+    isLoading: morphoAllocationLoading,
+    isError: morphoAllocationError,
+  } = useQuery({
+    queryKey: ["morphoV2Allocation", vaultChainId, vaultAddress],
+    enabled: SHOW_ALLOCATION && vaultKind === "morpho" && !!vaultAddress,
+    staleTime: 4 * 60 * 60 * 1_000,
+    gcTime:    5 * 60 * 60 * 1_000,
+    queryFn: () =>
+      fetch(`/api/morpho/allocation?address=${vaultAddress}&chainId=${vaultChainId}`)
+        .then((r) => {
+          if (r.status === 404) return undefined; // vault not in V2 index — skip silently
+          if (!r.ok) throw new Error(`Morpho allocation API error: ${r.status}`);
+          return r.json() as Promise<MorphoV2Allocation>;
+        }),
   });
 
   // ── Midas share allowance for redemption vault ───────────────────────────
@@ -1528,6 +1571,24 @@ export default function VaultDetailPage() {
                 </section>
               )}
 
+              {/* UltraYield Allocation Breakdown */}
+              {SHOW_ALLOCATION && vaultKind === "ultrayield" && ultrayieldApiSlug && (
+                <UltraYieldAllocationPanel
+                  data={ultrayieldAllocationData}
+                  isLoading={ultrayieldAllocationLoading}
+                  isError={ultrayieldAllocationError}
+                />
+              )}
+
+              {/* Morpho V2 Allocation Breakdown */}
+              {SHOW_ALLOCATION && vaultKind === "morpho" && (morphoAllocationData ?? morphoAllocationLoading) && (
+                <MorphoAllocationPanel
+                  data={morphoAllocationData}
+                  isLoading={morphoAllocationLoading}
+                  isError={morphoAllocationError}
+                />
+              )}
+
               {/* Fee Structure */}
               <section className="rounded-xl border border-[#E1E5E1] bg-[#F1F2F0] p-6 shadow-sm dark:border-[#1b1b1f] dark:bg-[#141417]">
                 <div className="mb-4 flex items-start gap-3">
@@ -1549,7 +1610,7 @@ export default function VaultDetailPage() {
                       pct={midasTokenFeePct}
                       tooltip="Per-payment-token fee applied on redemptions. Read from tokensConfig on the Redemption Vault for the primary configured payment token." />
                   </>
-                ) : vault.isLoading ? (
+                ) : vault.isLoading || (vaultKind === "morpho" && morphoApyLoading) ? (
                   <LightSectionSkeleton rows={3} />
                 ) : (
                   <>
@@ -1557,10 +1618,9 @@ export default function VaultDetailPage() {
                       tooltip={vaultKind === "morpho"
                         ? "Fee on yield taken by the vault's fee recipient."
                         : "Charged on profits above the high-water mark. Max 30%."} />
-                    <FeeRow label="Management Fee"
-                      pct={vaultKind === "morpho" ? 0 : vault.managementFeePercent}
+                    <FeeRow label="Management Fee" pct={vault.managementFeePercent}
                       tooltip={vaultKind === "morpho"
-                        ? "MetaMorpho vaults do not charge a management fee."
+                        ? "Annual fee on total assets under management, charged via share minting to the management fee recipient."
                         : "Annual fee on total assets under management. Max 5%."} />
                     {vaultKind === "ultrayield" && (
                       <>

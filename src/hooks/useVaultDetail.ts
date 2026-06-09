@@ -4,6 +4,7 @@ import { useReadContracts } from "wagmi";
 import { formatUnits } from "viem";
 import { VAULT_READ_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformKind } from "@/lib/vaultConfig";
+import { resolveMorphoFee, type MorphoVaultApy } from "@/lib/morphoApi";
 
 export type VaultDetail = {
   // Identity
@@ -24,7 +25,7 @@ export type VaultDetail = {
   totalSupplyFormatted: string;
   // State
   isPaused: boolean;
-  // Fees — performanceFee available for both UltraYield (getFees) and Morpho (fee())
+  // Fees — performanceFee/managementFee from getFees (UltraYield) or V2 getters (Morpho)
   performanceFee: bigint | undefined;
   managementFee: bigint | undefined;
   withdrawalFee: bigint | undefined;
@@ -56,10 +57,12 @@ export type VaultDetail = {
   isError: boolean;
 };
 
-// MetaMorpho-specific ABI (fee + feeRecipient)
-const METAMORPHO_READ_ABI = [
-  { name: "fee",          type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"  }] },
-  { name: "feeRecipient", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+// Morpho Vault V2 fee getters (WAD: 1e18 = 100%)
+const MORPHO_V2_READ_ABI = [
+  { name: "performanceFee",          type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"    }] },
+  { name: "managementFee",           type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"    }] },
+  { name: "performanceFeeRecipient", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { name: "managementFeeRecipient",  type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
 ] as const;
 
 function fmt(raw: bigint | undefined, dec: number, sym?: string, fixedDp?: number): string {
@@ -89,13 +92,14 @@ function fmt(raw: bigint | undefined, dec: number, sym?: string, fixedDp?: numbe
  *
  * kind drives which platform-specific reads are performed:
  *   ultrayield → getFees, oracle, fundsHolder, rateProvider, async redeem state
- *   morpho     → MetaMorpho fee() + feeRecipient()
+ *   morpho     → performanceFee() / managementFee() + API fallback
  */
 export function useVaultDetail(
   vaultAddress: `0x${string}` | undefined,
   userAddress: `0x${string}` | undefined,
   chainId = 1,
   kind: PlatformKind = "ultrayield",
+  morphoApiFees?: Pick<MorphoVaultApy, "performanceFee" | "managementFee"> | null,
 ): VaultDetail {
   const enabled = !!vaultAddress;
 
@@ -128,12 +132,14 @@ export function useVaultDetail(
     query: { enabled: enabled && kind === "ultrayield" },
   });
 
-  // ── Stage 1c: Morpho MetaMorpho-specific reads ────────────────────────────
+  // ── Stage 1c: Morpho Vault V2 fee reads ───────────────────────────────────
   const { data: s1MO, isLoading: s1MOLoading } = useReadContracts({
     contracts: kind === "morpho"
       ? [
-          { address: vaultAddress!, abi: METAMORPHO_READ_ABI, functionName: "fee"          as const, chainId },
-          { address: vaultAddress!, abi: METAMORPHO_READ_ABI, functionName: "feeRecipient" as const, chainId },
+          { address: vaultAddress!, abi: MORPHO_V2_READ_ABI, functionName: "performanceFee"          as const, chainId },
+          { address: vaultAddress!, abi: MORPHO_V2_READ_ABI, functionName: "managementFee"           as const, chainId },
+          { address: vaultAddress!, abi: MORPHO_V2_READ_ABI, functionName: "performanceFeeRecipient" as const, chainId },
+          { address: vaultAddress!, abi: MORPHO_V2_READ_ABI, functionName: "managementFeeRecipient"  as const, chainId },
         ]
       : [],
     query: { enabled: enabled && kind === "morpho" },
@@ -206,15 +212,20 @@ export function useVaultDetail(
   const feeRecipientUY = s1UY?.[4]?.status === "success" ? (s1UY[4].result as `0x${string}`) : undefined;
   const rateProvider = s1UY?.[5]?.status === "success"  ? (s1UY[5].result  as `0x${string}`) : undefined;
 
-  // Morpho-specific fields
-  const morphoFee          = s1MO?.[0]?.status === "success" ? (s1MO[0].result as bigint) : undefined;
-  const feeRecipientMO     = s1MO?.[1]?.status === "success" ? (s1MO[1].result as `0x${string}`) : undefined;
+  // Morpho Vault V2 fields
+  const morphoPerformance  = s1MO?.[0]?.status === "success" ? (s1MO[0].result as bigint) : undefined;
+  const morphoManagement   = s1MO?.[1]?.status === "success" ? (s1MO[1].result as bigint) : undefined;
+  const performanceFeeRecip = s1MO?.[2]?.status === "success" ? (s1MO[2].result as `0x${string}`) : undefined;
 
-  const feeRecipient = kind === "morpho" ? feeRecipientMO : feeRecipientUY;
+  const feeRecipient = kind === "morpho" ? performanceFeeRecip : feeRecipientUY;
 
-  // Consolidate fees: UltraYield uses getFees struct; Morpho uses fee()
-  const performanceFee = kind === "morpho" ? morphoFee : fees?.performanceFee;
-  const managementFee  = kind === "morpho" ? undefined : fees?.managementFee;
+  // Consolidate fees: UltraYield uses getFees; Morpho V2 uses on-chain getters then API
+  const performanceFee = kind === "morpho"
+    ? resolveMorphoFee(morphoApiFees?.performanceFee, morphoPerformance)
+    : fees?.performanceFee;
+  const managementFee = kind === "morpho"
+    ? resolveMorphoFee(morphoApiFees?.managementFee, morphoManagement)
+    : fees?.managementFee;
   const withdrawalFee  = kind === "morpho" ? undefined : fees?.withdrawalFee;
 
   const userShares         = s1Shares?.[0]?.status === "success" ? (s1Shares[0].result as bigint) : undefined;
