@@ -36,12 +36,13 @@ function envTtl(key: string, fallback: number): number {
 // ── TTL values (read once at module load) ─────────────────────────────────────
 
 export const TTL = {
-  META:    envTtl("REDIS_TTL_META",    3_600),   // default 1 hour
-  STATE:   envTtl("REDIS_TTL_STATE",   30),       // default 30 sec
-  APY:     envTtl("REDIS_TTL_APY",     300),      // default 5 min
-  APY_7D:  envTtl("REDIS_TTL_APY_7D",  86_400),   // default 24 hours
-  PRICE:   envTtl("REDIS_TTL_PRICE",   600),      // default 10 min
-  PENDING: envTtl("REDIS_TTL_PENDING", 60),       // default 1 min
+  META:       envTtl("REDIS_TTL_META",       3_600),   // default 1 hour
+  STATE:      envTtl("REDIS_TTL_STATE",      30),      // default 30 sec
+  APY:        envTtl("REDIS_TTL_APY",        300),     // default 5 min
+  APY_7D:     envTtl("REDIS_TTL_APY_7D",    86_400),   // default 24 hours
+  PRICE:      envTtl("REDIS_TTL_PRICE",      600),     // default 10 min
+  PENDING:    envTtl("REDIS_TTL_PENDING",    60),      // default 1 min
+  ALLOCATION: envTtl("REDIS_TTL_ALLOCATION", 14_400),  // default 4 hours
 };
 
 // ── Key namespace ─────────────────────────────────────────────────────────────

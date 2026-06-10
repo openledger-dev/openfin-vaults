@@ -186,7 +186,7 @@ function chainVaultToVault(v: VaultOnChainData): Vault {
 
 function sectionGridTemplate(platformKind: PlatformKind, platformId: string): string {
   if (platformKind === "morpho") {
-    return "minmax(220px,2fr) minmax(100px,1.2fr) minmax(88px,1fr) minmax(88px,1fr) minmax(88px,1fr) auto minmax(168px,1.1fr)";
+    return "minmax(220px,2fr) minmax(100px,1.2fr) minmax(88px,1fr) minmax(88px,1fr) minmax(72px,0.9fr) minmax(72px,0.9fr) minmax(88px,1fr) auto minmax(168px,1.1fr)";
   }
   if (platformId === "re7") {
     return "minmax(220px,2fr) minmax(100px,1.2fr) minmax(88px,1fr) minmax(88px,1fr) auto minmax(168px,1.1fr)";
@@ -212,6 +212,8 @@ const MORPHO_HEADERS = [
   { key: "asset", header: "Asset" },
   { key: "tvl", header: "TVL" },
   { key: "apy", header: "7D net APY" },
+  { key: "perfFee", header: "Perf. fee" },
+  { key: "mgmtFee", header: "Mgmt. fee" },
   { key: "liquidity", header: "Liquidity" },
   { key: "status", header: "Status" },
   { key: "action", header: "" },
@@ -530,6 +532,12 @@ function PlatformSection({
     if (isMorpho) {
       return {
         ...base,
+        perfFee: (
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{feePercent(v.performanceFee)}</span>
+        ),
+        mgmtFee: (
+          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{feePercent(v.managementFee)}</span>
+        ),
         liquidity: (
           <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
             {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
@@ -625,15 +633,32 @@ function PlatformSection({
               <ApyCell v={v} />
             </div>
           </div>
-          {isMorphoVault && (
-            <div className="col-span-2">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Liquidity</p>
-              <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
-              </p>
-            </div>
-          )}
-          {!isMorphoVault && !isRe7 && (
+          {isMorphoVault ? (
+            <>
+              <div>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Perf. fee
+                </p>
+                <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  {feePercent(v.performanceFee)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Mgmt. fee
+                </p>
+                <p className="mt-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  {feePercent(v.managementFee)}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Liquidity</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {formatBigIntAsset(v.liquidityRaw, v.assetDecimals ?? 18, v.assetSymbol)}
+                </p>
+              </div>
+            </>
+          ) : !isRe7 ? (
             <>
               <div>
                 <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -652,7 +677,7 @@ function PlatformSection({
                 </p>
               </div>
             </>
-          )}
+          ) : null}
         </div>
 
         <div className="mt-auto">

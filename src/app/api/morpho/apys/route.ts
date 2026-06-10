@@ -1,8 +1,8 @@
 /**
  * GET /api/morpho/apys?addresses=0xA,0xB&chainId=1
  *
- * Returns a map of lowercase vault address → MorphoVaultApy
- * (includes weeklyNetApy, totalAssetsUsd, name, symbol).
+ * Returns a map of lowercase vault address → MorphoVaultApy (Morpho Vaults V2).
+ * Includes avgNetApy, performanceFee, managementFee, liquidity, totalAssetsUsd, name, symbol.
  * Result is cached in Redis for TTL.APY seconds (5 minutes).
  *
  * Query params:

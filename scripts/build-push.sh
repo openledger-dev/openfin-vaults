@@ -39,6 +39,7 @@ docker buildx build \
   --build-arg NEXT_PUBLIC_MIDAS_VAULT_ADDR="$(load_arg NEXT_PUBLIC_MIDAS_VAULT_ADDR)" \
   --build-arg NEXT_PUBLIC_MIDAS_CHAIN_ID="$(load_arg NEXT_PUBLIC_MIDAS_CHAIN_ID)" \
   --build-arg NEXT_PUBLIC_SWAP_MIN_USD="$(load_arg NEXT_PUBLIC_SWAP_MIN_USD)" \
+  --build-arg SHOW_ALLOCATION="$(load_arg SHOW_ALLOCATION)" \
   $TAGS \
   --push \
   .

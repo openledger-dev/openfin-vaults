@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Adapter for Morpho MetaMorpho vaults (V1 and V2).
+ * Adapter for Morpho Vaults V2.
  *
  * Morpho vaults are pure ERC-4626 — the multicall reads are identical to
  * UltraYield minus the UltraYield-specific calls (oracle, rateProvider, getFees).
@@ -20,23 +20,18 @@ import { useQuery } from "@tanstack/react-query";
 import { ERC20_ABI } from "@/lib/vaultAbi";
 import type { PlatformConfig } from "@/lib/vaultConfig";
 import type { VaultOnChainData } from "@/hooks/useVaultData";
-import type { MorphoVaultApy } from "@/lib/morphoApi";
+import { resolveMorphoFee, type MorphoVaultApy } from "@/lib/morphoApi";
 
-// MetaMorpho read ABI — ERC-4626 standard + MetaMorpho-specific getters
+// Vault V2 read ABI — ERC-4626 standard + V2 fee getters (WAD: 1e18 = 100%)
 const ERC4626_READ_ABI = [
-  { name: "name",        type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
-  { name: "symbol",      type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
-  { name: "decimals",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8"   }] },
-  { name: "totalSupply", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
-  { name: "asset",       type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
-  { name: "totalAssets", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
-  { name: "totalIdle",   type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
-  /**
-   * MetaMorpho.fee() — performance fee rate in WAD (1e18 = 100%).
-   * Returned as uint96 but stored as bigint; same scale as UltraYield fees.
-   * There is no separate management fee in MetaMorpho.
-   */
-  { name: "fee",         type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"  }] },
+  { name: "name",           type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
+  { name: "symbol",         type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "string"  }] },
+  { name: "decimals",       type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint8"   }] },
+  { name: "totalSupply",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "asset",          type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { name: "totalAssets",    type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  { name: "performanceFee", type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"  }] },
+  { name: "managementFee",  type: "function", stateMutability: "view", inputs: [], outputs: [{ type: "uint96"  }] },
 ] as const;
 
 const FIELD_COUNT = ERC4626_READ_ABI.length; // 8
@@ -146,9 +141,9 @@ export function useMorphoVaultData(
     const decimalsRes    = stage1Data?.[base + 2];
     const totalSupplyRes = stage1Data?.[base + 3];
     const assetRes       = stage1Data?.[base + 4];
-    const totalAssetsRes = stage1Data?.[base + 5];
-    const totalIdleRes   = stage1Data?.[base + 6];
-    const feeRes         = stage1Data?.[base + 7];
+    const totalAssetsRes    = stage1Data?.[base + 5];
+    const performanceFeeRes = stage1Data?.[base + 6];
+    const managementFeeRes  = stage1Data?.[base + 7];
 
     const assetAddress     = assetRes?.status     === "success" ? (assetRes.result     as `0x${string}`) : undefined;
     const assetSymbolRes   = stage2Data?.[i * 2 + 0];
@@ -161,13 +156,9 @@ export function useMorphoVaultData(
 
     const apiEntry = apyMap?.[vault.address.toLowerCase()];
 
-    // liquidityRaw: prefer on-chain totalIdle() (V1); fall back to API liquidity (V2)
+    // liquidityRaw: from Morpho V2 API `liquidity` field
     const liquidityRaw: bigint | undefined =
-      totalIdleRes?.status === "success"
-        ? (totalIdleRes.result as bigint)
-        : apiEntry?.liquidity != null
-          ? BigInt(apiEntry.liquidity)
-          : undefined;
+      apiEntry?.liquidity != null ? BigInt(apiEntry.liquidity) : undefined;
 
     const userAssetsRaw =
       userShares !== undefined && totalAssets !== undefined &&
@@ -193,14 +184,14 @@ export function useMorphoVaultData(
       totalSupply,
       liquidityRaw,
       isPaused: false,
-      performanceFee: feeRes?.status === "success"
-        ? (feeRes.result as bigint)
-        : apiEntry?.fee != null
-          ? BigInt(Math.round(apiEntry.fee * 1e18))
-          : undefined,
-      managementFee: apiEntry?.managementFee != null
-        ? BigInt(Math.round(apiEntry.managementFee * 1e18))
-        : undefined,
+      performanceFee: resolveMorphoFee(
+        apiEntry?.performanceFee,
+        performanceFeeRes?.status === "success" ? (performanceFeeRes.result as bigint) : undefined,
+      ),
+      managementFee: resolveMorphoFee(
+        apiEntry?.managementFee,
+        managementFeeRes?.status === "success" ? (managementFeeRes.result as bigint) : undefined,
+      ),
       withdrawalFee: undefined,
       oracleAddress: undefined,
       rateProviderAddress: undefined,

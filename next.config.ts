@@ -24,6 +24,11 @@ const STUB_PACKAGES = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_SHOW_ALLOCATION:
+      process.env.NEXT_PUBLIC_SHOW_ALLOCATION ?? process.env.SHOW_ALLOCATION ?? "false",
+  },
+
   // Produce a self-contained server bundle under .next/standalone/.
   // The runner stage copies only that folder + static assets, keeping the
   // final Docker image free of node_modules (~60-80% smaller).

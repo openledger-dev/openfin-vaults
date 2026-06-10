@@ -1,16 +1,11 @@
 /**
- * Thin wrapper around the Morpho public GraphQL API.
+ * Thin wrapper around the Morpho Vaults V2 GraphQL API.
  *
- * V1 endpoint: https://blue-api.morpho.org/graphql  (MetaMorpho / legacy vaults)
- * V2 endpoint: https://api.morpho.org/graphql        (Morpho Vaults V2)
- *
- * fetchMorphoVaultApys tries V1 first, then automatically falls back to V2
- * for any addresses not found in the V1 index.
+ * Endpoint: https://api.morpho.org/graphql
  *
  * Docs: https://docs.morpho.org/tools/offchain/api/morpho-vaults/
  */
 
-const MORPHO_GRAPHQL_V1 = "https://blue-api.morpho.org/graphql";
 const MORPHO_GRAPHQL_V2 = "https://api.morpho.org/graphql";
 
 export type MorphoVaultApy = {
@@ -19,100 +14,43 @@ export type MorphoVaultApy = {
   name: string | null;
   /** Vault symbol from the Morpho API. */
   symbol: string | null;
-  /** Weekly net APY as a decimal (0.05 = 5%). Null if not available. */
+  /** Net APY as a decimal (0.05 = 5%). From GraphQL avgNetApy. */
   weeklyNetApy: number | null;
-  /** Total assets in the vault (as USD string) */
+  /** Net APY excluding reward incentives. From GraphQL avgNetApyExcludingRewards. */
+  avgNetApyExcludingRewards: number | null;
+  /** Total assets in the vault (USD). */
   totalAssetsUsd: number | null;
   /**
-   * Performance fee as a decimal (0.05 = 5%).
-   * For V1: from state.fee. For V2: performanceFee field.
-   * Fallback if on-chain fee() call fails.
+   * Performance fee as a decimal fraction (0.05 = 5%).
+   * GraphQL: performanceFee. Fallback when on-chain performanceFee() is unavailable.
    */
-  fee: number | null;
-  /** Management fee (V2 only). Decimal fraction (0.01 = 1%). */
+  performanceFee: number | null;
+  /** Management fee as a decimal fraction (0.01 = 1%). GraphQL: managementFee. */
   managementFee: number | null;
+  /** Max rate cap (WAD-scaled bigint from API). */
+  maxRate: string | null;
   /**
    * Available liquidity in raw asset units (string to preserve precision).
-   * V2: from API `liquidity` field (immediately withdrawable amount).
-   * V1: read on-chain via totalIdle(); this field is null for V1 entries.
+   * GraphQL: liquidity (immediately withdrawable amount).
    */
   liquidity: string | null;
 };
 
-// ── Morpho V1 (MetaMorpho / blue-api) ────────────────────────────────────────
-
-const VAULT_APY_QUERY_V1 = /* graphql */ `
-  query VaultApys($addresses: [String!]!, $chainId: Int!) {
-    vaults(
-      first: 200
-      where: { address_in: $addresses, chainId_in: [$chainId] }
-    ) {
-      items {
-        address
-        name
-        symbol
-        state {
-          weeklyNetApy: avgNetApy(lookback: SEVEN_DAYS)
-          totalAssetsUsd
-          fee
-        }
-      }
-    }
-  }
-`;
-
-async function fetchV1Apys(
-  addresses: string[],
-  chainId: number
-): Promise<Record<string, MorphoVaultApy>> {
-  const res = await fetch(MORPHO_GRAPHQL_V1, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: VAULT_APY_QUERY_V1,
-      variables: { addresses, chainId },
-    }),
-    next: { revalidate: 300 },
-  });
-  if (!res.ok) throw new Error(`Morpho V1 API fetch failed: ${res.status}`);
-
-  const json = (await res.json()) as {
-    data?: {
-      vaults?: {
-        items?: Array<{
-          address: string;
-          name?: string | null;
-          symbol?: string | null;
-          state?: {
-            weeklyNetApy?: number | null;
-            totalAssetsUsd?: number | null;
-            fee?: number | null;
-          } | null;
-        }>;
-      };
-    };
-    errors?: unknown[];
-  };
-
-  if (json.errors?.length) console.warn("[morphoApi V1] GraphQL errors:", json.errors);
-
-  const result: Record<string, MorphoVaultApy> = {};
-  for (const item of json.data?.vaults?.items ?? []) {
-    result[item.address.toLowerCase()] = {
-      address: item.address,
-      name: item.name ?? null,
-      symbol: item.symbol ?? null,
-      fee: item.state?.fee ?? null,
-      managementFee: null,
-      liquidity: null,
-      weeklyNetApy: item.state?.weeklyNetApy ?? null,
-      totalAssetsUsd: item.state?.totalAssetsUsd ?? null,
-    };
-  }
-  return result;
+/** Convert Morpho API fee decimal (0.05 = 5%) to on-chain WAD (1e18 = 100%). */
+export function morphoApiFeeToWad(fee: number): bigint {
+  return BigInt(Math.round(fee * 1e18));
 }
 
-// ── Morpho V2 (api.morpho.org) ────────────────────────────────────────────────
+/** Prefer Morpho GraphQL fee (authoritative for V2); fall back to on-chain WAD. */
+export function resolveMorphoFee(
+  apiFee: number | null | undefined,
+  onChainWad: bigint | undefined,
+): bigint | undefined {
+  if (apiFee != null) return morphoApiFeeToWad(apiFee);
+  return onChainWad;
+}
+
+// ── Morpho Vaults V2 (api.morpho.org) ────────────────────────────────────────
 
 const VAULT_APY_QUERY_V2 = /* graphql */ `
   query VaultV2Apys($addresses: [String!]!, $chainId: Int!) {
@@ -125,9 +63,11 @@ const VAULT_APY_QUERY_V2 = /* graphql */ `
         name
         symbol
         avgNetApy
+        avgNetApyExcludingRewards
         totalAssetsUsd
         performanceFee
         managementFee
+        maxRate
         liquidity
       }
     }
@@ -157,9 +97,11 @@ async function fetchV2Apys(
           name?: string | null;
           symbol?: string | null;
           avgNetApy?: number | null;
+          avgNetApyExcludingRewards?: number | null;
           totalAssetsUsd?: number | null;
           performanceFee?: number | null;
           managementFee?: number | null;
+          maxRate?: number | string | null;
           liquidity?: number | string | null;
         }>;
       };
@@ -175,23 +117,200 @@ async function fetchV2Apys(
       address: item.address,
       name: item.name ?? null,
       symbol: item.symbol ?? null,
-      fee: item.performanceFee ?? null,
+      performanceFee: item.performanceFee ?? null,
       managementFee: item.managementFee ?? null,
+      maxRate: item.maxRate != null ? String(item.maxRate) : null,
       liquidity: item.liquidity != null ? String(item.liquidity) : null,
       weeklyNetApy: item.avgNetApy ?? null,
+      avgNetApyExcludingRewards: item.avgNetApyExcludingRewards ?? null,
       totalAssetsUsd: item.totalAssetsUsd ?? null,
     };
   }
   return result;
 }
 
-// ── Public API — tries V1 then fills missing addresses from V2 ────────────────
+// ── Morpho V2 Allocation ──────────────────────────────────────────────────────
 
 /**
- * Fetches APY and TVL for a list of Morpho vault addresses.
- * Queries V1 (MetaMorpho) first; any addresses not found there are then
- * looked up in the V2 API automatically.
+ * A single normalised row in the allocation table.
  *
+ * Display rules (per Morpho docs):
+ *   MorphoMarketV1Adapter — expand into per-position rows using
+ *     position.state.supplyAssetsUsd; do NOT also count adapter.assetsUsd.
+ *   MetaMorphoAdapter / MorphoVaultV2Adapter — one row per adapter using
+ *     adapter.assetsUsd.
+ *   Idle — one row using vault.idleAssetsUsd.
+ */
+export type MorphoAllocationItem = {
+  /** Human-readable label for the row */
+  name: string;
+  /** USD notional value */
+  assetsUsd: number;
+  /** Adapter/row category for optional badge/colour differentiation */
+  type: "market" | "meta_vault" | "inner_vault" | "idle";
+  /** Morpho market ID — present only for type === "market" */
+  marketId?: string;
+};
+
+export type MorphoV2Allocation = {
+  address: string;
+  totalAssetsUsd: number;
+  idleAssetsUsd: number;
+  items: MorphoAllocationItem[];
+};
+
+const VAULT_ALLOCATION_QUERY_V2 = /* graphql */ `
+  query VaultV2Allocation($address: String!, $chainId: Int!) {
+    vaultV2ByAddress(address: $address, chainId: $chainId) {
+      address
+      totalAssetsUsd
+      idleAssetsUsd
+      adapters(first: 20) {
+        items {
+          __typename
+          address
+          assets
+          assetsUsd
+          type
+          ... on MorphoMarketV1Adapter {
+            positions(first: 50) {
+              items {
+                market {
+                  marketId
+                  collateralAsset { symbol }
+                  loanAsset { symbol }
+                }
+                state {
+                  supplyAssets
+                  supplyAssetsUsd
+                }
+              }
+            }
+          }
+          ... on MetaMorphoAdapter {
+            metaMorpho {
+              address
+              name
+              asset { symbol }
+            }
+          }
+          ... on MorphoVaultV2Adapter {
+            innerVault {
+              address
+              name
+              asset { symbol }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+type GqlPosition = {
+  market: {
+    marketId: string;
+    collateralAsset?: { symbol: string } | null;
+    loanAsset?: { symbol: string } | null;
+  };
+  state: { supplyAssets?: string | null; supplyAssetsUsd?: number | null };
+};
+
+type GqlAdapter = {
+  __typename: string;
+  address: string;
+  assetsUsd?: number | null;
+  type?: string | null;
+  // MorphoMarketV1Adapter
+  positions?: { items?: GqlPosition[] } | null;
+  // MetaMorphoAdapter
+  metaMorpho?: { address: string; name?: string | null; asset?: { symbol: string } | null } | null;
+  // MorphoVaultV2Adapter
+  innerVault?: { address: string; name?: string | null; asset?: { symbol: string } | null } | null;
+};
+
+/**
+ * Fetch allocation data for a single Morpho V2 vault.
+ * Normalises all adapter types into a flat list of MorphoAllocationItem rows.
+ */
+export async function fetchMorphoV2Allocation(
+  address: string,
+  chainId: number
+): Promise<MorphoV2Allocation | null> {
+  const res = await fetch(MORPHO_GRAPHQL_V2, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: VAULT_ALLOCATION_QUERY_V2,
+      variables: { address, chainId },
+    }),
+    next: { revalidate: 14_400 }, // 4 hours — matches TTL.ALLOCATION
+  });
+  if (!res.ok) throw new Error(`Morpho V2 allocation API failed: ${res.status}`);
+
+  const json = (await res.json()) as {
+    data?: {
+      vaultV2ByAddress?: {
+        address: string;
+        totalAssetsUsd?: number | null;
+        idleAssetsUsd?: number | null;
+        adapters?: { items?: GqlAdapter[] } | null;
+      } | null;
+    };
+    errors?: unknown[];
+  };
+
+  if (json.errors?.length) console.warn("[morphoApi] allocation GraphQL errors:", json.errors);
+
+  const vault = json.data?.vaultV2ByAddress;
+  if (!vault) return null;
+
+  const totalAssetsUsd = vault.totalAssetsUsd ?? 0;
+  const idleAssetsUsd  = vault.idleAssetsUsd  ?? 0;
+  const items: MorphoAllocationItem[] = [];
+
+  for (const adapter of vault.adapters?.items ?? []) {
+    if (adapter.__typename === "MorphoMarketV1Adapter") {
+      // Expand into per-position rows — do NOT also add adapter.assetsUsd
+      for (const pos of adapter.positions?.items ?? []) {
+        const collateral = pos.market.collateralAsset?.symbol ?? "?";
+        const loan       = pos.market.loanAsset?.symbol       ?? "?";
+        items.push({
+          name:      `${collateral} / ${loan}`,
+          assetsUsd: pos.state.supplyAssetsUsd ?? 0,
+          type:      "market",
+          marketId:  pos.market.marketId,
+        });
+      }
+    } else if (adapter.__typename === "MetaMorphoAdapter") {
+      const name = adapter.metaMorpho?.name ?? adapter.metaMorpho?.address ?? adapter.address;
+      items.push({
+        name,
+        assetsUsd: adapter.assetsUsd ?? 0,
+        type:      "meta_vault",
+      });
+    } else if (adapter.__typename === "MorphoVaultV2Adapter") {
+      const name = adapter.innerVault?.name ?? adapter.innerVault?.address ?? adapter.address;
+      items.push({
+        name,
+        assetsUsd: adapter.assetsUsd ?? 0,
+        type:      "inner_vault",
+      });
+    }
+  }
+
+  // Append idle as a separate row
+  if (idleAssetsUsd > 0) {
+    items.push({ name: "Idle Cash", assetsUsd: idleAssetsUsd, type: "idle" });
+  }
+
+  return { address: vault.address, totalAssetsUsd, idleAssetsUsd, items };
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Fetches APY, fees, and TVL for a list of Morpho Vault V2 addresses.
  * Returns a map of lowercase address → MorphoVaultApy.
  */
 export async function fetchMorphoVaultApys(
@@ -199,19 +318,5 @@ export async function fetchMorphoVaultApys(
   chainId: number
 ): Promise<Record<string, MorphoVaultApy>> {
   if (addresses.length === 0) return {};
-
-  // Query both V1 and V2 in parallel
-  const [v1Result, v2Result] = await Promise.all([
-    fetchV1Apys(addresses, chainId).catch((err) => {
-      console.warn("[morphoApi] V1 fetch failed, falling back to V2 only:", err);
-      return {} as Record<string, MorphoVaultApy>;
-    }),
-    fetchV2Apys(addresses, chainId).catch((err) => {
-      console.warn("[morphoApi] V2 fetch failed:", err);
-      return {} as Record<string, MorphoVaultApy>;
-    }),
-  ]);
-
-  // V1 takes precedence; V2 fills any gaps
-  return { ...v2Result, ...v1Result };
+  return fetchV2Apys(addresses, chainId);
 }
