@@ -39,17 +39,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    cap_drop:
+      - NET_ADMIN
+      - SYS_ADMIN
     deploy:
       resources:
         limits:
+          cpus: "0.5"
           memory: 256m
+          pids: 100
         reservations:
           memory: 64m
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "200m"
+        max-file: "10"
 
   app:
     # Pull a pre-built, tagged image — never build on the production server
@@ -82,17 +87,27 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3032/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
+          cpus: "1.0"
           memory: 512m
+          pids: 200
         reservations:
           memory: 128m
     logging:
       driver: json-file
       options:
-        max-size: "20m"
-        max-file: "5"
+        max-size: "200m"
+        max-file: "10"
 
 volumes:
   redis_data:
