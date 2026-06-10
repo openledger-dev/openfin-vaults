@@ -15,6 +15,7 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
+import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -24,7 +25,8 @@ export async function GET(request: Request) {
   const addresses = rawAddresses
     .split(",")
     .map((a) => a.trim())
-    .filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));
+    .filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a))
+    .slice(0, MAX_LIST_SIZE);
 
   if (addresses.length === 0) {
     return NextResponse.json({});

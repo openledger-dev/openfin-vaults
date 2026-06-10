@@ -16,6 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
+import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
 
 const ULTRAYIELD_API = "https://api.ultrayield.app/api/v2/vaults";
 
@@ -43,7 +44,8 @@ export async function GET(request: Request) {
   const slugs = raw
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, MAX_LIST_SIZE);
 
   if (slugs.length === 0) {
     return NextResponse.json({});

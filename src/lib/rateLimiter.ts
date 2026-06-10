@@ -23,6 +23,13 @@
 import "server-only";
 import { getRedis } from "@/lib/redis";
 
+/**
+ * Maximum number of items accepted in any list/multi-value query parameter
+ * (e.g. `addresses`, `slugs`). Enforced in every list endpoint to prevent
+ * unbounded result sets that degrade performance and memory use.
+ */
+export const MAX_LIST_SIZE = 100;
+
 /** True unless RATE_LIMIT_ENABLED is explicitly set to "false". */
 const RATE_LIMITING_ENABLED =
   process.env.RATE_LIMIT_ENABLED?.toLowerCase() !== "false";
