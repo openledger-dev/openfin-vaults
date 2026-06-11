@@ -1,3 +1,5 @@
+export { OPTIONS } from "@/lib/cors";
+
 /**
  * POST /api/swap/quote
  *
