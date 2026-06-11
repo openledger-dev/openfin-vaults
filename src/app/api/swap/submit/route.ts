@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateSubmitBody } from "@/lib/swapValidation";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
 
     // Forward only the validated, sanitized body — never the raw input
-    const res = await fetch(`${ONE_CLICK_BASE}/v0/deposit/submit`, {
+    const res = await fetchWithTimeout(`${ONE_CLICK_BASE}/v0/deposit/submit`, {
       method: "POST",
       headers,
       body: JSON.stringify(result.value),

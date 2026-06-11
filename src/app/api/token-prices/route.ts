@@ -13,13 +13,14 @@
 
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 type CoinGeckoResponse = Record<string, { usd: number }>;
 
 async function fetchTokenPrices(): Promise<Record<string, number>> {
   const url =
     "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd";
-  const res = await fetch(url, { next: { revalidate: 600 } } as RequestInit);
+  const res = await fetchWithTimeout(url, { next: { revalidate: 600 } } as RequestInit);
   if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`);
   const json = (await res.json()) as CoinGeckoResponse;
   const out: Record<string, number> = {};

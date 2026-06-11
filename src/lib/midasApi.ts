@@ -19,6 +19,8 @@
  * Docs: https://ludicrous-rate-748.notion.site/Midas-Vaults-Integration-Public
  */
 
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+
 const BASE = "https://api-prod.midas.app/api/data";
 
 export type MidasApyMap   = Record<string, number>;
@@ -60,14 +62,14 @@ type RawMidasTvlResponse = {
 
 /** Returns a map of lowercase symbol → APY decimal (e.g. { mmev: 0.0443 }). */
 export async function fetchMidasApys(): Promise<MidasApyMap> {
-  const res = await fetch(`${BASE}/apys`, { next: { revalidate: 600 } });
+  const res = await fetchWithTimeout(`${BASE}/apys`, { next: { revalidate: 600 } } as RequestInit);
   if (!res.ok) throw new Error(`Midas APY fetch failed: ${res.status}`);
   return res.json() as Promise<MidasApyMap>;
 }
 
 /** Returns a map of lowercase symbol → price in USD (e.g. { mmev: 1.114 }). */
 export async function fetchMidasPrices(): Promise<MidasPriceMap> {
-  const res = await fetch(`${BASE}/prices`, { next: { revalidate: 600 } });
+  const res = await fetchWithTimeout(`${BASE}/prices`, { next: { revalidate: 600 } } as RequestInit);
   if (!res.ok) throw new Error(`Midas price fetch failed: ${res.status}`);
   const raw = (await res.json()) as Record<string, string>;
   return Object.fromEntries(
@@ -77,7 +79,7 @@ export async function fetchMidasPrices(): Promise<MidasPriceMap> {
 
 /** Returns a map of lowercase symbol -> TVL in USD (e.g. { mre7: 14423063 }). */
 export async function fetchMidasTvls(): Promise<MidasTvlMap> {
-  const res = await fetch(`${BASE}/tvl`, { next: { revalidate: 600 } });
+  const res = await fetchWithTimeout(`${BASE}/tvl`, { next: { revalidate: 600 } } as RequestInit);
   if (!res.ok) throw new Error(`Midas TVL fetch failed: ${res.status}`);
 
   const raw = (await res.json()) as RawMidasTvlResponse;
@@ -114,7 +116,7 @@ export async function fetchMidasPendingRedemptions(
   if (!userAddress) return [];
 
   const url = `${BASE}/requests/pending?address=${userAddress}&networkId=${chainId}`;
-  const res = await fetch(url, { next: { revalidate: 60 } });
+  const res = await fetchWithTimeout(url, { next: { revalidate: 60 } } as RequestInit);
   if (!res.ok) {
     console.warn(`[midasApi] Pending redemptions fetch failed: ${res.status}`);
     return [];

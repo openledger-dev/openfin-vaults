@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { isEVMAddress } from "@/lib/swapValidation";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     const u = new URL(`${ONE_CLICK_BASE}/v0/status`);
     u.searchParams.set("depositAddress", depositAddress);
-    const res = await fetch(u.toString(), { headers });
+    const res = await fetchWithTimeout(u.toString(), { headers });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {

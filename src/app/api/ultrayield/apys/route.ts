@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 const ULTRAYIELD_API = "https://api.ultrayield.app/api/v2/vaults";
 
@@ -31,7 +32,7 @@ async function fetchSlugApy(slug: string): Promise<number | null> {
   const u = new URL(`${ULTRAYIELD_API}/${encodeURIComponent(slug)}/apy_history`);
   u.searchParams.set("limit", "1");
   u.searchParams.set("skip_cache", "false");
-  const res = await fetch(u.toString(), { next: { revalidate: 300 } } as RequestInit);
+  const res = await fetchWithTimeout(u.toString(), { next: { revalidate: 300 } } as RequestInit);
   if (!res.ok) return null;
   const json = (await res.json()) as ApyHistoryResponse;
   const latest = json.data?.data?.[0];

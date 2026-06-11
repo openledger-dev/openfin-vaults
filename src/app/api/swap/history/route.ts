@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { isEVMAddress } from "@/lib/swapValidation";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 const EXPLORER_API = "https://explorer.near-intents.org/api/v0";
 
@@ -89,7 +90,7 @@ export async function GET(req: NextRequest) {
     u.searchParams.set("perPage", String(perPage));
     u.searchParams.set("search",  address);
     const url = u.toString();
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
