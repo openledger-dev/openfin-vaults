@@ -11,6 +11,17 @@
 services:
   redis:
     image: redis:7-alpine
+    # Dev: no password, but disable DEBUG and module commands to match prod behaviour.
+    # Do not mount redis.conf here — its `protected-mode yes` + `bind 0.0.0.0`
+    # combination requires a password, which we intentionally skip in dev.
+    command: >
+      redis-server
+      --loglevel notice
+      --timeout 300
+      --tcp-keepalive 60
+      --enable-debug-command no
+      --enable-protected-configs yes
+      --enable-module-command no
     restart: unless-stopped
     ports:
       - "6380:6379"
@@ -51,7 +62,7 @@ services:
         NEXT_PUBLIC_MIDAS_CHAIN_ID:        ${NEXT_PUBLIC_MIDAS_CHAIN_ID:-1}
         NEXT_PUBLIC_SWAP_MIN_USD:          ${NEXT_PUBLIC_SWAP_MIN_USD:-5}
         NEXT_PUBLIC_APP_URL:               ${NEXT_PUBLIC_APP_URL:-http://localhost:3032}
-        SHOW_ALLOCATION:                   ${SHOW_ALLOCATION:-false}
+        SHOW_ALLOCATION:                   ${SHOW_ALLOCATION:-false}P
     # Tag the image for Docker Hub so `docker compose push` works
     image: openledgerhub/openfin-vault:${APP_VERSION:-latest}
     restart: unless-stopped

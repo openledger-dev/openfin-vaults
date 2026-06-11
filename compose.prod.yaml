@@ -25,16 +25,20 @@
 services:
   redis:
     image: redis:7-alpine
-    # Require a password for all Redis connections
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    # Load the hardened redis.conf; inject the password at runtime so no
+    # credential is stored in the committed config file.
+    command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     restart: unless-stopped
-    # Redis is NOT exposed to the host — only the app container needs it
+    # Redis is NOT exposed to the host — only the app container needs it.
     expose:
       - "6379"
     volumes:
       - redis_data:/data
+      - ./redis.conf:/etc/redis/redis.conf:ro
+      - redis_logs:/var/log/redis
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      # redis-cli -a suppresses the auth-warning banner via --no-auth-warning.
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -61,7 +65,7 @@ services:
     image: openledgerhub/openfin-vault:v1.0.1
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "80:3032"
     environment:
       # Redis — authenticated, internal only
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
@@ -111,4 +115,6 @@ services:
 
 volumes:
   redis_data:
+    driver: local
+  redis_logs:
     driver: local
