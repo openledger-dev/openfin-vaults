@@ -11,7 +11,9 @@
  *    This prevents one browser session from querying another user's history,
  *    while keeping the check lightweight (no signature verification needed
  *    for public blockchain data, but it raises the bar significantly).
- *  - Rate-limited to 30 req / IP / min.
+ *  - Rate-limited to 30 req / IP / min (IP from CF-Connecting-IP).
+ *  - Secondary rate limit keyed by wallet address (30 req / wallet / min).
+ *    An attacker rotating source IPs while using the same wallet is still throttled.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
@@ -48,6 +50,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       { error: "address must be a valid EVM address (0x + 40 hex chars)" },
       { status: 400 }
+    );
+  }
+
+  // ── Secondary rate limit: per wallet address (OPE-19) ───────────────────
+  // Keying by wallet ensures that an attacker rotating source IPs while
+  // using the same wallet address is still constrained to RATE_LIMIT/min.
+  const walletRl = await checkRateLimit(address.toLowerCase(), "swap:history:wallet", RATE_LIMIT, WINDOW_SEC);
+  if (walletRl.exceeded) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(walletRl.retryAfter ?? WINDOW_SEC) } }
     );
   }
 
