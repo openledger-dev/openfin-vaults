@@ -24,6 +24,9 @@ const STUB_PACKAGES = [
 ];
 
 const nextConfig: NextConfig = {
+  // Remove the X-Powered-By: Next.js header to prevent technology fingerprinting (OPE-20).
+  poweredByHeader: false,
+
   env: {
     NEXT_PUBLIC_SHOW_ALLOCATION:
       process.env.NEXT_PUBLIC_SHOW_ALLOCATION ?? process.env.SHOW_ALLOCATION ?? "false",
