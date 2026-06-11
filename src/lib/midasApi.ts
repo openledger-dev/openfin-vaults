@@ -115,7 +115,8 @@ export async function fetchMidasPendingRedemptions(
 ): Promise<MidasPendingRedemption[]> {
   if (!userAddress) return [];
 
-  const url = `${BASE}/requests/pending?address=${userAddress}&networkId=${chainId}`;
+  const qs = new URLSearchParams({ address: userAddress, networkId: String(chainId) });
+  const url = `${BASE}/requests/pending?${qs}`;
   const res = await fetchWithTimeout(url, { next: { revalidate: 60 } } as RequestInit);
   if (!res.ok) {
     console.warn(`[midasApi] Pending redemptions fetch failed: ${res.status}`);

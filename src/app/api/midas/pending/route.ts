@@ -18,12 +18,13 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, invalidate, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
+import { isEVMAddress } from "@/lib/swapValidation";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
   const token   = searchParams.get("token");
-  const address = searchParams.get("address") ?? undefined;
+  const rawAddress = searchParams.get("address");
   const bust    = searchParams.get("bust") === "1";
 
   if (!token || !/^0x[0-9a-fA-F]{40}$/.test(token)) {
@@ -32,6 +33,15 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
+
+  if (rawAddress !== null && !isEVMAddress(rawAddress)) {
+    return NextResponse.json(
+      { error: "Invalid param: address must be a 20-byte hex EVM address" },
+      { status: 400 }
+    );
+  }
+
+  const address = rawAddress ?? undefined;
 
   const wallet = address?.toLowerCase() ?? "all";
   const cacheKey = redisKey(`midas:pending:${chainId}:${token.toLowerCase()}:${wallet}`);
