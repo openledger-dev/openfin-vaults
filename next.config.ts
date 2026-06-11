@@ -67,23 +67,8 @@ const nextConfig: NextConfig = {
           // still allowing popups — required for wallet connection flows that
           // open a separate window (WalletConnect mobile, MetaMask, etc.).
           { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
-          // CSP: tightened for a DeFi app that only talks to known origins.
-          // - script-src: Next.js needs 'self' + inline scripts for hydration
-          // - connect-src: wallet RPCs, 1Click API, NEAR intents explorer, Morpho GraphQL, API, WalletConnect relay
-          // - frame-src: WalletConnect QR modal uses an iframe
-          { key: "Content-Security-Policy", value: [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https:",
-            "font-src 'self' data: https://fonts.reown.com",
-            "connect-src 'self' https: wss:",
-            "frame-src 'self' https://verify.walletconnect.com https://verify.walletconnect.org",
-            "object-src 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "upgrade-insecure-requests",
-          ].join("; ") },
+          // CSP is set in src/middleware.ts (nonce-based, report-only by default).
+          // See src/lib/csp.ts for the full directive list and domain inventory.
         ],
       },
 
