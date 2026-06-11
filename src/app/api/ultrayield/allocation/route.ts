@@ -16,7 +16,7 @@
 
 import { NextResponse } from "next/server";
 import { isAllocationEnabled } from "@/lib/featureFlags";
-import { cachedFetch, TTL, redisKey } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { fetchUltraYieldAllocation } from "@/lib/ultrayieldApi";
 
 export async function GET(request: Request) {
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const cacheKey = redisKey(`uy:allocation:${slug}`);
+  const cacheKey = redisKey(`uy:allocation:${sanitizeKeySegment(slug)}`);
 
   try {
     const data = await cachedFetch(cacheKey, TTL.ALLOCATION, () =>

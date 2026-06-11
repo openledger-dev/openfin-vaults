@@ -7,6 +7,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
     const jwt = process.env.ONECLICK_JWT_TOKEN;
     if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
 
-    const res = await fetch(`${ONE_CLICK_BASE}/v0/tokens`, { headers });
+    const res = await fetchWithTimeout(`${ONE_CLICK_BASE}/v0/tokens`, { headers });
     if (!res.ok) {
       const text = await res.text();
       return NextResponse.json({ error: text }, { status: res.status });

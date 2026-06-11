@@ -789,6 +789,7 @@ interface VaultsTableProps {
 
 export function VaultsTable({ vaults: allVaults, isLoading }: VaultsTableProps) {
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedVault, setSelectedVault] = useState<Vault | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

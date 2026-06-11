@@ -24,6 +24,9 @@ const STUB_PACKAGES = [
 ];
 
 const nextConfig: NextConfig = {
+  // Remove the X-Powered-By: Next.js header to prevent technology fingerprinting (OPE-20).
+  poweredByHeader: false,
+
   env: {
     NEXT_PUBLIC_SHOW_ALLOCATION:
       process.env.NEXT_PUBLIC_SHOW_ALLOCATION ?? process.env.SHOW_ALLOCATION ?? "false",
@@ -37,22 +40,55 @@ const nextConfig: NextConfig = {
 
   // ── HTTP security headers ────────────────────────────────────────────────
   async headers() {
+    // The app's canonical origin — used as the explicit CORS allowed origin so
+    // that third-party sites cannot call our API routes cross-origin.
+    const appOrigin =
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://openfin.openledger.xyz";
+
     return [
+      // ── Applied to every response (pages + API + static assets) ───────────
       {
         source: "/(.*)",
         headers: [
-          // Prevent clickjacking — disallow embedding in iframes
+          // Prevent clickjacking — legacy coverage for browsers without CSP.
           { key: "X-Frame-Options", value: "DENY" },
-          // Prevent MIME-type sniffing
+          // Prevent MIME-type sniffing.
           { key: "X-Content-Type-Options", value: "nosniff" },
-          // Don't send full URL as Referer to third parties
+          // Don't send full URL as Referer to third parties.
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // Restrict access to browser features not needed by this app
+          // Restrict browser features not needed by this app.
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
-          // Enforce HTTPS for future visits (1 year, include subdomains)
+          // Enforce HTTPS for future visits (1 year, include subdomains).
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          // Prevent other origins from loading any resource from this server
+          // (via <img>, <script>, fetch, etc.) unless it's the same origin.
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          // Isolate the browsing context from cross-origin documents while
+          // still allowing popups — required for wallet connection flows that
+          // open a separate window (WalletConnect mobile, MetaMask, etc.).
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
           // CSP is set in src/middleware.ts (nonce-based, report-only by default).
           // See src/lib/csp.ts for the full directive list and domain inventory.
+        ],
+      },
+
+      // ── Explicit least-privilege CORS policy for all API routes ───────────
+      // These routes are Backend-For-Frontend proxies; they carry server-side
+      // API keys and must not be callable from arbitrary third-party origins.
+      // Setting Access-Control-Allow-Origin to the app's own canonical URL
+      // (never wildcard) means the browser will block cross-origin requests
+      // from any other origin at the preflight/response stage.
+      // POST routes (swap/quote, swap/submit) also export an OPTIONS handler
+      // in src/lib/cors.ts to answer CORS preflights correctly.
+      {
+        source: "/api/(.*)",
+        headers: [
+          { key: "Access-Control-Allow-Origin",  value: appOrigin },
+          { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type" },
+          // Vary: Origin is required whenever ACAO is not wildcard — tells
+          // CDNs/proxies not to serve a cached response to a different origin.
+          { key: "Vary", value: "Origin" },
         ],
       },
     ];
