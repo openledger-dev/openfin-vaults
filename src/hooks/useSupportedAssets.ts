@@ -17,10 +17,14 @@
 import { useMemo } from "react";
 import { useReadContracts } from "wagmi";
 import { VAULT_READ_ABI } from "@/lib/vaultAbi";
-import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
+import { findVaultPlatformEntry } from "@/lib/vaultConfig";
 import type { AssetConfig } from "@/lib/vaultConfig";
 
 export type SupportedAsset = AssetConfig;
+
+// Stable empty fallback — prevents downstream useMemo hooks from re-running
+// every render due to a new `[]` literal when no static assets are configured.
+const EMPTY_SUPPORTED_ASSETS: SupportedAsset[] = [];
 
 // Midas Deposit Vault ABI — only the read we need
 const GET_PAYMENT_TOKENS_ABI = [
@@ -43,17 +47,21 @@ export function useSupportedAssets(vaultAddress: `0x${string}` | undefined): {
   isLoading: boolean;
 } {
   // ── 1. Look up static config ──────────────────────────────────────────────
-  const staticEntry = useMemo(() => {
-    if (!vaultAddress) return null;
-    const lower = vaultAddress.toLowerCase();
-    for (const platform of VAULT_PLATFORMS) {
-      const entry = platform.vaults.find((v) => v.address.toLowerCase() === lower);
-      if (entry) return { entry, chainId: entry.chainId ?? platform.chainId };
-    }
-    return null;
-  }, [vaultAddress]);
+  // Simple single-call useMemo — React Compiler can preserve this form.
+  // The inline for-loop version triggered react-hooks/preserve-manual-memoization
+  // because the compiler can't analyse complex control flow inside useMemo.
+  const staticEntry = useMemo(
+    () => findVaultPlatformEntry(vaultAddress),
+    [vaultAddress],
+  );
 
-  const staticAssets: SupportedAsset[] = staticEntry?.entry.assets ?? [];
+  // Memoized so the three downstream useMemo hooks receive a stable array
+  // reference; using `?? []` inline would create a new literal every render.
+  const staticAssets = useMemo<SupportedAsset[]>(
+    () => staticEntry?.entry.assets ?? EMPTY_SUPPORTED_ASSETS,
+    [staticEntry],
+  );
+
   const hasStaticAssets = staticAssets.length > 0;
 
   const erc4626VaultKind =

@@ -422,3 +422,16 @@ export const VAULT_PLATFORMS: PlatformConfig[] = [
     ],
   },
 ];
+
+/** Resolve a vault address to its static config entry and effective chain ID. */
+export function findVaultPlatformEntry(
+  vaultAddress: `0x${string}` | undefined,
+): { entry: PlatformVaultEntry; chainId: number } | null {
+  if (!vaultAddress) return null;
+  const lower = vaultAddress.toLowerCase();
+  for (const platform of VAULT_PLATFORMS) {
+    const entry = platform.vaults.find((v) => v.address.toLowerCase() === lower);
+    if (entry) return { entry, chainId: entry.chainId ?? platform.chainId };
+  }
+  return null;
+}
