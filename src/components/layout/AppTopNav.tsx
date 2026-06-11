@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import Link from "next/link";
 import Image from "next/image";
 import { useAppKit, useAppKitAccount, useAppKitState } from "@reown/appkit/react";
@@ -21,17 +21,14 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { initialized, loading } = useAppKitState()
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const hydrated = useHydrated();
   const walletBtnClass =
     "shrink-0 rounded-md border px-2 py-2 text-xs font-semibold transition sm:px-3 sm:text-sm " +
     (isConnected
       ? "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]"
       : "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]");
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  const showSkeleton = !mounted || !initialized;
+  const showSkeleton = !hydrated || !initialized;
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#F2F2F2] bg-white px-4 dark:border-[#1b1b1f] dark:bg-[#000000] sm:px-6 lg:px-8">

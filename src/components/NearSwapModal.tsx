@@ -21,6 +21,7 @@ import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useAppKit, useAppKitState } from "@reown/appkit/react";
 import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClock } from "react-icons/hi";
 import { useSwap, EVM_CHAINS, parseEvmAsset } from "@/hooks/useSwap";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useChainId } from "wagmi";
 import type { SwapToken, SwapStatusResponse, ExplorerTransaction, ExplorerHistoryResponse } from "@/types/swap";
 import { getTxExplorerLink } from "@/lib/chains";
@@ -602,13 +603,8 @@ export function SwapContent() {
   const connectedChainId = useChainId();
   const { open: openWallet } = useAppKit();
   const { initialized } = useAppKitState();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const showSkeleton = !mounted || !initialized;
+  const hydrated = useHydrated();
+  const showSkeleton = !hydrated || !initialized;
 
   // ── Modal tab state ────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"swap" | "track">("swap");

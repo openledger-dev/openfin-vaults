@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { HiOutlineSearch } from "react-icons/hi";
@@ -244,11 +245,12 @@ function VaultAvatar({ chainId }: { chainId: number }) {
   const chainIconSrc = CHAIN_ICON_BY_ID[chainId] ?? "/assets/icons/chains/default.svg";
   return (
     <div className="shrink-0" title={chain}>
-      <img
+      <Image
         src={chainIconSrc}
         alt={chain}
+        width={44}
+        height={44}
         className="h-11 w-11 rounded-full border border-zinc-200 object-cover dark:border-[#1b1b1f]"
-        loading="lazy"
       />
     </div>
   );

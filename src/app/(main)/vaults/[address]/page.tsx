@@ -13,6 +13,7 @@ import {
 import { useAppKit } from "@reown/appkit/react";
 import { VaultDetailActionPanel } from "@/components/VaultDetailActionPanel";
 import { useVaultDetail } from "@/hooks/useVaultDetail";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useToast } from "@/components/ui/Toaster";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
@@ -299,10 +300,8 @@ export default function VaultDetailPage() {
   const { open: openWalletConnect } = useAppKit();
 
   // Prevent wallet-sensitive UI from rendering before wagmi has hydrated.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  const walletPending = !mounted || isReconnecting || isConnecting;
+  const hydrated = useHydrated();
+  const walletPending = !hydrated || isReconnecting || isConnecting;
 
   // ── Look up vault kind + chainId from static config ───────────────────────
   const vaultConfig = useMemo(() => {
