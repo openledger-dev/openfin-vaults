@@ -63,6 +63,26 @@ export function redisKey(key: string): string {
   return `${KEY_PREFIX}${key}`;
 }
 
+/**
+ * Sanitize a user-supplied string for safe use as a Redis key segment (OPE-24).
+ *
+ * Redis key segments are delimited by `:`. A caller-controlled value that
+ * contains `:` would inject phantom segments into the key namespace, potentially
+ * causing cache collisions or leaking data across tenants.
+ *
+ * This function percent-encodes every character that is not alphanumeric, `-`,
+ * `_`, or `.` — the same safe set used in URL path segments. The encoding is
+ * deterministic and reversible, so cache keys remain debuggable.
+ *
+ * @example
+ *   sanitizeKeySegment("ultrayield-usd")  → "ultrayield-usd"  (unchanged)
+ *   sanitizeKeySegment("foo:bar")         → "foo%3Abar"       (: encoded)
+ *   sanitizeKeySegment("../secret")       → "..%2Fsecret"     (/ encoded)
+ */
+export function sanitizeKeySegment(s: string): string {
+  return s.replace(/[^a-zA-Z0-9\-_.]/g, encodeURIComponent);
+}
+
 // ── Singleton connection ──────────────────────────────────────────────────────
 
 declare global {

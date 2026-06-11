@@ -84,13 +84,11 @@ export async function GET(req: NextRequest) {
     const page    = Math.max(1, isNaN(pageRaw)    ? 1  : pageRaw);
     const perPage = Math.min(MAX_PER_PAGE, Math.max(1, isNaN(perPageRaw) ? 20 : perPageRaw));
 
-    const params = new URLSearchParams({
-      page:    String(page),
-      perPage: String(perPage),
-      search:  address,
-    });
-
-    const url = `${EXPLORER_API}/transactions-pages?${params.toString()}`;
+    const u = new URL(`${EXPLORER_API}/transactions-pages`);
+    u.searchParams.set("page",    String(page));
+    u.searchParams.set("perPage", String(perPage));
+    u.searchParams.set("search",  address);
+    const url = u.toString();
     const res = await fetch(url, {
       headers: {
         "Content-Type": "application/json",

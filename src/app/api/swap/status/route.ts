@@ -37,8 +37,9 @@ export async function GET(req: NextRequest) {
     const jwt = process.env.ONECLICK_JWT_TOKEN;
     if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
 
-    const url = `${ONE_CLICK_BASE}/v0/status?depositAddress=${encodeURIComponent(depositAddress)}`;
-    const res = await fetch(url, { headers });
+    const u = new URL(`${ONE_CLICK_BASE}/v0/status`);
+    u.searchParams.set("depositAddress", depositAddress);
+    const res = await fetch(u.toString(), { headers });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
