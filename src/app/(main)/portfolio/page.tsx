@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { useVaultData } from "@/hooks/useVaultData";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";

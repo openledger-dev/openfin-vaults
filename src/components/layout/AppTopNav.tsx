@@ -18,6 +18,7 @@ interface AppTopNavProps {
 export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { initialized, loading } = useAppKitState()
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
