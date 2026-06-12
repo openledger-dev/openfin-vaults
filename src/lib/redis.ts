@@ -165,21 +165,21 @@ export async function cachedFetch<T>(
   try {
     const cached = await redis.get(key);
     if (cached !== null) {
-      log.debug({ key }, "cache hit");
+      log.info({ key }, "cache hit");
       return deserialize<T>(cached);
     }
   } catch (err) {
     log.warn({ key, err }, "cache GET failed, bypassing");
   }
 
-  log.debug({ key }, "cache miss");
+  log.info({ key }, "cache miss");
   const t0   = Date.now();
   const data = await fetcher();
   const ms   = Date.now() - t0;
 
   try {
     await redis.set(key, serialize(data), "EX", ttl);
-    log.debug({ key, ttl, ms }, "cache SET");
+    log.info({ key, ttl, ms }, "cache SET");
   } catch (err) {
     log.warn({ key, err }, "cache SET failed");
   }
