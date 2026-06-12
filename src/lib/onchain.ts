@@ -369,6 +369,28 @@ export async function fetchPending(
   return info;
 }
 
+// ── fetchVaultOracle ──────────────────────────────────────────────────────────
+
+/**
+ * Reads the oracle address directly from the vault contract.
+ *
+ * Called server-side so the oracle address is never accepted from the caller
+ * (OPE-18: prevents SSRF / RPC amplification via a caller-supplied oracle).
+ *
+ * @throws if the vault does not expose `oracle()` or the RPC call fails.
+ */
+export async function fetchVaultOracle(
+  chainId: number,
+  vaultAddress: Address,
+): Promise<Address> {
+  const client = getPublicClient(chainId);
+  return client.readContract({
+    address: vaultAddress,
+    abi:     ULTRAYIELD_ADDR_ABI,
+    functionName: "oracle",
+  }) as Promise<Address>;
+}
+
 // ── fetchUltraYieldApy ────────────────────────────────────────────────────────
 
 // PriceUpdated(address indexed base, address indexed quote, uint256 price, ...)

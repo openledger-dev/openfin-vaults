@@ -58,15 +58,15 @@ export function use7dApy(
   const onchainEnabled = !restEnabled && !!oracleAddress && !!vaultAddress && !!assetAddress;
 
   const { data: onchainData, isLoading: onchainLoading, isError: onchainError } = useQuery({
-    queryKey: ["7dApy", chainId, oracleAddress, vaultAddress, assetAddress],
+    // oracle is derived server-side (OPE-18); exclude it from the cache key.
+    queryKey: ["7dApy", chainId, vaultAddress, assetAddress],
     enabled: onchainEnabled,
     staleTime: 24 * 60 * 60 * 1_000,
     gcTime:    25 * 60 * 60 * 1_000,
     queryFn: async (): Promise<{ apy: number; daysBack: number } | null> => {
-      if (!oracleAddress || !vaultAddress || !assetAddress) return null;
+      if (!vaultAddress || !assetAddress) return null;
       const params = new URLSearchParams({
         chainId: String(chainId),
-        oracle:  oracleAddress,
         vault:   vaultAddress,
         asset:   assetAddress,
       });
