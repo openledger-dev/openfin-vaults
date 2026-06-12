@@ -16,11 +16,16 @@ import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
 import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
+import { parseChainId } from "@/lib/apiValidation";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const rawAddresses = searchParams.get("addresses") ?? "";
-  const chainId      = parseInt(searchParams.get("chainId") ?? "1", 10);
+  const rawAddresses  = searchParams.get("addresses") ?? "";
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId = chainIdResult.value;
 
   const addresses = rawAddresses
     .split(",")

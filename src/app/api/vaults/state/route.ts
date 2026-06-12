@@ -23,14 +23,24 @@ import { NextResponse } from "next/server";
 import { cachedFetch, TTL, serialize, redisKey } from "@/lib/redis";
 import { fetchOnChainState } from "@/lib/onchain";
 import { isAllowedVault } from "@/lib/allowlist";
+import { parseChainId, parsePlatformKind } from "@/lib/apiValidation";
 import type { PlatformKind } from "@/lib/vaultConfig";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address") as `0x${string}` | null;
-  const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
-  const rawKind = searchParams.get("kind");
-  const kind    = rawKind as PlatformKind | undefined;
+
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId = chainIdResult.value;
+
+  const kindResult = parsePlatformKind(searchParams.get("kind"));
+  if (!kindResult.ok) {
+    return NextResponse.json({ error: kindResult.error }, { status: 400 });
+  }
+  const kind = kindResult.value as PlatformKind | undefined;
 
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
     return NextResponse.json({ error: "Invalid or missing vault address" }, { status: 400 });

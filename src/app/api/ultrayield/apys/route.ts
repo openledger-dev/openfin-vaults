@@ -18,6 +18,7 @@ import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { isVaultSlug } from "@/lib/apiValidation";
 
 const ULTRAYIELD_API = "https://api.ultrayield.app/api/v2/vaults";
 
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
   const slugs = raw
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean)
+    .filter(isVaultSlug)
     .slice(0, MAX_LIST_SIZE);
 
   if (slugs.length === 0) {

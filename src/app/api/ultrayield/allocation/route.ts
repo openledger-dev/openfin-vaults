@@ -18,6 +18,7 @@ import { NextResponse } from "next/server";
 import { isAllocationEnabled } from "@/lib/featureFlags";
 import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { fetchUltraYieldAllocation } from "@/lib/ultrayieldApi";
+import { isVaultSlug } from "@/lib/apiValidation";
 
 export async function GET(request: Request) {
   if (!isAllocationEnabled()) {
@@ -27,9 +28,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug")?.trim();
 
-  if (!slug) {
+  if (!slug || !isVaultSlug(slug)) {
     return NextResponse.json(
-      { error: "Missing required param: slug" },
+      { error: "Missing or invalid required param: slug (must be lowercase alphanumeric with hyphens)" },
       { status: 400 }
     );
   }

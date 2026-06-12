@@ -113,6 +113,24 @@ export function getRedis(): Redis {
   return global.__redis;
 }
 
+// ── Log sanitization (OPE-4: CWE-117 / CWE-134) ─────────────────────────────
+
+/**
+ * Escape ASCII control characters in a string before writing it to a log line.
+ *
+ * Redis keys are derived from URL query parameters. Without sanitization a
+ * crafted key containing \n or \r can forge additional log lines, corrupt log
+ * integrity, or inject HTML/script into dashboards that render raw logs.
+ *
+ * Characters in the range 0x00–0x1F and 0x7F are replaced with their
+ * \xNN hex escape so they appear literally in the log output.
+ */
+function sanitizeForLog(s: string): string {
+  return s.replace(/[\x00-\x1f\x7f]/g, (c) =>
+    `\\x${c.charCodeAt(0).toString(16).padStart(2, "0")}`
+  );
+}
+
 // ── BigInt-safe JSON serialization ────────────────────────────────────────────
 
 const BIGINT_TAG = "\x00bigint\x00";
@@ -156,26 +174,28 @@ export async function cachedFetch<T>(
 ): Promise<T> {
   const redis = getRedis();
 
+  const safeKey = sanitizeForLog(key);
+
   try {
     const cached = await redis.get(key);
     if (cached !== null) {
-      console.log(`[Redis] HIT  ${key}`);
+      console.log("[Redis] HIT ", safeKey);
       return deserialize<T>(cached);
     }
   } catch (err) {
-    console.warn(`[Redis] GET failed (${key}), bypassing cache:`, err);
+    console.warn("[Redis] GET failed, bypassing cache:", safeKey, err);
   }
 
-  console.log(`[Redis] MISS ${key} → fetching from origin`);
+  console.log("[Redis] MISS → fetching from origin:", safeKey);
   const t0   = Date.now();
   const data = await fetcher();
   const ms   = Date.now() - t0;
 
   try {
     await redis.set(key, serialize(data), "EX", ttl);
-    console.log(`[Redis] SET  ${key}  (ttl ${ttl}s, fetched in ${ms}ms)`);
+    console.log(`[Redis] SET  (ttl ${ttl}s, fetched in ${ms}ms):`, safeKey);
   } catch (err) {
-    console.warn(`[Redis] SET failed (${key}):`, err);
+    console.warn("[Redis] SET failed:", safeKey, err);
   }
 
   return data;

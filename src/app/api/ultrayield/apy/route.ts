@@ -26,6 +26,7 @@ import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchUltraYieldApy } from "@/lib/onchain";
 import { isAllowedVault } from "@/lib/allowlist";
+import { parseChainId } from "@/lib/apiValidation";
 import type { Address } from "viem";
 
 function isAddress(v: string | null): v is Address {
@@ -34,7 +35,11 @@ function isAddress(v: string | null): v is Address {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId = chainIdResult.value;
   const oracle  = searchParams.get("oracle");
   const vault   = searchParams.get("vault");
   const asset   = searchParams.get("asset");
