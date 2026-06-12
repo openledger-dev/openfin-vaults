@@ -19,6 +19,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { isEVMAddress } from "@/lib/swapValidation";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/swap/history");
 
 const EXPLORER_API = "https://explorer.near-intents.org/api/v0";
 
@@ -88,7 +91,7 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    console.error("[swap/history] unexpected error", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ error: "Failed to fetch swap history" }, { status: 500 });
   }
 }

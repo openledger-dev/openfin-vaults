@@ -12,6 +12,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateSubmitBody } from "@/lib/swapValidation";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/swap/submit");
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
@@ -58,7 +61,7 @@ export async function POST(req: NextRequest) {
     const data = await res.json().catch(() => null);
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    console.error("[swap/submit] unexpected error", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ error: "Failed to submit swap deposit" }, { status: 500 });
   }
 }

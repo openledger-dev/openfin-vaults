@@ -7,6 +7,9 @@
  */
 
 import { fetchWithTimeout, HEAVY_TIMEOUT_MS } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("lib/morphoApi");
 
 const MORPHO_GRAPHQL_V2 = "https://api.morpho.org/graphql";
 
@@ -115,7 +118,7 @@ async function fetchV2Apys(
     errors?: unknown[];
   };
 
-  if (json.errors?.length) console.warn("[morphoApi V2] GraphQL errors:", json.errors);
+  if (json.errors?.length) log.warn({ errors: json.errors }, "Morpho V2 GraphQL errors");
 
   const result: Record<string, MorphoVaultApy> = {};
   for (const item of json.data?.vaultV2s?.items ?? []) {
@@ -270,7 +273,7 @@ export async function fetchMorphoV2Allocation(
     errors?: unknown[];
   };
 
-  if (json.errors?.length) console.warn("[morphoApi] allocation GraphQL errors:", json.errors);
+  if (json.errors?.length) log.warn({ errors: json.errors }, "Morpho allocation GraphQL errors");
 
   const vault = json.data?.vaultV2ByAddress;
   if (!vault) return null;

@@ -13,6 +13,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/morpho/apys");
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
 import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
@@ -47,7 +50,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/morpho/apys]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Morpho APYs" },
       { status: 502 }

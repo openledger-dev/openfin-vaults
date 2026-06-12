@@ -14,6 +14,9 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/token-prices");
 
 type CoinGeckoResponse = Record<string, { usd: number }>;
 
@@ -39,7 +42,7 @@ export async function GET() {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/token-prices]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch token prices" },
       { status: 502 }

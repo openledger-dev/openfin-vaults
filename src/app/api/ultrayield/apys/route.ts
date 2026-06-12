@@ -15,6 +15,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/ultrayield/apys");
 import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
@@ -66,7 +69,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(Object.fromEntries(entries));
   } catch (err) {
-    console.error("[/api/ultrayield/apys]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ error: "Failed to fetch UltraYield APYs" }, { status: 502 });
   }
 }

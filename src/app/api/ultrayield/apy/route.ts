@@ -24,6 +24,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/ultrayield/apy");
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchUltraYieldApy, fetchVaultOracle } from "@/lib/onchain";
 import { isAllowedVault, isAllowedAsset } from "@/lib/allowlist";
@@ -77,7 +80,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/ultrayield/apy]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to compute UltraYield APY" },
       { status: 502 }

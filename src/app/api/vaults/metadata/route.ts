@@ -20,6 +20,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/vaults/metadata");
 import { cachedFetch, TTL, serialize, redisKey } from "@/lib/redis";
 import { fetchOnChainMeta } from "@/lib/onchain";
 import { isAllowedVault } from "@/lib/allowlist";
@@ -62,7 +65,7 @@ export async function GET(request: Request) {
       headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("[/api/vaults/metadata]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ error: "Failed to fetch vault metadata" }, { status: 502 });
   }
 }

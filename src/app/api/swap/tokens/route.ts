@@ -8,6 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/swap/tokens");
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
@@ -41,7 +44,7 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[swap/tokens] unexpected error", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ error: "Failed to fetch swap tokens" }, { status: 500 });
   }
 }

@@ -11,13 +11,16 @@
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPrices } from "@/lib/midasApi";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/midas/prices");
 
 export async function GET() {
   try {
     const data = await cachedFetch(redisKey("midas:prices"), TTL.PRICE, fetchMidasPrices);
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/midas/prices]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Midas prices" },
       { status: 502 }

@@ -20,6 +20,9 @@
  */
 
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("lib/midasApi");
 
 const BASE = "https://api-prod.midas.app/api/data";
 
@@ -119,7 +122,7 @@ export async function fetchMidasPendingRedemptions(
   const url = `${BASE}/requests/pending?${qs}`;
   const res = await fetchWithTimeout(url, { next: { revalidate: 60 } } as RequestInit);
   if (!res.ok) {
-    console.warn(`[midasApi] Pending redemptions fetch failed: ${res.status}`);
+    log.warn({ status: res.status }, "Midas pending redemptions fetch failed");
     return [];
   }
 

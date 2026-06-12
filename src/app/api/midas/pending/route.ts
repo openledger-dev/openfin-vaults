@@ -16,6 +16,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/midas/pending");
 import { cachedFetch, invalidate, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
 import { isEVMAddress } from "@/lib/swapValidation";
@@ -61,7 +64,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/midas/pending]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Midas pending redemptions" },
       { status: 502 }

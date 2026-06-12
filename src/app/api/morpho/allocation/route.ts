@@ -18,6 +18,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/morpho/allocation");
 import { isAllocationEnabled } from "@/lib/featureFlags";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoV2Allocation } from "@/lib/morphoApi";
@@ -63,7 +66,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/morpho/allocation]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Morpho V2 allocation data" },
       { status: 502 }

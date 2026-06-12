@@ -26,6 +26,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateQuoteBody } from "@/lib/swapValidation";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/swap/quote");
 
 const ONE_CLICK_BASE = "https://1click.chaindefuser.com";
 
@@ -69,15 +72,12 @@ export async function POST(req: NextRequest) {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error("[swap/quote] 1Click API error", {
-        status: res.status,
-        response: JSON.stringify(data),
-      });
+      log.error({ status: res.status, response: JSON.stringify(data) }, "1Click API error");
     }
 
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    console.error("[swap/quote] unexpected error", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ message: "Failed to fetch swap quote" }, { status: 500 });
   }
 }

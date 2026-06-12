@@ -15,6 +15,9 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/ultrayield/allocation");
 import { isAllocationEnabled } from "@/lib/featureFlags";
 import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { fetchUltraYieldAllocation } from "@/lib/ultrayieldApi";
@@ -43,7 +46,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/ultrayield/allocation]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch UltraYield allocation data" },
       { status: 502 }

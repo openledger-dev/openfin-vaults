@@ -24,6 +24,9 @@
 
 import "server-only";
 import { getRedis } from "@/lib/redis";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("lib/rateLimiter");
 
 /**
  * Maximum number of items accepted in any list/multi-value query parameter
@@ -84,7 +87,7 @@ export async function checkRateLimit(
     // Redis unavailable — fail open so a Redis outage does not take down the API.
     // Logged as ERROR (not warn) so a Redis outage that disables rate limiting is
     // visible in monitoring dashboards and alerting rules (OPE-19).
-    console.error("[rateLimiter] Redis unavailable — rate limiting bypassed for action:", action, err);
+    log.error({ action, err }, "Redis unavailable — rate limiting bypassed");
     return { exceeded: false, remaining: limit };
   }
 }
