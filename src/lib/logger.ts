@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * Structured logger (pino) — OPE-25 remediation.
  *

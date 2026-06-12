@@ -15,12 +15,18 @@
 #   docker compose -f compose.prod.yaml --env-file .env.prod up -d
 #
 # Required variables in .env.prod:
-#   APP_IMAGE            — full image ref, e.g. yourrepo/openfin-vault:v1.0.0
-#   REDIS_PASSWORD       — strong random password for Redis auth
-#   RPC_URL_1            — Ethereum mainnet RPC
-#   RPC_URL_8453         — Base RPC
-#   ONEINCH_API_KEY      — (optional)
-#   ONECLICK_JWT_TOKEN   — (optional)
+#   REDIS_PASSWORD           — strong random password for Redis auth
+#   RPC_URL_1                — Ethereum mainnet RPC
+#   RPC_URL_8453             — Base RPC
+#
+# Optional variables (sensible defaults shown):
+#   ONEINCH_API_KEY          — 1inch API key (swap feature)
+#   ONECLICK_JWT_TOKEN       — NEAR Intents 1Click JWT
+#   CSP_REPORT_ONLY          — false = enforce CSP, true = report-only (default: true)
+#   CSP_REPORT_URI           — endpoint for CSP violation reports
+#   CSP_ADDITIONAL_CONNECT_SRC — extra connect-src origins (comma-separated)
+#   LOG_LEVEL                — pino log level: trace|debug|info|warn|error (default: info)
+#   REDIS_KEY_PREFIX         — namespace prefix for Redis keys (useful if Redis is shared)
 
 services:
   redis:
@@ -62,7 +68,7 @@ services:
 
   app:
     # Pull a pre-built, tagged image — never build on the production server
-    image: openledgerhub/openfin-vault:v1.0.1
+    image: openledgerhub/openfin-vault:v1.0.2
     restart: unless-stopped
     ports:
       - "80:3032"
@@ -81,13 +87,30 @@ services:
       # Rate limiting — recommended enabled in production
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
 
+      # Content Security Policy (OPE-7)
+      # false = enforce CSP (recommended for production once policy is validated)
+      # true  = report-only mode (default when unset — safe for initial rollout)
+      CSP_REPORT_ONLY: ${CSP_REPORT_ONLY:-false}
+      # Uncomment and set to receive CSP violation reports:
+      # CSP_REPORT_URI: ${CSP_REPORT_URI:-}
+      # Uncomment to add extra connect-src origins for custom RPC providers:
+      # CSP_ADDITIONAL_CONNECT_SRC: ${CSP_ADDITIONAL_CONNECT_SRC:-}
+
+      # Logging (OPE-25)
+      # Pino log level: trace | debug | info | warn | error | fatal
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # Redis key namespace — set if this Redis instance is shared across apps
+      # REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-}
+
       # Cache TTLs (override if needed)
-      REDIS_TTL_META:    ${REDIS_TTL_META:-3600}
-      REDIS_TTL_STATE:   ${REDIS_TTL_STATE:-30}
-      REDIS_TTL_APY:     ${REDIS_TTL_APY:-300}
-      REDIS_TTL_APY_7D:  ${REDIS_TTL_APY_7D:-86400}
-      REDIS_TTL_PRICE:   ${REDIS_TTL_PRICE:-600}
-      REDIS_TTL_PENDING: ${REDIS_TTL_PENDING:-60}
+      REDIS_TTL_META:        ${REDIS_TTL_META:-3600}
+      REDIS_TTL_STATE:       ${REDIS_TTL_STATE:-30}
+      REDIS_TTL_APY:         ${REDIS_TTL_APY:-300}
+      REDIS_TTL_APY_7D:      ${REDIS_TTL_APY_7D:-86400}
+      REDIS_TTL_PRICE:       ${REDIS_TTL_PRICE:-600}
+      REDIS_TTL_PENDING:     ${REDIS_TTL_PENDING:-60}
+      REDIS_TTL_ALLOCATION:  ${REDIS_TTL_ALLOCATION:-14400}
     depends_on:
       redis:
         condition: service_healthy
