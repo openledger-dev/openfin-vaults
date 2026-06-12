@@ -14,13 +14,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Open Vault | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
+  title: "OpenFin | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
   description:
-    "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through Open Vault powered by OpenFin.",
+    "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through OpenFin.",
   openGraph: {
-    title: "Open Vault | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
+    title: "OpenFin | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
     description:
-      "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through Open Vault powered by OpenFin.",
+      "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through OpenFin.",
     images: [
       {
         url: "https://cdn.openledger.xyz/OPENfin/OpenVault/og-image.png",

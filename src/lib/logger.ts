@@ -34,7 +34,7 @@ import pino from "pino";
 
 const rootLogger = pino({
   level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === "production" ? "info" : "debug"),
-  base: { service: "openfin-vaults" },
+  base: { service: "openfin" },
   timestamp: pino.stdTimeFunctions.isoTime,
   serializers: {
     err: pino.stdSerializers.err,

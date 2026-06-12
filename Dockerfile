@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# Multi-stage Dockerfile for OpenVault (Next.js 16, npm, Node 24 LTS)
+# Multi-stage Dockerfile for OpenFin (Next.js 16, npm, Node 24 LTS)
 #
 # Stages:
 #   base    — Node 24 Alpine (pinned patch version)

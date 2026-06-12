@@ -1,4 +1,4 @@
-# OpenVault
+# OpenFin
 
 A multi-platform DeFi vault dashboard built with Next.js, supporting UltraYield, Morpho, and Midas vaults.
 

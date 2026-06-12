@@ -1,5 +1,5 @@
 /**
- * Content Security Policy (CSP) for Open Vault.
+ * Content Security Policy (CSP) for OpenFin.
  *
  * Addresses security audit finding OPE-7.
  *
