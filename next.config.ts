@@ -58,9 +58,10 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // Restrict browser features not needed by this app.
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
-          // Enforce HTTPS for future visits (1 year, include subdomains).
-          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
-          // Prevent other origins from loading any resource from this server
+          // max-age=63072000 satisfies the minimum for hstspreload.org submission.
+          // Primary enforcement is at the Cloudflare edge (covers ports 2053/2083/2087/2096).
+          // This origin header is defense-in-depth (OPE-17).
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },          // Prevent other origins from loading any resource from this server
           // (via <img>, <script>, fetch, etc.) unless it's the same origin.
           { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
           // Isolate the browsing context from cross-origin documents while
