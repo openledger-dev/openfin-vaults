@@ -15,8 +15,8 @@
 #     --build-arg NEXT_PUBLIC_APP_URL=https://your-domain.com \
 #     -t openvault .
 #
-# Runtime variables (pass to container via -e or --env-file):
-#   REDIS_URL, RPC_URL_1, RPC_URL_8453, RATE_LIMIT_ENABLED,
+# Runtime variables (pass to container via -e or --env-file, or bake via build-arg):
+#   REDIS_URL, RPC_URL_1, RPC_URL_8453, RATE_LIMIT_ENABLED, CSP_REPORT_ONLY,
 #   ONEINCH_API_KEY, ONECLICK_JWT_TOKEN
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -66,10 +66,15 @@ RUN npm run build
 FROM node:24.16.0-alpine3.23 AS runner
 WORKDIR /app
 
+ARG CSP_REPORT_ONLY=false
+ARG RATE_LIMIT_ENABLED=true
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3032
 ENV HOSTNAME=0.0.0.0
+ENV CSP_REPORT_ONLY=$CSP_REPORT_ONLY
+ENV RATE_LIMIT_ENABLED=$RATE_LIMIT_ENABLED
 
 RUN addgroup --system --gid 1001 nodejs \
  && adduser  --system --uid 1001 nextjs \

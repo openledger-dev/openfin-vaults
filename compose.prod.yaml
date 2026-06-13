@@ -41,7 +41,6 @@ services:
     volumes:
       - redis_data:/data
       - ./redis.conf:/etc/redis/redis.conf:ro
-      - redis_logs:/var/log/redis
     healthcheck:
       # redis-cli -a suppresses the auth-warning banner via --no-auth-warning.
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
@@ -67,8 +66,12 @@ services:
         max-file: "10"
 
   app:
-    # Pull a pre-built, tagged image — never build on the production server
+    # Pull a pre-built, tagged image — never build on the production server.
+    # Images are built for linux/amd64 (see scripts/build-push.sh). On Apple
+    # Silicon, this platform hint runs the image via emulation; on amd64 servers
+    # it is a no-op.
     image: openledgerhub/openfin-vault:v1.0.3
+    platform: linux/amd64
     restart: unless-stopped
     ports:
       - "80:3032"
@@ -137,6 +140,4 @@ services:
 
 volumes:
   redis_data:
-    driver: local
-  redis_logs:
     driver: local
