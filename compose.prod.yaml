@@ -68,7 +68,7 @@ services:
 
   app:
     # Pull a pre-built, tagged image — never build on the production server
-    image: openledgerhub/openfin-vault:v1.0.2
+    image: openledgerhub/openfin-vault:v1.0.3
     restart: unless-stopped
     ports:
       - "80:3032"
