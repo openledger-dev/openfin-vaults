@@ -51,7 +51,7 @@ if (process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_APP_URL) 
 }
 
 const metadata = {
-  name: "Open Vault",
+  name: "OpenFin",
   description: "Ethereum DeFi Vaults",
   url: APP_URL,
   icons: ["https://avatars.githubusercontent.com/u/179229932"],

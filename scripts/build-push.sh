@@ -40,6 +40,13 @@ docker buildx build \
   --build-arg NEXT_PUBLIC_MIDAS_CHAIN_ID="$(load_arg NEXT_PUBLIC_MIDAS_CHAIN_ID)" \
   --build-arg NEXT_PUBLIC_SWAP_MIN_USD="$(load_arg NEXT_PUBLIC_SWAP_MIN_USD)" \
   --build-arg SHOW_ALLOCATION="$(load_arg SHOW_ALLOCATION)" \
+  --build-arg CSP_REPORT_ONLY="$(load_arg CSP_REPORT_ONLY)" \
+  --build-arg RATE_LIMIT_ENABLED="$(load_arg RATE_LIMIT_ENABLED)" \
+  --build-arg REDIS_URL="$(load_arg REDIS_URL)" \
+  --build-arg REDIS_PASSWORD="$(load_arg REDIS_PASSWORD)" \
+  --build-arg ONECLICK_JWT_TOKEN="$(load_arg ONECLICK_JWT_TOKEN)" \
+  --build-arg RPC_URL_1="$(load_arg RPC_URL_1)" \
+  --build-arg RPC_URL_8453="$(load_arg RPC_URL_8453)" \
   $TAGS \
   --push \
   .

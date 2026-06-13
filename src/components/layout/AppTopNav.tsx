@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import Link from "next/link";
 import Image from "next/image";
 import { useAppKit, useAppKitAccount, useAppKitState } from "@reown/appkit/react";
@@ -18,19 +18,17 @@ interface AppTopNavProps {
 export function AppTopNav({ onMenuClick }: AppTopNavProps) {
   const { open } = useAppKit();
   const { address, isConnected } = useAppKitAccount();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { initialized, loading } = useAppKitState()
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const hydrated = useHydrated();
   const walletBtnClass =
     "shrink-0 rounded-md border px-2 py-2 text-xs font-semibold transition sm:px-3 sm:text-sm " +
     (isConnected
       ? "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]"
       : "border-[#E1E5E1] bg-[#F1F2F0] text-zinc-900 hover:bg-[#E9ECE8] dark:border-[#1b1b1f] dark:bg-[#141417] dark:text-[#ffffff] dark:hover:bg-[#1a1a1f]");
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  const showSkeleton = !mounted || !initialized;
+  const showSkeleton = !hydrated || !initialized;
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-[#F2F2F2] bg-white px-4 dark:border-[#1b1b1f] dark:bg-[#000000] sm:px-6 lg:px-8">
@@ -50,7 +48,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
           <span className="flex size-9 items-center justify-center overflow-hidden rounded-full border border-zinc-300 bg-white shadow-sm transition-colors dark:border-[#2a2a2e] dark:bg-white">
             <Image
               src="/assets/images/open-icon.svg"
-              alt="Open Vault logo"
+              alt="OpenFin logo"
               width={20}
               height={20}
               className="h-6 w-6 object-contain"
@@ -58,7 +56,7 @@ export function AppTopNav({ onMenuClick }: AppTopNavProps) {
             />
           </span>
           <span className="truncate text-base font-bold leading-none tracking-tight text-[#0F172A] dark:text-[#ffffff] sm:text-lg">
-            Open Vault
+            OpenFin
           </span>
         </Link>
       </div>

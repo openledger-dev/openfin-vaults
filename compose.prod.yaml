@@ -15,48 +15,66 @@
 #   docker compose -f compose.prod.yaml --env-file .env.prod up -d
 #
 # Required variables in .env.prod:
-#   APP_IMAGE            — full image ref, e.g. yourrepo/openfin-vault:v1.0.0
-#   REDIS_PASSWORD       — strong random password for Redis auth
-#   RPC_URL_1            — Ethereum mainnet RPC
-#   RPC_URL_8453         — Base RPC
-#   ONEINCH_API_KEY      — (optional)
-#   ONECLICK_JWT_TOKEN   — (optional)
+#   REDIS_PASSWORD           — strong random password for Redis auth
+#   RPC_URL_1                — Ethereum mainnet RPC
+#   RPC_URL_8453             — Base RPC
+#
+# Optional variables (sensible defaults shown):
+#   ONEINCH_API_KEY          — 1inch API key (swap feature)
+#   ONECLICK_JWT_TOKEN       — NEAR Intents 1Click JWT
+#   CSP_REPORT_ONLY          — false = enforce CSP, true = report-only (default: true)
+#   CSP_REPORT_URI           — endpoint for CSP violation reports
+#   CSP_ADDITIONAL_CONNECT_SRC — extra connect-src origins (comma-separated)
+#   LOG_LEVEL                — pino log level: trace|debug|info|warn|error (default: info)
+#   REDIS_KEY_PREFIX         — namespace prefix for Redis keys (useful if Redis is shared)
 
 services:
   redis:
     image: redis:7-alpine
-    # Require a password for all Redis connections
-    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    # Load the hardened redis.conf; inject the password at runtime so no
+    # credential is stored in the committed config file.
+    command: redis-server /etc/redis/redis.conf --requirepass ${REDIS_PASSWORD}
     restart: unless-stopped
-    # Redis is NOT exposed to the host — only the app container needs it
+    # Redis is NOT exposed to the host — only the app container needs it.
     expose:
       - "6379"
     volumes:
       - redis_data:/data
+      - ./redis.conf:/etc/redis/redis.conf:ro
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      # redis-cli -a suppresses the auth-warning banner via --no-auth-warning.
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    cap_drop:
+      - NET_ADMIN
+      - SYS_ADMIN
     deploy:
       resources:
         limits:
+          cpus: "0.5"
           memory: 256m
+          pids: 100
         reservations:
           memory: 64m
     logging:
       driver: json-file
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "200m"
+        max-file: "10"
 
   app:
-    # Pull a pre-built, tagged image — never build on the production server
-    image: openledgerhub/openfin-vault:v1.0.1
+    # Pull a pre-built, tagged image — never build on the production server.
+    # Images are built for linux/amd64 (see scripts/build-push.sh). On Apple
+    # Silicon, this platform hint runs the image via emulation; on amd64 servers
+    # it is a no-op.
+    image: openledgerhub/openfin-vault:v1.0.3
+    platform: linux/amd64
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "3032:3032"
     environment:
       # Redis — authenticated, internal only
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
@@ -66,33 +84,59 @@ services:
       RPC_URL_8453: ${RPC_URL_8453:-}
 
       # API keys
-      ONEINCH_API_KEY:    ${ONEINCH_API_KEY:-}
       ONECLICK_JWT_TOKEN: ${ONECLICK_JWT_TOKEN:-}
 
       # Rate limiting — recommended enabled in production
       RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
 
+      # Content Security Policy (OPE-7)
+      # false = enforce CSP (recommended for production once policy is validated)
+      # true  = report-only mode (default when unset — safe for initial rollout)
+      CSP_REPORT_ONLY: ${CSP_REPORT_ONLY:-false}
+      # Uncomment and set to receive CSP violation reports:
+      # CSP_REPORT_URI: ${CSP_REPORT_URI:-}
+      # Uncomment to add extra connect-src origins for custom RPC providers:
+      # CSP_ADDITIONAL_CONNECT_SRC: ${CSP_ADDITIONAL_CONNECT_SRC:-}
+
+      # Logging (OPE-25)
+      # Pino log level: trace | debug | info | warn | error | fatal
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # Redis key namespace — set if this Redis instance is shared across apps
+      # REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-}
+
       # Cache TTLs (override if needed)
-      REDIS_TTL_META:    ${REDIS_TTL_META:-3600}
-      REDIS_TTL_STATE:   ${REDIS_TTL_STATE:-30}
-      REDIS_TTL_APY:     ${REDIS_TTL_APY:-300}
-      REDIS_TTL_APY_7D:  ${REDIS_TTL_APY_7D:-86400}
-      REDIS_TTL_PRICE:   ${REDIS_TTL_PRICE:-600}
-      REDIS_TTL_PENDING: ${REDIS_TTL_PENDING:-60}
+      REDIS_TTL_META:        ${REDIS_TTL_META:-3600}
+      REDIS_TTL_STATE:       ${REDIS_TTL_STATE:-30}
+      REDIS_TTL_APY:         ${REDIS_TTL_APY:-300}
+      REDIS_TTL_APY_7D:      ${REDIS_TTL_APY_7D:-86400}
+      REDIS_TTL_PRICE:       ${REDIS_TTL_PRICE:-600}
+      REDIS_TTL_PENDING:     ${REDIS_TTL_PENDING:-60}
+      REDIS_TTL_ALLOCATION:  ${REDIS_TTL_ALLOCATION:-14400}
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3032/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
+          cpus: "1.0"
           memory: 512m
+          pids: 200
         reservations:
           memory: 128m
     logging:
       driver: json-file
       options:
-        max-size: "20m"
-        max-file: "5"
+        max-size: "200m"
+        max-file: "10"
 
 volumes:
   redis_data:

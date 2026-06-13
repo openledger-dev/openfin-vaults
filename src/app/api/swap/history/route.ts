@@ -7,15 +7,21 @@
  *
  * Security:
  *  - `address` must be a valid EVM address (0x + 40 hex chars).
- *  - The X-Wallet-Address request header must match the `address` query param.
- *    This prevents one browser session from querying another user's history,
- *    while keeping the check lightweight (no signature verification needed
- *    for public blockchain data, but it raises the bar significantly).
- *  - Rate-limited to 30 req / IP / min.
+ *  - Rate-limited to 30 req / IP / min (IP from CF-Connecting-IP).
+ *  - Secondary rate limit keyed by wallet address (30 req / wallet / min).
+ *    An attacker rotating source IPs while using the same wallet is still throttled.
+ *
+ * Note: no per-user authorization check is applied. Swap history is public
+ * on-chain data; any address can be queried. The rate limits above are the
+ * operative controls against bulk scraping.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimiter";
 import { isEVMAddress } from "@/lib/swapValidation";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/swap/history");
 
 const EXPLORER_API = "https://explorer.near-intents.org/api/v0";
 
@@ -51,16 +57,14 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // ── Verify the caller is requesting their own history ────────────────────
-  // The client sends X-Wallet-Address with the connected wallet address.
-  // We compare it (case-insensitively) to the `address` query param so that
-  // a request forged by a third party — or a script without a wallet —
-  // cannot fetch another user's swap history.
-  const headerAddress = req.headers.get("x-wallet-address") ?? "";
-  if (headerAddress.toLowerCase() !== address.toLowerCase()) {
+  // ── Secondary rate limit: per wallet address (OPE-19) ───────────────────
+  // Keying by wallet ensures that an attacker rotating source IPs while
+  // using the same wallet address is still constrained to RATE_LIMIT/min.
+  const walletRl = await checkRateLimit(address.toLowerCase(), "swap:history:wallet", RATE_LIMIT, WINDOW_SEC);
+  if (walletRl.exceeded) {
     return NextResponse.json(
-      { error: "Forbidden: address mismatch" },
-      { status: 403 }
+      { error: "Too many requests. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(walletRl.retryAfter ?? WINDOW_SEC) } }
     );
   }
 
@@ -71,14 +75,12 @@ export async function GET(req: NextRequest) {
     const page    = Math.max(1, isNaN(pageRaw)    ? 1  : pageRaw);
     const perPage = Math.min(MAX_PER_PAGE, Math.max(1, isNaN(perPageRaw) ? 20 : perPageRaw));
 
-    const params = new URLSearchParams({
-      page:    String(page),
-      perPage: String(perPage),
-      search:  address,
-    });
-
-    const url = `${EXPLORER_API}/transactions-pages?${params.toString()}`;
-    const res = await fetch(url, {
+    const u = new URL(`${EXPLORER_API}/transactions-pages`);
+    u.searchParams.set("page",    String(page));
+    u.searchParams.set("perPage", String(perPage));
+    u.searchParams.set("search",  address);
+    const url = u.toString();
+    const res = await fetchWithTimeout(url, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
@@ -89,7 +91,7 @@ export async function GET(req: NextRequest) {
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
-    console.error("[swap/history] unexpected error", err);
+    log.error({ err }, "request failed");
     return NextResponse.json({ error: "Failed to fetch swap history" }, { status: 500 });
   }
 }

@@ -18,9 +18,13 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/morpho/allocation");
 import { isAllocationEnabled } from "@/lib/featureFlags";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoV2Allocation } from "@/lib/morphoApi";
+import { parseChainId } from "@/lib/apiValidation";
 
 function isAddress(v: string | null): v is string {
   return !!v && /^0x[0-9a-fA-F]{40}$/.test(v);
@@ -33,7 +37,11 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
-  const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId = chainIdResult.value;
 
   if (!isAddress(address)) {
     return NextResponse.json(
@@ -58,7 +66,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/morpho/allocation]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Morpho V2 allocation data" },
       { status: 502 }

@@ -19,8 +19,9 @@ import { formatUnits } from "viem";
 import type { Address } from "viem";
 import { useAccount, useBalance, useReadContract } from "wagmi";
 import { useAppKit, useAppKitState } from "@reown/appkit/react";
-import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClipboard, HiOutlineClock } from "react-icons/hi";
+import { HiOutlineArrowDown, HiOutlineRefresh, HiOutlineExternalLink, HiOutlineClock } from "react-icons/hi";
 import { useSwap, EVM_CHAINS, parseEvmAsset } from "@/hooks/useSwap";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useChainId } from "wagmi";
 import type { SwapToken, SwapStatusResponse, ExplorerTransaction, ExplorerHistoryResponse } from "@/types/swap";
 import { getTxExplorerLink } from "@/lib/chains";
@@ -459,6 +460,7 @@ interface SwapStatusCardProps {
   isChecking: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SwapStatusCard({ statusData, onRecheck, isChecking }: SwapStatusCardProps) {
   const { status, swapDetails, updatedAt } = statusData;
   const badgeClass = {
@@ -601,13 +603,8 @@ export function SwapContent() {
   const connectedChainId = useChainId();
   const { open: openWallet } = useAppKit();
   const { initialized } = useAppKitState();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const showSkeleton = !mounted || !initialized;
+  const hydrated = useHydrated();
+  const showSkeleton = !hydrated || !initialized;
 
   // ── Modal tab state ────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"swap" | "track">("swap");

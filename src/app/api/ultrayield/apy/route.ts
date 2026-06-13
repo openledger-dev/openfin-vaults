@@ -1,8 +1,10 @@
 /**
- * GET /api/ultrayield/apy?chainId=1&oracle=0x...&vault=0x...&asset=0x...
+ * GET /api/ultrayield/apy?chainId=1&vault=0x...&asset=0x...
  *
  * Returns the UltraYield 7-day APY derived from on-chain PriceUpdated oracle
- * events. Cached in Redis for TTL.APY_7D seconds (24 hours).
+ * events. The oracle address is derived server-side from vault.oracle() and is
+ * never accepted from the caller (OPE-18: SSRF / RPC-amplification fix).
+ * Cached in Redis for TTL.APY_7D seconds (24 hours).
  *
  * Why 24-hour cache?
  *   Computing the APY requires an eth_getLogs scan over ~50,000 blocks
@@ -11,9 +13,8 @@
  *
  * Query params:
  *   chainId — EVM chain ID (default: 1)
- *   oracle  — UltraVaultOracle contract address (required)
- *   vault   — Vault share token address (required)
- *   asset   — Underlying asset address (required)
+ *   vault   — Vault share token address; must be in the server-side allowlist (required)
+ *   asset   — Underlying asset address; must be in the server-side allowlist (required)
  *
  * Response (200):
  *   { apy: number, daysBack: number }   — APY as a percentage (e.g. 5.23)
@@ -23,9 +24,13 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/ultrayield/apy");
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
-import { fetchUltraYieldApy } from "@/lib/onchain";
-import { isAllowedVault } from "@/lib/allowlist";
+import { fetchUltraYieldApy, fetchVaultOracle } from "@/lib/onchain";
+import { isAllowedVault, isAllowedAsset } from "@/lib/allowlist";
+import { parseChainId } from "@/lib/apiValidation";
 import type { Address } from "viem";
 
 function isAddress(v: string | null): v is Address {
@@ -34,30 +39,39 @@ function isAddress(v: string | null): v is Address {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
-  const oracle  = searchParams.get("oracle");
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId = chainIdResult.value;
   const vault   = searchParams.get("vault");
   const asset   = searchParams.get("asset");
 
-  if (!isAddress(oracle) || !isAddress(vault) || !isAddress(asset)) {
+  if (!isAddress(vault) || !isAddress(asset)) {
     return NextResponse.json(
-      { error: "Missing or invalid required params: oracle, vault, asset (must be 0x addresses)" },
+      { error: "Missing or invalid required params: vault, asset (must be 0x addresses)" },
       { status: 400 }
     );
   }
 
-  // Only the vault needs to be in the allowlist. The asset and oracle are the
-  // vault's own on-chain values — if the vault is known, they are implicitly trusted.
   if (!isAllowedVault(vault)) {
     return NextResponse.json({ error: "Unknown vault address" }, { status: 403 });
   }
 
+  if (!isAllowedAsset(asset)) {
+    return NextResponse.json({ error: "Unknown asset address" }, { status: 403 });
+  }
+
+  // oracle is derived inside the cached fetcher so it is never caller-supplied.
+  // The cache key is keyed on vault + asset only; oracle is uniquely determined
+  // by vault.oracle() so there is no poisoning risk.
   const cacheKey = redisKey(`uy:apy:${chainId}:${vault.toLowerCase()}:${asset.toLowerCase()}`);
 
   try {
-    const data = await cachedFetch(cacheKey, TTL.APY_7D, () =>
-      fetchUltraYieldApy(chainId, oracle, vault, asset)
-    );
+    const data = await cachedFetch(cacheKey, TTL.APY_7D, async () => {
+      const oracle = await fetchVaultOracle(chainId, vault);
+      return fetchUltraYieldApy(chainId, oracle, vault, asset);
+    });
 
     if (data === null) {
       // Not enough oracle history — return 204 so the client falls back gracefully
@@ -66,7 +80,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/ultrayield/apy]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to compute UltraYield APY" },
       { status: 502 }

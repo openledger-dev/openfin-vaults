@@ -13,13 +13,17 @@
 
 import { NextResponse } from "next/server";
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/token-prices");
 
 type CoinGeckoResponse = Record<string, { usd: number }>;
 
 async function fetchTokenPrices(): Promise<Record<string, number>> {
   const url =
     "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd";
-  const res = await fetch(url, { next: { revalidate: 600 } } as RequestInit);
+  const res = await fetchWithTimeout(url, { next: { revalidate: 600 } } as RequestInit);
   if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`);
   const json = (await res.json()) as CoinGeckoResponse;
   const out: Record<string, number> = {};
@@ -38,7 +42,7 @@ export async function GET() {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/token-prices]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch token prices" },
       { status: 502 }

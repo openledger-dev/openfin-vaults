@@ -6,6 +6,11 @@
  * Docs: https://docs.morpho.org/tools/offchain/api/morpho-vaults/
  */
 
+import { fetchWithTimeout, HEAVY_TIMEOUT_MS } from "@/lib/fetchWithTimeout";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("lib/morphoApi");
+
 const MORPHO_GRAPHQL_V2 = "https://api.morpho.org/graphql";
 
 export type MorphoVaultApy = {
@@ -78,15 +83,19 @@ async function fetchV2Apys(
   addresses: string[],
   chainId: number
 ): Promise<Record<string, MorphoVaultApy>> {
-  const res = await fetch(MORPHO_GRAPHQL_V2, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: VAULT_APY_QUERY_V2,
-      variables: { addresses, chainId },
-    }),
-    next: { revalidate: 300 },
-  });
+  const res = await fetchWithTimeout(
+    MORPHO_GRAPHQL_V2,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: VAULT_APY_QUERY_V2,
+        variables: { addresses, chainId },
+      }),
+      next: { revalidate: 300 },
+    } as RequestInit,
+    HEAVY_TIMEOUT_MS,
+  );
   if (!res.ok) throw new Error(`Morpho V2 API fetch failed: ${res.status}`);
 
   const json = (await res.json()) as {
@@ -109,7 +118,7 @@ async function fetchV2Apys(
     errors?: unknown[];
   };
 
-  if (json.errors?.length) console.warn("[morphoApi V2] GraphQL errors:", json.errors);
+  if (json.errors?.length) log.warn({ errors: json.errors }, "Morpho V2 GraphQL errors");
 
   const result: Record<string, MorphoVaultApy> = {};
   for (const item of json.data?.vaultV2s?.items ?? []) {
@@ -237,15 +246,19 @@ export async function fetchMorphoV2Allocation(
   address: string,
   chainId: number
 ): Promise<MorphoV2Allocation | null> {
-  const res = await fetch(MORPHO_GRAPHQL_V2, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: VAULT_ALLOCATION_QUERY_V2,
-      variables: { address, chainId },
-    }),
-    next: { revalidate: 14_400 }, // 4 hours — matches TTL.ALLOCATION
-  });
+  const res = await fetchWithTimeout(
+    MORPHO_GRAPHQL_V2,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: VAULT_ALLOCATION_QUERY_V2,
+        variables: { address, chainId },
+      }),
+      next: { revalidate: 14_400 }, // 4 hours — matches TTL.ALLOCATION
+    } as RequestInit,
+    HEAVY_TIMEOUT_MS,
+  );
   if (!res.ok) throw new Error(`Morpho V2 allocation API failed: ${res.status}`);
 
   const json = (await res.json()) as {
@@ -260,7 +273,7 @@ export async function fetchMorphoV2Allocation(
     errors?: unknown[];
   };
 
-  if (json.errors?.length) console.warn("[morphoApi] allocation GraphQL errors:", json.errors);
+  if (json.errors?.length) log.warn({ errors: json.errors }, "Morpho allocation GraphQL errors");
 
   const vault = json.data?.vaultV2ByAddress;
   if (!vault) return null;

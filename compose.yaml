@@ -11,6 +11,17 @@
 services:
   redis:
     image: redis:7-alpine
+    # Dev: no password, but disable DEBUG and module commands to match prod behaviour.
+    # Do not mount redis.conf here — its `protected-mode yes` + `bind 0.0.0.0`
+    # combination requires a password, which we intentionally skip in dev.
+    command: >
+      redis-server
+      --loglevel notice
+      --timeout 300
+      --tcp-keepalive 60
+      --enable-debug-command no
+      --enable-protected-configs yes
+      --enable-module-command no
     restart: unless-stopped
     ports:
       - "6380:6379"
@@ -21,6 +32,20 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    cap_drop:
+      - NET_ADMIN
+      - SYS_ADMIN
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128m
+          pids: 100
+    logging:
+      driver: json-file
+      options:
+        max-size: "200m"
+        max-file: "10"
 
   app:
     build:
@@ -37,7 +62,7 @@ services:
         NEXT_PUBLIC_MIDAS_CHAIN_ID:        ${NEXT_PUBLIC_MIDAS_CHAIN_ID:-1}
         NEXT_PUBLIC_SWAP_MIN_USD:          ${NEXT_PUBLIC_SWAP_MIN_USD:-5}
         NEXT_PUBLIC_APP_URL:               ${NEXT_PUBLIC_APP_URL:-http://localhost:3032}
-        SHOW_ALLOCATION:                   ${SHOW_ALLOCATION:-false}
+        SHOW_ALLOCATION:                   ${SHOW_ALLOCATION:-false}P
     # Tag the image for Docker Hub so `docker compose push` works
     image: openledgerhub/openfin-vault:${APP_VERSION:-latest}
     restart: unless-stopped
@@ -72,6 +97,25 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3032/ > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+          pids: 200
+    logging:
+      driver: json-file
+      options:
+        max-size: "200m"
+        max-file: "10"
 
 volumes:
   redis_data:

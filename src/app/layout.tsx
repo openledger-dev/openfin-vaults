@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.tailwind.css";
 import "./globals.scss";
@@ -13,13 +14,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Open Vault | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
+  title: "OpenFin | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
   description:
-    "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through Open Vault powered by OpenFin.",
+    "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through OpenFin.",
   openGraph: {
-    title: "Open Vault | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
+    title: "OpenFin | Institutional Grade Crypto Yield & DeFi Vault Infrastructure",
     description:
-      "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through Open Vault powered by OpenFin.",
+      "Access institutional-grade crypto yield vaults for automated DeFi strategies, treasury management, liquidity allocation, and multi-asset on-chain yield generation through OpenFin.",
     images: [
       {
         url: "https://cdn.openledger.xyz/OPENfin/OpenVault/og-image.png",
@@ -33,15 +34,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="bg-white font-sans text-zinc-900 antialiased dark:bg-[#000000] dark:text-[#ffffff]">
-        <ThemeProvider>
+        <ThemeProvider nonce={nonce}>
           <ContextProvider>
             <ToastProvider>{children}</ToastProvider>
           </ContextProvider>

@@ -23,6 +23,9 @@ import "server-only";
  */
 
 import Redis from "ioredis";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("lib/redis");
 
 // ── TTL helpers ───────────────────────────────────────────────────────────────
 
@@ -63,6 +66,26 @@ export function redisKey(key: string): string {
   return `${KEY_PREFIX}${key}`;
 }
 
+/**
+ * Sanitize a user-supplied string for safe use as a Redis key segment (OPE-24).
+ *
+ * Redis key segments are delimited by `:`. A caller-controlled value that
+ * contains `:` would inject phantom segments into the key namespace, potentially
+ * causing cache collisions or leaking data across tenants.
+ *
+ * This function percent-encodes every character that is not alphanumeric, `-`,
+ * `_`, or `.` — the same safe set used in URL path segments. The encoding is
+ * deterministic and reversible, so cache keys remain debuggable.
+ *
+ * @example
+ *   sanitizeKeySegment("ultrayield-usd")  → "ultrayield-usd"  (unchanged)
+ *   sanitizeKeySegment("foo:bar")         → "foo%3Abar"       (: encoded)
+ *   sanitizeKeySegment("../secret")       → "..%2Fsecret"     (/ encoded)
+ */
+export function sanitizeKeySegment(s: string): string {
+  return s.replace(/[^a-zA-Z0-9\-_.]/g, encodeURIComponent);
+}
+
 // ── Singleton connection ──────────────────────────────────────────────────────
 
 declare global {
@@ -74,7 +97,7 @@ declare global {
 function createRedisClient(): Redis {
   const url = process.env.REDIS_URL;
   const client = url ? new Redis(url) : new Redis(); // default: localhost:6379
-  client.on("error", (err: Error) => console.error("[Redis]", err.message));
+  client.on("error", (err: Error) => log.error({ err }, "Redis connection error"));
   return client;
 }
 
@@ -94,6 +117,9 @@ export function getRedis(): Redis {
 }
 
 // ── BigInt-safe JSON serialization ────────────────────────────────────────────
+// Note: log injection (CWE-117 / CWE-134) is addressed structurally by the
+// pino logger — all field values are JSON-encoded, so embedded newlines and
+// control characters in Redis keys cannot forge additional log lines.
 
 const BIGINT_TAG = "\x00bigint\x00";
 
@@ -139,23 +165,23 @@ export async function cachedFetch<T>(
   try {
     const cached = await redis.get(key);
     if (cached !== null) {
-      console.log(`[Redis] HIT  ${key}`);
+      log.info({ key }, "cache hit");
       return deserialize<T>(cached);
     }
   } catch (err) {
-    console.warn(`[Redis] GET failed (${key}), bypassing cache:`, err);
+    log.warn({ key, err }, "cache GET failed, bypassing");
   }
 
-  console.log(`[Redis] MISS ${key} → fetching from origin`);
+  log.info({ key }, "cache miss");
   const t0   = Date.now();
   const data = await fetcher();
   const ms   = Date.now() - t0;
 
   try {
     await redis.set(key, serialize(data), "EX", ttl);
-    console.log(`[Redis] SET  ${key}  (ttl ${ttl}s, fetched in ${ms}ms)`);
+    log.info({ key, ttl, ms }, "cache SET");
   } catch (err) {
-    console.warn(`[Redis] SET failed (${key}):`, err);
+    log.warn({ key, err }, "cache SET failed");
   }
 
   return data;
@@ -169,6 +195,6 @@ export async function invalidate(key: string): Promise<void> {
   try {
     await getRedis().del(key);
   } catch (err) {
-    console.warn("[Redis] DEL failed:", err);
+    log.warn({ key, err }, "cache DEL failed");
   }
 }

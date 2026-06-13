@@ -13,13 +13,14 @@ import {
 import { useAppKit } from "@reown/appkit/react";
 import { VaultDetailActionPanel } from "@/components/VaultDetailActionPanel";
 import { useVaultDetail } from "@/hooks/useVaultDetail";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useToast } from "@/components/ui/Toaster";
 import { use7dApy } from "@/hooks/use7dApy";
 import { useSupportedAssets } from "@/hooks/useSupportedAssets";
 import { VAULT_READ_ABI, VAULT_WRITE_ABI, ERC20_ABI } from "@/lib/vaultAbi";
 import { DEPOSIT_REFERRAL_ID, MIDAS_DEPOSIT_REFERRAL_ID } from "@/lib/referral";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
-import { recordTermsAcceptance, hasAcceptedTerms } from "@/lib/termsAudit";
+import { hasAcceptedTerms } from "@/lib/termsAudit";
 import type { MidasApyMap, MidasPriceMap, MidasTvlMap, MidasPendingRedemption } from "@/lib/midasApi";
 import type { MorphoVaultApy, MorphoV2Allocation } from "@/lib/morphoApi";
 import type { UltraYieldAllocation } from "@/lib/ultrayieldApi";
@@ -248,6 +249,9 @@ const HEADER_TAG_CLASS =
 const DARK_ACTION_BTN_CLASS =
   "w-full rounded-xl border border-transparent bg-zinc-900 px-5 py-3.5 text-base font-semibold text-white transition hover:bg-zinc-800 disabled:bg-zinc-400/70 disabled:text-zinc-200 dark:border-[#1b1b1f] dark:bg-[#ffffff] dark:text-[#141417] dark:hover:bg-[#afafb2] dark:disabled:border-[#1b1b1f] dark:disabled:bg-[#27272b] dark:disabled:text-[#afafb2]";
 
+// This function is used to display the transaction summary row in the vault detail page.
+// It is not used in the component, but is required by the component.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function TxSummaryRow({
   label,
   value,
@@ -296,10 +300,8 @@ export default function VaultDetailPage() {
   const { open: openWalletConnect } = useAppKit();
 
   // Prevent wallet-sensitive UI from rendering before wagmi has hydrated.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  const walletPending = !mounted || isReconnecting || isConnecting;
+  const hydrated = useHydrated();
+  const walletPending = !hydrated || isReconnecting || isConnecting;
 
   // ── Look up vault kind + chainId from static config ───────────────────────
   const vaultConfig = useMemo(() => {
@@ -616,7 +618,7 @@ export default function VaultDetailPage() {
   const midasPrice  = midasApiKey && midasPriceMap ? (midasPriceMap[midasApiKey] ?? null) : null;
   const midasApy    = midasApiKey && midasApyMap   ? (midasApyMap[midasApiKey]   ?? null) : null;
   const midasTvlUsd = midasApiKey && midasTvlMap   ? (midasTvlMap[midasApiKey]   ?? null) : null;
-  const USDC_DEC   = 6;
+
 
   function fmtUsd(tvl: number): string {
     if (tvl >= 1_000_000) return `${(tvl / 1_000_000).toFixed(2)}M USD`;

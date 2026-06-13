@@ -16,15 +16,24 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/midas/pending");
 import { cachedFetch, invalidate, TTL, redisKey } from "@/lib/redis";
 import { fetchMidasPendingRedemptions } from "@/lib/midasApi";
+import { isEVMAddress } from "@/lib/swapValidation";
+import { parseChainId } from "@/lib/apiValidation";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const chainId = parseInt(searchParams.get("chainId") ?? "1", 10);
-  const token   = searchParams.get("token");
-  const address = searchParams.get("address") ?? undefined;
-  const bust    = searchParams.get("bust") === "1";
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId    = chainIdResult.value;
+  const token      = searchParams.get("token");
+  const rawAddress = searchParams.get("address");
+  const bust       = searchParams.get("bust") === "1";
 
   if (!token || !/^0x[0-9a-fA-F]{40}$/.test(token)) {
     return NextResponse.json(
@@ -32,6 +41,15 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
+
+  if (rawAddress !== null && !isEVMAddress(rawAddress)) {
+    return NextResponse.json(
+      { error: "Invalid param: address must be a 20-byte hex EVM address" },
+      { status: 400 }
+    );
+  }
+
+  const address = rawAddress ?? undefined;
 
   const wallet = address?.toLowerCase() ?? "all";
   const cacheKey = redisKey(`midas:pending:${chainId}:${token.toLowerCase()}:${wallet}`);
@@ -46,7 +64,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/midas/pending]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Midas pending redemptions" },
       { status: 502 }

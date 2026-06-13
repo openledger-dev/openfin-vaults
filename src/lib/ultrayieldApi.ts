@@ -33,12 +33,16 @@ export type UltraYieldAllocation = {
  * Fetch the current allocation snapshot from the UltraYield API.
  * Called exclusively from server-side API routes — never from the browser.
  */
+
+import { fetchWithTimeout, HEAVY_TIMEOUT_MS } from "@/lib/fetchWithTimeout";
+
 export async function fetchUltraYieldAllocation(
   slug: string
 ): Promise<UltraYieldAllocation> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://api.ultrayield.app/api/v1/vaults/${encodeURIComponent(slug)}/allocation`,
-    { next: { revalidate: 14_400 } } // 4 hours — matches TTL.ALLOCATION
+    { next: { revalidate: 14_400 } } as RequestInit, // 4 hours — matches TTL.ALLOCATION
+    HEAVY_TIMEOUT_MS,
   );
   if (!res.ok) {
     throw new Error(`UltraYield allocation API error: ${res.status}`);

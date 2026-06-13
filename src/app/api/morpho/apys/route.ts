@@ -13,18 +13,28 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/morpho/apys");
 import { cachedFetch, TTL, redisKey } from "@/lib/redis";
 import { fetchMorphoVaultApys } from "@/lib/morphoApi";
+import { MAX_LIST_SIZE } from "@/lib/rateLimiter";
+import { parseChainId } from "@/lib/apiValidation";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const rawAddresses = searchParams.get("addresses") ?? "";
-  const chainId      = parseInt(searchParams.get("chainId") ?? "1", 10);
+  const rawAddresses  = searchParams.get("addresses") ?? "";
+  const chainIdResult = parseChainId(searchParams.get("chainId"));
+  if (!chainIdResult.ok) {
+    return NextResponse.json({ error: chainIdResult.error }, { status: 400 });
+  }
+  const chainId = chainIdResult.value;
 
   const addresses = rawAddresses
     .split(",")
     .map((a) => a.trim())
-    .filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a));
+    .filter((a) => /^0x[0-9a-fA-F]{40}$/.test(a))
+    .slice(0, MAX_LIST_SIZE);
 
   if (addresses.length === 0) {
     return NextResponse.json({});
@@ -40,7 +50,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/morpho/apys]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch Morpho APYs" },
       { status: 502 }

@@ -15,9 +15,13 @@
  */
 
 import { NextResponse } from "next/server";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("api/ultrayield/allocation");
 import { isAllocationEnabled } from "@/lib/featureFlags";
-import { cachedFetch, TTL, redisKey } from "@/lib/redis";
+import { cachedFetch, TTL, redisKey, sanitizeKeySegment } from "@/lib/redis";
 import { fetchUltraYieldAllocation } from "@/lib/ultrayieldApi";
+import { isVaultSlug } from "@/lib/apiValidation";
 
 export async function GET(request: Request) {
   if (!isAllocationEnabled()) {
@@ -27,14 +31,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug")?.trim();
 
-  if (!slug) {
+  if (!slug || !isVaultSlug(slug)) {
     return NextResponse.json(
-      { error: "Missing required param: slug" },
+      { error: "Missing or invalid required param: slug (must be lowercase alphanumeric with hyphens)" },
       { status: 400 }
     );
   }
 
-  const cacheKey = redisKey(`uy:allocation:${slug}`);
+  const cacheKey = redisKey(`uy:allocation:${sanitizeKeySegment(slug)}`);
 
   try {
     const data = await cachedFetch(cacheKey, TTL.ALLOCATION, () =>
@@ -42,7 +46,7 @@ export async function GET(request: Request) {
     );
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/ultrayield/allocation]", err);
+    log.error({ err }, "request failed");
     return NextResponse.json(
       { error: "Failed to fetch UltraYield allocation data" },
       { status: 502 }

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { useAppKit } from "@reown/appkit/react";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { formatUnits } from "viem";
 import { useVaultData } from "@/hooks/useVaultData";
+import { useHydrated } from "@/hooks/useHydrated";
 import { VAULT_PLATFORMS } from "@/lib/vaultConfig";
 import { getChainName } from "@/lib/chains";
 import type { MidasPendingRedemption } from "@/lib/midasApi";
@@ -260,10 +261,8 @@ export default function PortfolioPage() {
   const { vaults, isLoading } = useVaultData(VAULT_PLATFORMS, userAddress);
   const router = useRouter();
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-
-  const walletPending = !mounted || isReconnecting || isConnecting;
+  const hydrated = useHydrated();
+  const walletPending = !hydrated || isReconnecting || isConnecting;
 
   const positions = vaults.filter(vaultHasPortfolioExposure);
 

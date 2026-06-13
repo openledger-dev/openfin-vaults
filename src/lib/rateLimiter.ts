@@ -7,7 +7,9 @@
  *   3. If the count exceeds the limit, reject the request
  *
  * Falls back to allowing the request if Redis is unavailable —
- * rate limiting is a best-effort defense layer, not a hard gate.
+ * rate limiting is a best-effort defence layer, not a hard gate.
+ * The fail-open path is logged as an error so a Redis outage that
+ * silently disables rate limiting is visible in monitoring (OPE-19).
  *
  * Feature flag:
  *   RATE_LIMIT_ENABLED=false   — disable globally (e.g. local dev)
@@ -15,13 +17,23 @@
  *   Omitting the variable      — enabled by default
  *
  * Usage:
- *   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
+ *   const ip = getClientIp(req);
  *   const limited = await checkRateLimit(ip, "swap:quote", 15, 60);
  *   if (limited.exceeded) return NextResponse.json(..., { status: 429 });
  */
 
 import "server-only";
 import { getRedis } from "@/lib/redis";
+import { getLogger } from "@/lib/logger";
+
+const log = getLogger("lib/rateLimiter");
+
+/**
+ * Maximum number of items accepted in any list/multi-value query parameter
+ * (e.g. `addresses`, `slugs`). Enforced in every list endpoint to prevent
+ * unbounded result sets that degrade performance and memory use.
+ */
+export const MAX_LIST_SIZE = 100;
 
 /** True unless RATE_LIMIT_ENABLED is explicitly set to "false". */
 const RATE_LIMITING_ENABLED =
@@ -37,13 +49,14 @@ export type RateLimitResult = {
 };
 
 /**
- * @param ip         Client identifier (IP or wallet address).
- * @param action     Route identifier used as part of the Redis key (e.g. "swap:quote").
- * @param limit      Maximum requests allowed per window.
- * @param windowSec  Window duration in seconds.
+ * @param identifier  Client identifier — either the IP from getClientIp() or a
+ *                    validated wallet/deposit address for per-wallet bucketing.
+ * @param action      Route identifier used as part of the Redis key (e.g. "swap:quote").
+ * @param limit       Maximum requests allowed per window.
+ * @param windowSec   Window duration in seconds.
  */
 export async function checkRateLimit(
-  ip: string,
+  identifier: string,
   action: string,
   limit: number,
   windowSec: number,
@@ -53,7 +66,7 @@ export async function checkRateLimit(
     return { exceeded: false, remaining: limit };
   }
 
-  const key = `rl:${action}:${ip}`;
+  const key = `rl:${action}:${identifier}`;
 
   try {
     const redis  = getRedis();
@@ -71,18 +84,39 @@ export async function checkRateLimit(
 
     return { exceeded: false, remaining: limit - count };
   } catch (err) {
-    // Redis unavailable — allow the request (fail open)
-    console.warn("[rateLimiter] Redis error, bypassing rate limit:", err);
+    // Redis unavailable — fail open so a Redis outage does not take down the API.
+    // Logged as ERROR (not warn) so a Redis outage that disables rate limiting is
+    // visible in monitoring dashboards and alerting rules (OPE-19).
+    log.error({ action, err }, "Redis unavailable — rate limiting bypassed");
     return { exceeded: false, remaining: limit };
   }
 }
 
 /**
- * Extract the best-effort client IP from a Next.js request.
- * Handles Vercel's x-forwarded-for header (comma-separated list).
+ * Extract the client's real IP address, preferring Cloudflare's trusted headers.
+ *
+ * Header priority (OPE-19 fix — CWE-290 / CWE-348):
+ *   1. CF-Connecting-IP  — set by Cloudflare at the edge; Cloudflare strips any
+ *                          client-sent version of this header before forwarding,
+ *                          so it cannot be spoofed by an attacker.
+ *   2. True-Client-IP    — Cloudflare Business/Enterprise alias for CF-Connecting-IP.
+ *   3. X-Forwarded-For   — fallback for local dev / non-Cloudflare environments only.
+ *                          This header IS client-spoofable when no trusted upstream
+ *                          proxy strips and rewrites it — do NOT rely on it in production.
+ *
+ * The first comma-separated entry of XFF is used as a last resort to preserve
+ * backwards-compatible behaviour in environments without Cloudflare.
  */
 export function getClientIp(req: Request): string {
-  const forwarded = (req.headers as Headers).get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
+  const headers = req.headers as Headers;
+
+  // Cloudflare edge-set headers — cannot be forged by the client
+  const cf = headers.get("cf-connecting-ip") ?? headers.get("true-client-ip");
+  if (cf?.trim()) return cf.trim();
+
+  // Last resort: XFF (trustworthy only when an upstream proxy you control rewrites it)
+  const xff = headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+
   return "unknown";
 }
