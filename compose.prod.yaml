@@ -81,7 +81,6 @@ services:
       RPC_URL_8453: ${RPC_URL_8453:-}
 
       # API keys
-      ONEINCH_API_KEY:    ${ONEINCH_API_KEY:-}
       ONECLICK_JWT_TOKEN: ${ONECLICK_JWT_TOKEN:-}
 
       # Rate limiting — recommended enabled in production
